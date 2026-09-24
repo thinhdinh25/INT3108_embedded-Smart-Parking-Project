@@ -23,6 +23,15 @@
   "clangd.arguments": [
     "--background-index",
     "--query-driver=**",
-    "--compile-commands-dir=c:\\Users\\Thinh\\Desktop\\INT3108_embedded-Smart-Parking-Project\\INT3108_Smart_Parking_Project\\build"
-  ]
+    "--compile-commands-dir=c:\\Users\\Thinh\\Desktop\\INT3108_embedded-Smart-Parking-Project\\build"
+  ],
+  "idf.currentSetup": "C:\\esp\\v6.1\\esp-idf",
+  "idf.openOcdConfigs": [
+    "board/esp32c3-ftdi.cfg"
+  ],
+  "idf.customExtraVars": {
+    "IDF_TARGET": "esp32c3"
+  },
+  "idf.port": "COM4",
+  "idf.flashType": "UART"
 }
