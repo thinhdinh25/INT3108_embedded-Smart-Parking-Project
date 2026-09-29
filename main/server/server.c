@@ -12,10 +12,10 @@
 
 #include "server.h"
 
-extern const unsigned char index_html_start[] asm("_binary_server_index_html_start");
-extern const unsigned char index_html_end[] asm("_binary_server_index_html_end");
-extern const unsigned char style_css_start[] asm("_binary_server_style_css_start");
-extern const unsigned char style_css_end[] asm("_binary_server_style_css_end");
+extern const unsigned char index_html_start[] asm("_binary_index_html_start");
+extern const unsigned char index_html_end[] asm("_binary_index_html_end");
+extern const unsigned char style_css_start[] asm("_binary_style_css_start");
+extern const unsigned char style_css_end[] asm("_binary_style_css_end");
 
 // ============================================================
 // Wi-Fi configuration

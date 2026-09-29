@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#101b2c">
+    <title>Smart Parking | ESP32</title>
+    <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+    <main class="dashboard">
+        <header class="topbar">
+            <a class="brand" href="/" aria-label="Smart Parking home">
+                <span class="brand-mark" aria-hidden="true">P</span>
+                <span>Park<span class="brand-accent">Sense</span></span>
+            </a>
+            <div class="connection"><span class="pulse" aria-hidden="true"></span> ESP32 online</div>
+        </header>
+
+        <section class="intro" aria-labelledby="page-title">
+            <div>
+                <p class="eyebrow">PARKING OVERVIEW</p>
+                <h1 id="page-title">Lot dashboard</h1>
+                <p class="subtitle">A live look at your parking area</p>
+            </div>
+            <div class="sample-badge"><span aria-hidden="true">●</span> DEMO DATA</div>
+        </section>
+
+        <section class="summary" aria-label="Parking summary">
+            <article class="summary-card">
+                <span class="summary-icon blue" aria-hidden="true">▦</span>
+                <div><p>Total spaces</p><strong>5</strong></div>
+            </article>
+            <article class="summary-card">
+                <span class="summary-icon green" aria-hidden="true">✓</span>
+                <div><p>Available</p><strong>3</strong></div>
+            </article>
+            <article class="summary-card">
+                <span class="summary-icon amber" aria-hidden="true">▣</span>
+                <div><p>Occupied</p><strong>2</strong></div>
+            </article>
+        </section>
+
+        <div class="content-grid">
+            <section class="panel parking-panel" aria-labelledby="spaces-title">
+                <div class="panel-heading">
+                    <div><p class="eyebrow">YOUR FACILITY</p><h2 id="spaces-title">Parking spaces</h2></div>
+                    <span class="capacity">3 of 5 free</span>
+                </div>
+                <div class="parking-lot">
+                    <div class="lane-label"><span>ENTRY</span><span class="lane-arrow" aria-hidden="true">↓</span><span>DRIVE LANE</span></div>
+                    <div class="space-list">
+                        <article class="space occupied">
+                            <span class="space-number">01</span><span class="car" aria-hidden="true">🚘</span>
+                            <span class="space-info"><strong>Space 1</strong><span class="status"><i></i> Occupied</span></span>
+                        </article>
+                        <article class="space available">
+                            <span class="space-number">02</span><span class="empty-mark" aria-hidden="true">＋</span>
+                            <span class="space-info"><strong>Space 2</strong><span class="status"><i></i> Available</span></span>
+                        </article>
+                        <article class="space available">
+                            <span class="space-number">03</span><span class="empty-mark" aria-hidden="true">＋</span>
+                            <span class="space-info"><strong>Space 3</strong><span class="status"><i></i> Available</span></span>
+                        </article>
+                        <article class="space occupied">
+                            <span class="space-number">04</span><span class="car" aria-hidden="true">🚙</span>
+                            <span class="space-info"><strong>Space 4</strong><span class="status"><i></i> Occupied</span></span>
+                        </article>
+                        <article class="space available">
+                            <span class="space-number">05</span><span class="empty-mark" aria-hidden="true">＋</span>
+                            <span class="space-info"><strong>Space 5</strong><span class="status"><i></i> Available</span></span>
+                        </article>
+                    </div>
+                </div>
+                <div class="legend"><span><i class="legend-dot free-dot"></i>Available</span><span><i class="legend-dot busy-dot"></i>Occupied</span></div>
+            </section>
+
+            <section class="panel environment-panel" aria-labelledby="environment-title">
+                <div class="panel-heading">
+                    <div><p class="eyebrow">SENSOR READINGS</p><h2 id="environment-title">Environment</h2></div>
+                    <span class="sensor-icon" aria-hidden="true">⌁</span>
+                </div>
+                <article class="metric temperature">
+                    <div class="metric-symbol" aria-hidden="true">🌡</div>
+                    <div class="metric-copy"><p>Temperature</p><strong>28.4<span>°C</span></strong><small>Comfortable</small></div>
+                    <div class="metric-track"><span></span></div>
+                </article>
+                <article class="metric water">
+                    <div class="metric-symbol" aria-hidden="true">💧</div>
+                    <div class="metric-copy"><p>Water level</p><strong>72<span>%</span></strong><small>Normal level</small></div>
+                    <div class="water-tank" role="img" aria-label="Water tank 72 percent full"><span></span></div>
+                </article>
+                <p class="demo-note">Sample values for display — sensor integration not connected.</p>
+            </section>
+        </div>
+
+        <footer><span class="footer-dot" aria-hidden="true"></span> Smart Parking System <span class="footer-separator">·</span> ESP32-C3</footer>
+    </main>
+</body>
+</html>
