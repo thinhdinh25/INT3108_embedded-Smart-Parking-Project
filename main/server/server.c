@@ -12,6 +12,11 @@
 
 #include "server.h"
 
+extern const unsigned char index_html_start[] asm("_binary_server_index_html_start");
+extern const unsigned char index_html_end[] asm("_binary_server_index_html_end");
+extern const unsigned char style_css_start[] asm("_binary_server_style_css_start");
+extern const unsigned char style_css_end[] asm("_binary_server_style_css_end");
+
 // ============================================================
 // Wi-Fi configuration
 // ============================================================
@@ -28,45 +33,21 @@
 static const char *TAG = "SERVER";
 
 // ============================================================
-// HTML page
-// ============================================================
-
-static const char *html_page =
-    "<!DOCTYPE html>"
-    "<html>"
-    "<head>"
-    "<title>ESP32 Smart Parking</title>"
-    "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">"
-    "<style>"
-    "body {"
-    "    font-family: Arial, sans-serif;"
-    "    text-align: center;"
-    "    margin-top: 50px;"
-    "}"
-    "</style>"
-    "</head>"
-    "<body>"
-    "<h1>ESP32 Smart Parking</h1>"
-    "<p>Hello from ESP32-C3!</p>"
-    "<p>Web server is working.</p>"
-    "</body>"
-    "</html>";
-
-// ============================================================
 // HTTP GET "/" handler
 // ============================================================
 
 static esp_err_t root_get_handler(httpd_req_t *req)
 {
-    httpd_resp_set_type(req, "text/html");
+    httpd_resp_set_type(req, "text/html; charset=utf-8");
+    return httpd_resp_send(req, (const char *)index_html_start,
+                           index_html_end - index_html_start);
+}
 
-    esp_err_t err = httpd_resp_send(
-        req,
-        html_page,
-        HTTPD_RESP_USE_STRLEN
-    );
-
-    return err;
+static esp_err_t style_get_handler(httpd_req_t *req)
+{
+    httpd_resp_set_type(req, "text/css; charset=utf-8");
+    return httpd_resp_send(req, (const char *)style_css_start,
+                           style_css_end - style_css_start);
 }
 
 // ============================================================
@@ -84,6 +65,21 @@ static esp_err_t start_http_server(void)
     if (err != ESP_OK)
     {
         ESP_LOGE(TAG, "Failed to start HTTP server");
+        return err;
+    }
+
+    httpd_uri_t style_uri = {
+        .uri      = "/style.css",
+        .method   = HTTP_GET,
+        .handler  = style_get_handler,
+        .user_ctx = NULL
+    };
+
+    err = httpd_register_uri_handler(server, &style_uri);
+    if (err != ESP_OK)
+    {
+        ESP_LOGE(TAG, "Failed to register stylesheet URI");
+        httpd_stop(server);
         return err;
     }
 

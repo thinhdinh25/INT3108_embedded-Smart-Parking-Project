@@ -2,7 +2,7 @@
 #include "esp_err.h"
 #include "esp_log.h"
 
-#include "server.h"
+#include "server/server.h"
 
 static const char *TAG = "MAIN";
 

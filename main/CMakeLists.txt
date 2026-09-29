@@ -1,10 +1,15 @@
 idf_component_register(
     SRCS
         "main.c"
-        "server.c"
+        "server/server.c"
+
+    EMBED_TXTFILES
+        "server/index.html"
+        "server/style.css"
 
     INCLUDE_DIRS
         "."
+        "server"
 
     REQUIRES
         esp_wifi
