@@ -1,20 +1,24 @@
 idf_component_register(
     SRCS
         "main.c"
-        "server/server.c"
+        "network/network_service.c"
+        "network/wifi_ap.c"
+        "network/http/http_server.c"
+        "network/udp/udp_server.c"
 
     EMBED_TXTFILES
-        "server/index.html"
-        "server/style.css"
+        "network/http/index.html"
+        "network/http/style.css"
 
     INCLUDE_DIRS
         "."
-        "server"
+        "network"
 
     REQUIRES
         esp_wifi
         esp_event
         esp_netif
         esp_http_server
+        lwip
         nvs_flash
 )

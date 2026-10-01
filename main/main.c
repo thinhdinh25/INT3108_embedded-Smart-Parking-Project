@@ -2,7 +2,7 @@
 #include "esp_err.h"
 #include "esp_log.h"
 
-#include "server/server.h"
+#include "network/network_service.h"
 
 static const char *TAG = "MAIN";
 
@@ -21,8 +21,8 @@ void app_main(void)
 
     ESP_ERROR_CHECK(ret);
 
-    // Start Wi-Fi AP + Web Server
-    ESP_ERROR_CHECK(server_start());
+    // Start Wi-Fi, HTTP, and UDP network services.
+    ESP_ERROR_CHECK(network_service_start());
 
     ESP_LOGI(TAG, "Application started");
 }
