@@ -1,0 +1,2 @@
+source /Users/chiminhnguyen/Documents/Projects/INT3108_embedded-Smart-Parking-Project/build/bootloader/gdbinit/symbols
+source /Users/chiminhnguyen/Documents/Projects/INT3108_embedded-Smart-Parking-Project/build/bootloader/gdbinit/connect
