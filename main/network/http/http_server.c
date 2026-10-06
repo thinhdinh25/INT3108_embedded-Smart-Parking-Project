@@ -1,7 +1,10 @@
+#include <stdio.h>
+
 #include "esp_http_server.h"
 #include "esp_log.h"
 
 #include "http_server.h"
+#include "../udp/udp_server.h"
 
 extern const unsigned char index_html_start[] asm("_binary_index_html_start");
 extern const unsigned char index_html_end[] asm("_binary_index_html_end");
@@ -24,6 +27,20 @@ static esp_err_t style_get_handler(httpd_req_t *req)
                            style_css_end - style_css_start);
 }
 
+static esp_err_t parking_state_get_handler(httpd_req_t *req)
+{
+    int slots[5];
+    int free_count = 0;
+    bool received = udp_server_get_parking_state(slots, 5, &free_count);
+    char response[128];
+    int length = snprintf(response, sizeof(response),
+                          "{\"received\":%s,\"slots\":[%d,%d,%d,%d,%d],\"free\":%d,\"total\":5}",
+                          received ? "true" : "false", slots[0], slots[1],
+                          slots[2], slots[3], slots[4], free_count);
+    httpd_resp_set_type(req, "application/json");
+    return httpd_resp_send(req, response, length);
+}
+
 esp_err_t http_server_start(void)
 {
     httpd_config_t config = HTTPD_DEFAULT_CONFIG();
@@ -37,6 +54,12 @@ esp_err_t http_server_start(void)
     }
 
     const httpd_uri_t routes[] = {
+        {
+            .uri = "/api/parking",
+            .method = HTTP_GET,
+            .handler = parking_state_get_handler,
+            .user_ctx = NULL,
+        },
         {
             .uri = "/style.css",
             .method = HTTP_GET,

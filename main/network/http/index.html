@@ -23,21 +23,21 @@
                 <h1 id="page-title">Lot dashboard</h1>
                 <p class="subtitle">A live look at your parking area</p>
             </div>
-            <div class="sample-badge"><span aria-hidden="true">●</span> DEMO DATA</div>
+            <div class="sample-badge" id="data-state"><span aria-hidden="true">●</span> WAITING FOR UDP DATA</div>
         </section>
 
         <section class="summary" aria-label="Parking summary">
             <article class="summary-card">
                 <span class="summary-icon blue" aria-hidden="true">▦</span>
-                <div><p>Total spaces</p><strong>5</strong></div>
+                <div><p>Total spaces</p><strong id="total-spaces">5</strong></div>
             </article>
             <article class="summary-card">
                 <span class="summary-icon green" aria-hidden="true">✓</span>
-                <div><p>Available</p><strong>3</strong></div>
+                <div><p>Available</p><strong id="available-spaces">0</strong></div>
             </article>
             <article class="summary-card">
                 <span class="summary-icon amber" aria-hidden="true">▣</span>
-                <div><p>Occupied</p><strong>2</strong></div>
+                <div><p>Occupied</p><strong id="occupied-spaces">0</strong></div>
             </article>
         </section>
 
@@ -45,32 +45,11 @@
             <section class="panel parking-panel" aria-labelledby="spaces-title">
                 <div class="panel-heading">
                     <div><p class="eyebrow">YOUR FACILITY</p><h2 id="spaces-title">Parking spaces</h2></div>
-                    <span class="capacity">3 of 5 free</span>
+                    <span class="capacity" id="capacity">0 of 5 free</span>
                 </div>
                 <div class="parking-lot">
                     <div class="lane-label"><span>ENTRY</span><span class="lane-arrow" aria-hidden="true">↓</span><span>DRIVE LANE</span></div>
-                    <div class="space-list">
-                        <article class="space occupied">
-                            <span class="space-number">01</span><span class="car" aria-hidden="true">🚘</span>
-                            <span class="space-info"><strong>Space 1</strong><span class="status"><i></i> Occupied</span></span>
-                        </article>
-                        <article class="space available">
-                            <span class="space-number">02</span><span class="empty-mark" aria-hidden="true">＋</span>
-                            <span class="space-info"><strong>Space 2</strong><span class="status"><i></i> Available</span></span>
-                        </article>
-                        <article class="space available">
-                            <span class="space-number">03</span><span class="empty-mark" aria-hidden="true">＋</span>
-                            <span class="space-info"><strong>Space 3</strong><span class="status"><i></i> Available</span></span>
-                        </article>
-                        <article class="space occupied">
-                            <span class="space-number">04</span><span class="car" aria-hidden="true">🚙</span>
-                            <span class="space-info"><strong>Space 4</strong><span class="status"><i></i> Occupied</span></span>
-                        </article>
-                        <article class="space available">
-                            <span class="space-number">05</span><span class="empty-mark" aria-hidden="true">＋</span>
-                            <span class="space-info"><strong>Space 5</strong><span class="status"><i></i> Available</span></span>
-                        </article>
-                    </div>
+                    <div class="space-list" id="space-list"></div>
                 </div>
                 <div class="legend"><span><i class="legend-dot free-dot"></i>Available</span><span><i class="legend-dot busy-dot"></i>Occupied</span></div>
             </section>
@@ -96,5 +75,41 @@
 
         <footer><span class="footer-dot" aria-hidden="true"></span> Smart Parking System <span class="footer-separator">·</span> ESP32-C3</footer>
     </main>
+    <script>
+        const spaceList = document.getElementById('space-list');
+        const dataState = document.getElementById('data-state');
+
+        function renderParking(data) {
+            const slots = data.slots;
+            const available = data.free;
+            document.getElementById('total-spaces').textContent = data.total;
+            document.getElementById('available-spaces').textContent = available;
+            document.getElementById('occupied-spaces').textContent = data.total - available;
+            document.getElementById('capacity').textContent = `${available} of ${data.total} free`;
+            spaceList.replaceChildren(...slots.map((occupied, index) => {
+                const article = document.createElement('article');
+                article.className = `space ${occupied ? 'occupied' : 'available'}`;
+                article.innerHTML = `<span class="space-number">${String(index + 1).padStart(2, '0')}</span>` +
+                    `<span class="${occupied ? 'car' : 'empty-mark'}" aria-hidden="true">${occupied ? '🚘' : '＋'}</span>` +
+                    `<span class="space-info"><strong>Space ${index + 1}</strong>` +
+                    `<span class="status"><i></i> ${occupied ? 'Occupied' : 'Available'}</span></span>`;
+                return article;
+            }));
+            dataState.innerHTML = `<span aria-hidden="true">●</span> ${data.received ? 'LIVE UDP DATA' : 'WAITING FOR UDP DATA'}`;
+        }
+
+        async function refreshParking() {
+            try {
+                const response = await fetch('/api/parking', { cache: 'no-store' });
+                if (!response.ok) throw new Error('Dashboard API unavailable');
+                renderParking(await response.json());
+            } catch (error) {
+                dataState.innerHTML = '<span aria-hidden="true">●</span> SERVER UNAVAILABLE';
+            }
+        }
+
+        refreshParking();
+        setInterval(refreshParking, 1000);
+    </script>
 </body>
 </html>

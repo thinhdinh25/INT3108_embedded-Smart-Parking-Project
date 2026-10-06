@@ -15,6 +15,7 @@ idf_component_register(
         "network"
 
     REQUIRES
+        freertos
         esp_wifi
         esp_event
         esp_netif
