@@ -61,15 +61,14 @@
                 </div>
                 <article class="metric temperature">
                     <div class="metric-symbol" aria-hidden="true">🌡</div>
-                    <div class="metric-copy"><p>Temperature</p><strong>28.4<span>°C</span></strong><small>Comfortable</small></div>
+                    <div class="metric-copy"><p>Temperature</p><strong><span id="temperature-value">--</span><span>°C</span></strong><small>From UDP sensor update</small></div>
                     <div class="metric-track"><span></span></div>
                 </article>
                 <article class="metric water">
                     <div class="metric-symbol" aria-hidden="true">💧</div>
-                    <div class="metric-copy"><p>Water level</p><strong>72<span>%</span></strong><small>Normal level</small></div>
-                    <div class="water-tank" role="img" aria-label="Water tank 72 percent full"><span></span></div>
+                    <div class="metric-copy"><p>Water depth</p><strong><span id="water-value">--</span><span>mm</span></strong><small>From UDP sensor update</small></div>
                 </article>
-                <p class="demo-note">Sample values for display — sensor integration not connected.</p>
+                <p class="demo-note">Temperature and water depth update with each parking UDP message.</p>
             </section>
         </div>
 
@@ -86,6 +85,8 @@
             document.getElementById('available-spaces').textContent = available;
             document.getElementById('occupied-spaces').textContent = data.total - available;
             document.getElementById('capacity').textContent = `${available} of ${data.total} free`;
+            document.getElementById('temperature-value').textContent = data.received ? Number(data.temperature_c).toFixed(1) : '--';
+            document.getElementById('water-value').textContent = data.received ? Number(data.water_mm).toFixed(1) : '--';
             spaceList.replaceChildren(...slots.map((occupied, index) => {
                 const article = document.createElement('article');
                 article.className = `space ${occupied ? 'occupied' : 'available'}`;

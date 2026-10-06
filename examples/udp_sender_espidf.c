@@ -3,8 +3,8 @@
  * ESP32-Parking. Add lwip to the component's REQUIRES list.
  */
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
-// #include <iostream>
 
 #include "esp_log.h"
 #include "lwip/inet.h"
@@ -16,12 +16,18 @@
 static const char *TAG = "PARKING_UDP_CLIENT";
 
 /* slots[i] is 1 when occupied and 0 when free. */
-int send_parking_update(const int slots[5])
+int send_parking_update(const int slots[5], float temperature_c, float water_mm)
 {
-    char payload[96];
+    char payload[128];
+    int temperature_tenths = (int)(temperature_c * 10.0f + (temperature_c >= 0.0f ? 0.5f : -0.5f));
+    int water_tenths = (int)(water_mm * 10.0f + 0.5f);
+    int temperature_magnitude = abs(temperature_tenths);
     int payload_len = snprintf(payload, sizeof(payload),
-                               "{\"type\":\"parking_update\",\"slots\":[%d,%d,%d,%d,%d]}",
-                               slots[0], slots[1], slots[2], slots[3], slots[4]);
+                               "{\"type\":\"parking_update\",\"slots\":[%d,%d,%d,%d,%d],\"temperature_c\":%s%d.%d,\"water_mm\":%d.%d}",
+                               slots[0], slots[1], slots[2], slots[3], slots[4],
+                               temperature_tenths < 0 ? "-" : "",
+                               temperature_magnitude / 10, temperature_magnitude % 10,
+                               water_tenths / 10, water_tenths % 10);
     if (payload_len < 0 || payload_len >= sizeof(payload))
         return -1;
 
@@ -61,7 +67,7 @@ int send_parking_update(const int slots[5])
 /* Example call from your application after Wi-Fi is connected:
  *
  *     const int slots[5] = {1, 0, 0, 1, 0};
- *     ESP_ERROR_CHECK(send_parking_update(slots) == 0 ? ESP_OK : ESP_FAIL);
+ *     ESP_ERROR_CHECK(send_parking_update(slots, 28.0f, 0.2f) == 0 ? ESP_OK : ESP_FAIL);
  *
  * For a reusable component, put this function in its own .c/.h pair and add
  * `lwip` and `log` to that component's REQUIRES list.

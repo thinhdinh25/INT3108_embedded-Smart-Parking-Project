@@ -2,6 +2,7 @@
 #include "esp_err.h"
 #include "esp_log.h"
 
+#include "display/lcd_display.h"
 #include "network/network_service.h"
 
 static const char *TAG = "MAIN";
@@ -20,6 +21,9 @@ void app_main(void)
     }
 
     ESP_ERROR_CHECK(ret);
+
+    // Start the local screen before Wi-Fi consumes system memory.
+    ESP_ERROR_CHECK(lcd_display_start());
 
     // Start Wi-Fi, HTTP, and UDP network services.
     ESP_ERROR_CHECK(network_service_start());

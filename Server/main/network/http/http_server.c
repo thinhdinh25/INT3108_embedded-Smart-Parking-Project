@@ -1,10 +1,11 @@
 #include <stdio.h>
+#include <stdlib.h>
 
 #include "esp_http_server.h"
 #include "esp_log.h"
 
 #include "http_server.h"
-#include "../udp/udp_server.h"
+#include "../parking/parking_state.h"
 
 extern const unsigned char index_html_start[] asm("_binary_index_html_start");
 extern const unsigned char index_html_end[] asm("_binary_index_html_end");
@@ -29,14 +30,19 @@ static esp_err_t style_get_handler(httpd_req_t *req)
 
 static esp_err_t parking_state_get_handler(httpd_req_t *req)
 {
-    int slots[5];
+    parking_state_t state = {0};
     int free_count = 0;
-    bool received = udp_server_get_parking_state(slots, 5, &free_count);
-    char response[128];
+    parking_state_get(&state, &free_count);
+    char response[192];
+    int temperature_tenths = (int)(state.temperature_c * 10.0f + (state.temperature_c >= 0.0f ? 0.5f : -0.5f));
+    int water_tenths = (int)(state.water_mm * 10.0f + 0.5f);
     int length = snprintf(response, sizeof(response),
-                          "{\"received\":%s,\"slots\":[%d,%d,%d,%d,%d],\"free\":%d,\"total\":5}",
-                          received ? "true" : "false", slots[0], slots[1],
-                          slots[2], slots[3], slots[4], free_count);
+                          "{\"received\":%s,\"slots\":[%d,%d,%d,%d,%d],\"free\":%d,\"total\":5,\"temperature_c\":%s%d.%d,\"water_mm\":%d.%d}",
+                          state.received ? "true" : "false", state.slots[0], state.slots[1],
+                          state.slots[2], state.slots[3], state.slots[4], free_count,
+                          temperature_tenths < 0 ? "-" : "", abs(temperature_tenths) / 10,
+                          abs(temperature_tenths % 10),
+                          water_tenths / 10, water_tenths % 10);
     httpd_resp_set_type(req, "application/json");
     return httpd_resp_send(req, response, length);
 }

@@ -1,5 +1,6 @@
 #include <errno.h>
 #include <stdbool.h>
+#include <stdlib.h>
 #include <string.h>
 
 #include "freertos/FreeRTOS.h"
@@ -9,32 +10,12 @@
 #include "lwip/inet.h"
 #include "lwip/sockets.h"
 
+#include "../parking/parking_state.h"
 #include "udp_server.h"
 
 #define UDP_BUFFER_SIZE 256
-#define PARKING_SLOT_COUNT 5
 
 static const char *TAG = "UDP_SERVER";
-static int parking_slots[PARKING_SLOT_COUNT] = {0};
-static bool parking_state_received;
-static portMUX_TYPE parking_state_lock = portMUX_INITIALIZER_UNLOCKED;
-
-bool udp_server_get_parking_state(int *slots, size_t capacity, int *free_count)
-{
-    if (slots == NULL || capacity < PARKING_SLOT_COUNT || free_count == NULL)
-        return false;
-
-    int free_slots = 0;
-    bool received;
-    portENTER_CRITICAL(&parking_state_lock);
-    memcpy(slots, parking_slots, sizeof(parking_slots));
-    received = parking_state_received;
-    for (size_t i = 0; i < PARKING_SLOT_COUNT; ++i)
-        free_slots += parking_slots[i] == 0;
-    portEXIT_CRITICAL(&parking_state_lock);
-    *free_count = free_slots;
-    return received;
-}
 
 static void skip_json_whitespace(const char **cursor)
 {
@@ -70,19 +51,24 @@ static bool consume_json_string(const char **cursor, const char *expected)
     return true;
 }
 
-/* Parse the protocol's two fields, allowing either field order and whitespace. */
-static bool parse_parking_update(const char *payload, int *slots)
+/* Parse type, five binary slots, temperature_c and water_mm. */
+static bool parse_parking_update(const char *payload, parking_state_t *state)
 {
     const char *cursor = payload;
     bool has_type = false;
     bool has_slots = false;
+    bool has_temperature = false;
+    bool has_water = false;
     if (!consume_json_char(&cursor, '{'))
         return false;
 
-    for (int field = 0; field < 2; ++field)
+    for (int field = 0; field < 4; ++field)
     {
         skip_json_whitespace(&cursor);
-        bool is_type;
+        bool is_type = false;
+        bool is_slots = false;
+        bool is_temperature = false;
+        bool is_water = false;
         if (strncmp(cursor, "\"type\"", 6) == 0)
         {
             is_type = true;
@@ -99,6 +85,22 @@ static bool parse_parking_update(const char *payload, int *slots)
                 return false;
             has_slots = true;
         }
+        else if (strncmp(cursor, "\"temperature_c\"", 15) == 0)
+        {
+            is_temperature = true;
+            cursor += 15;
+            if (has_temperature)
+                return false;
+            has_temperature = true;
+        }
+        else if (strncmp(cursor, "\"water_mm\"", 10) == 0)
+        {
+            is_water = true;
+            cursor += 10;
+            if (has_water)
+                return false;
+            has_water = true;
+        }
         else
             return false;
 
@@ -109,7 +111,7 @@ static bool parse_parking_update(const char *payload, int *slots)
             if (!consume_json_string(&cursor, "parking_update"))
                 return false;
         }
-        else
+        else if (is_slots)
         {
             if (!consume_json_char(&cursor, '['))
                 return false;
@@ -118,19 +120,43 @@ static bool parse_parking_update(const char *payload, int *slots)
                 skip_json_whitespace(&cursor);
                 if (*cursor != '0' && *cursor != '1')
                     return false;
-                slots[i] = *cursor++ - '0';
+                state->slots[i] = *cursor++ - '0';
                 if (i < PARKING_SLOT_COUNT - 1 && !consume_json_char(&cursor, ','))
                     return false;
             }
             if (!consume_json_char(&cursor, ']'))
                 return false;
         }
+        else
+        {
+            skip_json_whitespace(&cursor);
+            if ((*cursor < '0' || *cursor > '9') && *cursor != '-')
+                return false;
+            char *end = NULL;
+            float value = strtof(cursor, &end);
+            if (end == cursor)
+                return false;
+            cursor = end;
+            if (is_temperature)
+            {
+                if (!(value >= -40.0f && value <= 125.0f))
+                    return false;
+                state->temperature_c = value;
+            }
+            else if (is_water)
+            {
+                if (!(value >= 0.0f && value <= 10000.0f))
+                    return false;
+                state->water_mm = value;
+            }
+        }
 
-        if (field == 0 && !consume_json_char(&cursor, ','))
+        if (field < 3 && !consume_json_char(&cursor, ','))
             return false;
     }
 
-    if (!has_type || !has_slots || !consume_json_char(&cursor, '}'))
+    if (!has_type || !has_slots || !has_temperature || !has_water ||
+        !consume_json_char(&cursor, '}'))
         return false;
     skip_json_whitespace(&cursor);
     return *cursor == '\0';
@@ -188,21 +214,18 @@ static void udp_server_task(void *arg)
                      inet_ntoa(source_addr.sin_addr),
                      ntohs(source_addr.sin_port), received, buffer);
 
-            int new_slots[PARKING_SLOT_COUNT];
-            if (!parse_parking_update(buffer, new_slots))
+            parking_state_t new_state = {0};
+            if (!parse_parking_update(buffer, &new_state))
             {
                 ESP_LOGW(TAG, "Ignoring invalid parking update");
                 continue;
             }
 
-            portENTER_CRITICAL(&parking_state_lock);
-            memcpy(parking_slots, new_slots, sizeof(parking_slots));
-            parking_state_received = true;
-            portEXIT_CRITICAL(&parking_state_lock);
+            parking_state_update(&new_state);
             ESP_LOGI(TAG, "Parking update accepted (%d/5 free)",
-                     (new_slots[0] == 0) + (new_slots[1] == 0) +
-                     (new_slots[2] == 0) + (new_slots[3] == 0) +
-                     (new_slots[4] == 0));
+                     (new_state.slots[0] == 0) + (new_state.slots[1] == 0) +
+                     (new_state.slots[2] == 0) + (new_state.slots[3] == 0) +
+                     (new_state.slots[4] == 0));
         }
 
         close(socket_fd);

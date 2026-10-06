@@ -10,6 +10,8 @@ UDP_PORT = 3333
 request = {
     "type": "parking_update",
     "slots": [1, 0, 0, 1, 0],
+    "temperature_c": 28.0,
+    "water_mm": 0.2,
 }
 
 payload = json.dumps(request).encode("utf-8")

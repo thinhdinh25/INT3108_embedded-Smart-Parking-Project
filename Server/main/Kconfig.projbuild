@@ -1,0 +1,43 @@
+menu "Parking TFT display"
+
+config PARKING_LCD_SCLK_GPIO
+    int "SPI clock GPIO"
+    range 0 21
+    default 4
+
+config PARKING_LCD_MOSI_GPIO
+    int "SPI MOSI/SDA GPIO"
+    range 0 21
+    default 6
+
+config PARKING_LCD_DC_GPIO
+    int "Display data/command GPIO"
+    range 0 21
+    default 7
+
+config PARKING_LCD_RST_GPIO
+    int "Display reset GPIO"
+    range -1 21
+    default 3
+
+config PARKING_LCD_CS_GPIO
+    int "Display chip-select GPIO"
+    range -1 21
+    default 10
+
+config PARKING_LCD_BL_GPIO
+    int "Display backlight GPIO (-1 if tied on)"
+    range -1 21
+    default 5
+
+config PARKING_LCD_X_GAP
+    int "Panel X offset"
+    range 0 320
+    default 0
+
+config PARKING_LCD_Y_GAP
+    int "Panel Y offset"
+    range 0 320
+    default 0
+
+endmenu

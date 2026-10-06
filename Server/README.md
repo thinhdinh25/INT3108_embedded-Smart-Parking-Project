@@ -1,73 +1,83 @@
 # INT3108 Smart Parking Project
 
-ESP-IDF firmware for an ESP32 smart parking controller. The device creates a
-Wi-Fi access point, serves a small web page over HTTP, and listens for UDP
-datagrams from other microcontrollers on the local network.
+ESP-IDF firmware for an ESP32-C3 smart parking controller. It creates a Wi-Fi
+access point, hosts a browser dashboard, listens for UDP sensor updates, and
+shows the latest parking state on a 1.54-inch ST7789 TFT.
 
-## Network interfaces
+## Network
 
 - Wi-Fi SSID: `ESP32-Parking`
 - Wi-Fi password: `12345678`
 - Device address: `192.168.4.1`
-- Web interface: `http://192.168.4.1`
+- Dashboard: `http://192.168.4.1`
 - UDP listener: `192.168.4.1:3333`
+- Dashboard data endpoint: `GET /api/parking`
 
-The UDP service listens on port `3333` and accepts JSON parking updates. The
-dashboard reads the latest state from `GET /api/parking` once per second.
-
-Connect the sender computer or controller to the `ESP32-Parking` Wi-Fi network,
-then send a broadcast datagram to `192.168.4.255:3333`. The payload must contain
-five slot values: `1` means occupied and `0` means free.
+Connect the sender to the ESP32 access point and broadcast a JSON datagram to
+`192.168.4.255:3333`. Slot value `1` means occupied; `0` means free.
+Temperature is sent in Celsius and water depth in millimeters:
 
 ```json
-{"type":"parking_update","slots":[1,0,0,1,0]}
+{"type":"parking_update","slots":[1,0,0,1,0],"temperature_c":28.0,"water_mm":0.2}
 ```
 
-That example represents 3 free spaces out of 5. A runnable Python example is
-in `examples/udp_sender.py`. Run it from a device connected to the ESP32's
-access point. The dashboard displays the latest accepted update in memory; the
-state is reset when the ESP32 reboots.
+The example represents 3 free spaces, a temperature of 28.0 °C, and 0.2 mm of
+water. Runnable sender examples are in `../examples/udp_sender.py` (Python)
+and `../examples/udp_sender_espidf.c` (ESP-IDF). The latest accepted state is
+kept in RAM and resets when the ESP32 reboots.
 
-If the sender is another ESP-IDF board, use the C example in
-`examples/udp_sender_espidf.c`. Call `send_parking_update()` after that board
-has connected to the `ESP32-Parking` access point. Its component needs the
-`lwip` and `log` dependencies. Both examples send the same JSON protocol.
-
-## Source layout
+## Project layout
 
 ```text
-main/
-├── main.c                         Application entry and NVS initialization
-└── network/
-    ├── network_service.c/.h       Starts the network services
-    ├── wifi_ap.c/.h                SoftAP setup and connection events
-    ├── http/
-    │   ├── http_server.c/.h        HTTP routes and handlers
-    │   ├── index.html               Web page embedded in firmware
-    │   └── style.css                Page stylesheet embedded in firmware
-    └── udp/
-        └── udp_server.c/.h          UDP datagram listener
+Server/
+├── CMakeLists.txt
+└── main/
+    ├── main.c                  Application startup
+    ├── Kconfig.projbuild       TFT pin and panel offset settings
+    ├── display/                ST7789 driver setup and screen rendering
+    ├── parking/                Shared parking and sensor state
+    └── network/
+        ├── http/               Browser dashboard and JSON API
+        └── udp/                UDP update receiver and parser
 ```
 
-`main/CMakeLists.txt` lists the firmware sources, embedded web assets, and
-ESP-IDF component dependencies.
+## ST7789 display
 
-## RTOS usage
+The firmware uses ESP-IDF's built-in `esp_lcd` ST7789 panel driver and SPI
+master driver. It does not need an Arduino display library or an extra managed
+component. The UI is configured for a 240×240 panel and shows free slots,
+individual slot states, temperature, and water depth.
 
-This firmware uses ESP-IDF's FreeRTOS scheduler (configured for the ESP32-C3's
-single core in `sdkconfig`). `app_main()` runs as an ESP-IDF task. The UDP
-listener runs in its own task, created by `udp_server_start()`, and waits for
-datagrams without blocking application startup. The ESP-IDF HTTP server runs
-its request handling in its own task as well. The `freertos` component is
-declared directly in `main/CMakeLists.txt` because the UDP module uses its task
-API.
+Default ESP32-C3 SuperMini wiring:
 
-## Build and flash
+| Display pin | ESP32-C3 GPIO |
+| --- | ---: |
+| SCL / SCK | 4 |
+| SDA / MOSI | 6 |
+| DC / A0 | 7 |
+| RES / RST | 3 |
+| CS | 10 |
+| BL / LED | 5 |
+| VCC | 3V3 |
+| GND | GND |
 
-From an ESP-IDF configured terminal, select the target board and build with:
+MISO is not used. If your wiring differs, open the Command Palette in VS Code
+and run **ESP-IDF: SDK Configuration Editor**. Edit the **Parking
+TFT display** values to match the wiring, and adjust the panel X/Y offsets if
+the image is shifted. Sample temperature and water readings are sent by both
+example clients; replace them with real sensor readings in your sender.
+
+## Build and flash in VS Code
+
+The repository root contains both the client and server; the ESP-IDF project
+root is `Server/`. In VS Code, choose `Server/` with **ESP-IDF: Pick a Workspace
+Folder**, then use the ESP-IDF Build, Flash, and Monitor commands. This project
+uses ESP-IDF 6.1 and targets the ESP32-C3 SuperMini.
+
+From an ESP-IDF configured terminal at the repository root, run:
 
 ```sh
-idf.py set-target esp32c3
-idf.py build
-idf.py flash monitor
+idf.py -C Server set-target esp32c3
+idf.py -C Server build
+idf.py -C Server flash monitor
 ```
