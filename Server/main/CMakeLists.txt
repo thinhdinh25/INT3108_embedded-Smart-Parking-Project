@@ -2,6 +2,7 @@ idf_component_register(
     SRCS
         "main.c"
         "display/lcd_display.c"
+        "display/kaoruko_gif.c"
         "parking/parking_state.c"
         "network/network_service.c"
         "network/wifi_ap.c"

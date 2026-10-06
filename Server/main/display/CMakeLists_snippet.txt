@@ -1,0 +1,14 @@
+# Add kaoruko_gif.c to the SRCS list of the component that already builds lcd_display.c.
+# Example:
+
+idf_component_register(
+    SRCS
+        "lcd_display.c"
+        "kaoruko_gif.c"
+        # keep your existing source files here
+    INCLUDE_DIRS "."
+    # keep your existing REQUIRES / PRIV_REQUIRES here
+)
+
+# You do NOT need to add the original .gif to the ESP32 project.
+# kaoruko_gif.c already contains the 10 pre-converted RGB565 frames.
