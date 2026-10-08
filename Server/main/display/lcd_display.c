@@ -28,32 +28,37 @@
 #define LCD_WIDTH 240
 #define LCD_HEIGHT 240
 
-/* Kaoruko picture-in-picture area.
- * 144 + 96 = 240, so it fits exactly on the right side. */
+/* Kaoruko picture-in-picture area below the header on the right. */
 #define GIF_X 144
-#define GIF_Y 100
+#define GIF_Y 40
 #define GIF_WIDTH KAORUKO_WIDTH
 #define GIF_HEIGHT KAORUKO_HEIGHT
+#define GIF_PIXEL_COUNT (GIF_WIDTH * GIF_HEIGHT)
 #define GIF_BUFFERS 2
 
 static const char *TAG = "LCD_DISPLAY";
 static esp_lcd_panel_handle_t panel;
 static uint16_t *framebuffer;
 static uint16_t *gif_framebuffer[GIF_BUFFERS];
+static uint8_t gif_background_mask[(GIF_PIXEL_COUNT + 7) / 8];
 static int gif_buffer_index = 0;
 static SemaphoreHandle_t lcd_mutex;
 static const int width = LCD_WIDTH;
 static const int height = LCD_HEIGHT;
 
-static const uint16_t COLOR_BG = 0x0843;
-static const uint16_t COLOR_PANEL = 0x10A5;
-static const uint16_t COLOR_LINE = 0x216B;
+static const uint16_t COLOR_BG = 0x0000;
+static const uint16_t COLOR_PANEL = 0x0841;
+static const uint16_t COLOR_LINE = 0x4208;
 static const uint16_t COLOR_WHITE = 0xFFFF;
-static const uint16_t COLOR_MUTED = 0x9D7B;
-static const uint16_t COLOR_TEAL = 0x4F5A;
-static const uint16_t COLOR_GREEN = 0x5EAA;
-static const uint16_t COLOR_AMBER = 0xFD20;
-static const uint16_t COLOR_RED = 0xF986;
+static const uint16_t COLOR_MUTED = 0xD69A;
+static const uint16_t COLOR_TEAL = 0x03D9;
+static const uint16_t COLOR_GREEN = 0x07E0;
+static const uint16_t COLOR_RED = 0xF800;
+
+static uint16_t rgb565_byte_swap(uint16_t color)
+{
+    return (uint16_t)((color << 8) | (color >> 8));
+}
 
 /* Five vertical 5x7 columns for A-Z and 0-9. */
 static const uint8_t glyphs[36][5] = {
@@ -80,7 +85,7 @@ static const uint8_t glyphs[36][5] = {
 static void pixel(int x, int y, uint16_t color)
 {
     if (x >= 0 && x < width && y >= 0 && y < height)
-        framebuffer[y * width + x] = color;
+        framebuffer[y * width + x] = rgb565_byte_swap(color);
 }
 
 static void fill_rect(int x, int y, int w, int h, uint16_t color)
@@ -151,6 +156,71 @@ static esp_err_t lcd_draw_bitmap_locked(int x_start, int y_start,
     return err;
 }
 
+static bool is_near_white(uint16_t color)
+{
+    return ((color >> 11) & 0x1f) >= 29 &&
+           ((color >> 5) & 0x3f) >= 60 &&
+           (color & 0x1f) >= 29;
+}
+
+static bool is_background_pixel_marked(size_t index)
+{
+    return (gif_background_mask[index / 8] & (1U << (index % 8))) != 0;
+}
+
+static void mark_background_pixel(size_t index)
+{
+    gif_background_mask[index / 8] |= (uint8_t)(1U << (index % 8));
+}
+
+/* Remove the white matte around Kaoruko while preserving enclosed white details. */
+static void remove_kaoruko_white_background(uint16_t *pixels)
+{
+    memset(gif_background_mask, 0, sizeof(gif_background_mask));
+
+    for (int x = 0; x < GIF_WIDTH; ++x)
+    {
+        const size_t top = (size_t)x;
+        const size_t bottom = (GIF_HEIGHT - 1) * GIF_WIDTH + x;
+        if (is_near_white(pixels[top])) mark_background_pixel(top);
+        if (is_near_white(pixels[bottom])) mark_background_pixel(bottom);
+    }
+    for (int y = 1; y < GIF_HEIGHT - 1; ++y)
+    {
+        const size_t left = (size_t)y * GIF_WIDTH;
+        const size_t right = left + GIF_WIDTH - 1;
+        if (is_near_white(pixels[left])) mark_background_pixel(left);
+        if (is_near_white(pixels[right])) mark_background_pixel(right);
+    }
+
+    /* Propagate edge-connected white pixels using a small bitset, not a large queue. */
+    bool changed;
+    do
+    {
+        changed = false;
+        for (int y = 1; y < GIF_HEIGHT - 1; ++y)
+        {
+            for (int x = 1; x < GIF_WIDTH - 1; ++x)
+            {
+                const size_t index = (size_t)y * GIF_WIDTH + x;
+                if (!is_background_pixel_marked(index) && is_near_white(pixels[index]) &&
+                    (is_background_pixel_marked(index - 1) ||
+                     is_background_pixel_marked(index + 1) ||
+                     is_background_pixel_marked(index - GIF_WIDTH) ||
+                     is_background_pixel_marked(index + GIF_WIDTH)))
+                {
+                    mark_background_pixel(index);
+                    changed = true;
+                }
+            }
+        }
+    } while (changed);
+
+    for (size_t index = 0; index < GIF_PIXEL_COUNT; ++index)
+        if (is_background_pixel_marked(index))
+            pixels[index] = COLOR_BG;
+}
+
 static void draw_parking_screen(const parking_state_t *state, int free_count)
 {
     fill_rect(0, 0, width, height, COLOR_BG);
@@ -163,14 +233,7 @@ static void draw_parking_screen(const parking_state_t *state, int free_count)
     draw_text(10, 41, "FREE SPACES", 1, COLOR_MUTED);
     char free_text[8];
     snprintf(free_text, sizeof(free_text), "%d/5", free_count);
-    draw_text(10, 54, free_text, 3,
-              free_count > 0 ? COLOR_GREEN : COLOR_RED);
-
-    /* Network state. */
-    fill_rect(150, 40, 78, 40, COLOR_PANEL);
-    draw_text(158, 47, state->received ? "LIVE" : "WAIT", 1,
-              state->received ? COLOR_GREEN : COLOR_AMBER);
-    draw_text(158, 62, "UDP", 2, COLOR_WHITE);
+    draw_text(10, 54, free_text, 3, COLOR_WHITE);
 
     /* Sensor values. */
     fill_rect(8, 87, 60, 40, COLOR_PANEL);
@@ -188,24 +251,21 @@ static void draw_parking_screen(const parking_state_t *state, int free_count)
     draw_text(12, 108, temperature, 1, COLOR_WHITE);
     draw_text(79, 108, water, 1, COLOR_WHITE);
 
-    /* Five slot indicators fit in the left side, leaving the right side for animation. */
+    /* Larger slot indicators span the full display width below the sensors. */
     draw_text(8, 134, "SPACE STATUS", 1, COLOR_MUTED);
     for (int i = 0; i < PARKING_SLOT_COUNT; ++i)
     {
-        int x = 8 + i * 27;
+        int x = 8 + i * 46;
         bool occupied = state->slots[i] != 0;
 
-        fill_rect(x, 145, 25, 31, COLOR_PANEL);
+        fill_rect(x, 147, 43, 43, COLOR_PANEL);
+        fill_rect(x, 147, 3, 43, occupied ? COLOR_RED : COLOR_GREEN);
 
         char slot_label[3] = {'S', (char)('1' + i), '\0'};
-        draw_text(x + 1, 149, slot_label, 1, COLOR_MUTED);
-        draw_text(x, 163, occupied ? "BUSY" : "FREE", 1,
-                  occupied ? COLOR_AMBER : COLOR_GREEN);
+        draw_text(x + 4, 152, slot_label, 1, COLOR_MUTED);
+        draw_text(x + 4, 172, occupied ? "BUSY" : "FREE", 1,
+                  occupied ? COLOR_RED : COLOR_GREEN);
     }
-
-    /* Footer. The 96x96 animated area is drawn separately by animation_task(). */
-    draw_text(8, 186, state->received ? "PARKING LIVE" : "WAITING UDP", 1,
-              state->received ? COLOR_GREEN : COLOR_AMBER);
 
     ESP_ERROR_CHECK(lcd_draw_bitmap_locked(0, 0, width, height, framebuffer));
 }
@@ -223,6 +283,9 @@ static void draw_kaoruko_frame(int frame_index)
         ESP_LOGE(TAG, "Kaoruko frame %d decode failed", frame_index);
         return;
     }
+    remove_kaoruko_white_background(dst);
+    for (size_t i = 0; i < (size_t)GIF_WIDTH * GIF_HEIGHT; ++i)
+        dst[i] = rgb565_byte_swap(dst[i]);
 
     esp_err_t err = lcd_draw_bitmap_locked(
         GIF_X,
