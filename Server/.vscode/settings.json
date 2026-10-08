@@ -1,0 +1,18 @@
+{
+    "idf.currentSetup": "/Users/chiminhnguyen/.espressif/v6.1/esp-idf",
+    "idf.flashType": "UART",
+    "idf.openOcdConfigs": [
+        "board/esp32c3-builtin.cfg"
+    ],
+    "idf.customExtraVars": {
+        "OPENOCD_USB_ADAPTER_LOCATION": "0-1",
+        "IDF_TARGET": "esp32c3"
+    },
+    "clangd.path": "/Users/chiminhnguyen/.espressif/tools/esp-clangd/esp-21.1.3_20260408/esp-clangd/bin/clangd",
+    "clangd.arguments": [
+      "--background-index",
+      "--query-driver=**",
+      "--compile-commands-dir=/Users/chiminhnguyen/Documents/Projects/INT3108_embedded-Smart-Parking-Project/Server/build"
+    ],
+    "idf.port": "/dev/tty.usbmodem101"
+}

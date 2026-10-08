@@ -79,7 +79,7 @@ static bool parse_parking_update(const char *payload, parking_state_t *state)
         }
         else if (strncmp(cursor, "\"slots\"", 7) == 0)
         {
-            is_type = false;
+            is_slots = true;
             cursor += 7;
             if (has_slots)
                 return false;

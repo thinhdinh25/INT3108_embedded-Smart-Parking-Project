@@ -1,3 +1,0 @@
--march=rv32imc_zicsr_zifencei
--mtune=esp-base
-"-specs=/Users/chiminhnguyen/Documents/Projects/INT3108_embedded-Smart-Parking-Project/build/specs/picolibc.specs"
