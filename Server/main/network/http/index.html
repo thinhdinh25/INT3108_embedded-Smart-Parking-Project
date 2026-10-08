@@ -3,80 +3,97 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="theme-color" content="#101b2c">
-    <title>Smart Parking | ESP32</title>
+    <meta name="theme-color" content="#050505">
+    <title>Parking Terminal | ESP32</title>
     <link rel="stylesheet" href="/style.css">
 </head>
 <body>
     <main class="dashboard">
         <header class="topbar">
             <a class="brand" href="/" aria-label="Smart Parking home">
-                <span class="brand-mark" aria-hidden="true">P</span>
-                <span>Park<span class="brand-accent">Sense</span></span>
+                <span class="brand-mark" aria-hidden="true">&gt;_</span>
+                <span>PARKING<span class="brand-accent">_SYS</span></span>
             </a>
-            <div class="connection"><span class="pulse" aria-hidden="true"></span> ESP32 online</div>
+            <div class="connection"><span class="pulse" aria-hidden="true"></span> ESP32 / ONLINE</div>
         </header>
 
         <section class="intro" aria-labelledby="page-title">
             <div>
-                <p class="eyebrow">PARKING OVERVIEW</p>
-                <h1 id="page-title">Lot dashboard</h1>
-                <p class="subtitle">A live look at your parking area</p>
+                <p class="eyebrow">SYSTEM MONITOR</p>
+                <h1 id="page-title">Parking status</h1>
+                <p class="subtitle">Live facility and sensor data</p>
             </div>
-            <div class="sample-badge" id="data-state"><span aria-hidden="true">●</span> WAITING FOR UDP DATA</div>
+            <div class="sample-badge" id="data-state"><span aria-hidden="true">●</span> WAITING FOR DATA</div>
         </section>
 
         <section class="summary" aria-label="Parking summary">
             <article class="summary-card">
-                <span class="summary-icon blue" aria-hidden="true">▦</span>
                 <div><p>Total spaces</p><strong id="total-spaces">5</strong></div>
             </article>
             <article class="summary-card">
-                <span class="summary-icon green" aria-hidden="true">✓</span>
                 <div><p>Available</p><strong id="available-spaces">0</strong></div>
             </article>
             <article class="summary-card">
-                <span class="summary-icon amber" aria-hidden="true">▣</span>
                 <div><p>Occupied</p><strong id="occupied-spaces">0</strong></div>
             </article>
+        </section>
+
+        <section class="barrier-control" aria-labelledby="barrier-title">
+            <div class="barrier-copy">
+                <p class="eyebrow">03 / BARRIER</p>
+                <h2 id="barrier-title">Barrier control</h2>
+                <p class="barrier-note">Dashboard state only · no actuator connected</p>
+            </div>
+            <div class="barrier-actions">
+                <span class="barrier-state" id="barrier-state" role="status">CLOSED</span>
+                <button type="button" id="barrier-open">OPEN</button>
+                <button type="button" id="barrier-close" class="secondary">CLOSE</button>
+            </div>
         </section>
 
         <div class="content-grid">
             <section class="panel parking-panel" aria-labelledby="spaces-title">
                 <div class="panel-heading">
-                    <div><p class="eyebrow">YOUR FACILITY</p><h2 id="spaces-title">Parking spaces</h2></div>
-                    <span class="capacity" id="capacity">0 of 5 free</span>
+                    <div><p class="eyebrow">01 / FACILITY</p><h2 id="spaces-title">Parking spaces</h2></div>
+                    <span class="capacity" id="capacity">0 / 5 FREE</span>
                 </div>
                 <div class="parking-lot">
-                    <div class="lane-label"><span>ENTRY</span><span class="lane-arrow" aria-hidden="true">↓</span><span>DRIVE LANE</span></div>
+                    <div class="lane-label"><span>ENTRY</span><span class="lane-arrow" aria-hidden="true">↓</span><span>LANE</span></div>
                     <div class="space-list" id="space-list"></div>
                 </div>
-                <div class="legend"><span><i class="legend-dot free-dot"></i>Available</span><span><i class="legend-dot busy-dot"></i>Occupied</span></div>
+                <div class="legend"><span><i class="legend-dot free-dot"></i>FREE</span><span><i class="legend-dot busy-dot"></i>OCCUPIED</span></div>
             </section>
 
             <section class="panel environment-panel" aria-labelledby="environment-title">
                 <div class="panel-heading">
-                    <div><p class="eyebrow">SENSOR READINGS</p><h2 id="environment-title">Environment</h2></div>
-                    <span class="sensor-icon" aria-hidden="true">⌁</span>
+                    <div><p class="eyebrow">02 / TELEMETRY</p><h2 id="environment-title">Sensors</h2></div>
                 </div>
                 <article class="metric temperature">
-                    <div class="metric-symbol" aria-hidden="true">🌡</div>
-                    <div class="metric-copy"><p>Temperature</p><strong><span id="temperature-value">--</span><span>°C</span></strong><small>From UDP sensor update</small></div>
+                    <div class="metric-copy"><p>TEMPERATURE</p><strong><span id="temperature-value">--</span><span>°C</span></strong></div>
                     <div class="metric-track"><span></span></div>
                 </article>
                 <article class="metric water">
-                    <div class="metric-symbol" aria-hidden="true">💧</div>
-                    <div class="metric-copy"><p>Water depth</p><strong><span id="water-value">--</span><span>mm</span></strong><small>From UDP sensor update</small></div>
+                    <div class="metric-copy"><p>WATER DEPTH</p><strong><span id="water-value">--</span><span>mm</span></strong></div>
                 </article>
-                <p class="demo-note">Temperature and water depth update with each parking UDP message.</p>
+                <p class="demo-note">// refreshed on each UDP update</p>
             </section>
         </div>
 
-        <footer><span class="footer-dot" aria-hidden="true"></span> Smart Parking System <span class="footer-separator">·</span> ESP32-C3</footer>
+        <footer><span class="footer-dot" aria-hidden="true"></span> PARKING_SYS <span class="footer-separator">/</span> ESP32-C3</footer>
     </main>
     <script>
         const spaceList = document.getElementById('space-list');
         const dataState = document.getElementById('data-state');
+        const barrierState = document.getElementById('barrier-state');
+
+        document.getElementById('barrier-open').addEventListener('click', () => {
+            barrierState.textContent = 'OPEN';
+            barrierState.classList.add('is-open');
+        });
+        document.getElementById('barrier-close').addEventListener('click', () => {
+            barrierState.textContent = 'CLOSED';
+            barrierState.classList.remove('is-open');
+        });
 
         function renderParking(data) {
             const slots = data.slots;
@@ -84,19 +101,18 @@
             document.getElementById('total-spaces').textContent = data.total;
             document.getElementById('available-spaces').textContent = available;
             document.getElementById('occupied-spaces').textContent = data.total - available;
-            document.getElementById('capacity').textContent = `${available} of ${data.total} free`;
+            document.getElementById('capacity').textContent = `${available} / ${data.total} FREE`;
             document.getElementById('temperature-value').textContent = data.received ? Number(data.temperature_c).toFixed(1) : '--';
             document.getElementById('water-value').textContent = data.received ? Number(data.water_mm).toFixed(1) : '--';
             spaceList.replaceChildren(...slots.map((occupied, index) => {
                 const article = document.createElement('article');
                 article.className = `space ${occupied ? 'occupied' : 'available'}`;
                 article.innerHTML = `<span class="space-number">${String(index + 1).padStart(2, '0')}</span>` +
-                    `<span class="${occupied ? 'car' : 'empty-mark'}" aria-hidden="true">${occupied ? '🚘' : '＋'}</span>` +
-                    `<span class="space-info"><strong>Space ${index + 1}</strong>` +
-                    `<span class="status"><i></i> ${occupied ? 'Occupied' : 'Available'}</span></span>`;
+                    `<span class="space-info"><strong>SPACE_${String(index + 1).padStart(2, '0')}</strong>` +
+                    `<span class="status"><i></i> ${occupied ? 'OCCUPIED' : 'FREE'}</span></span>`;
                 return article;
             }));
-            dataState.innerHTML = `<span aria-hidden="true">●</span> ${data.received ? 'LIVE UDP DATA' : 'WAITING FOR UDP DATA'}`;
+            dataState.innerHTML = `<span aria-hidden="true">●</span> ${data.received ? 'LIVE / UDP' : 'WAITING FOR DATA'}`;
         }
 
         async function refreshParking() {
@@ -105,7 +121,7 @@
                 if (!response.ok) throw new Error('Dashboard API unavailable');
                 renderParking(await response.json());
             } catch (error) {
-                dataState.innerHTML = '<span aria-hidden="true">●</span> SERVER UNAVAILABLE';
+                dataState.innerHTML = '<span aria-hidden="true">●</span> SERVER OFFLINE';
             }
         }
 
