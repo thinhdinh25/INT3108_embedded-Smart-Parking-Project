@@ -23,7 +23,7 @@ const char* password = "12345678";
 // The server expects exactly five binary parking-slot values.
 const int sensorPins[5] = {IR1, IR2, IR3, IR4, IR5};
 
-int state[5] = {0};
+bool state[5] = {0};
 int pendingState[5] = {0};
 
 unsigned long changeTime[5] = {0};
@@ -34,10 +34,15 @@ const float SAMPLE_WATER_MM = 0.2f;
 
 const unsigned long STABLE_TIME = 250;
 
+// These IR modules assert LOW when a vehicle is detected.
+bool read_slot_state(int pin) {
+    return digitalRead(pin) == LOW;
+}
+
 void init_sensor() {
     for (int i = 0; i < 5; i++) {
         pinMode(sensorPins[i], INPUT);
-        int current = digitalRead(sensorPins[i]);
+        int current = read_slot_state(sensorPins[i]);
         state[i] = current;
         pendingState[i] = current;
         changeTime[i] = millis();
@@ -48,7 +53,7 @@ void update_sensor() {
     unsigned long now = millis();
 
     for (int i = 0; i < 5; i++) {
-        int current = digitalRead(sensorPins[i]);
+        int current = read_slot_state(sensorPins[i]);
 
         if (current != pendingState[i]) {
             pendingState[i] = current;
