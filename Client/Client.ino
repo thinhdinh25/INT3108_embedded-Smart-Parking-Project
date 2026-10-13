@@ -18,19 +18,24 @@ const char* password = "12345678";
 #define IR5    16
 
 #define WATER  4
-#define FIRE   5
+#define TEMP   5
 
-const int sensorPins[7] = {IR1, IR2, IR3, IR4, IR5, WATER, FIRE};
+// The server expects exactly five binary parking-slot values.
+const int sensorPins[5] = {IR1, IR2, IR3, IR4, IR5};
 
-int state[7] = {0};
-int pendingState[7] = {0};
+int state[5] = {0};
+int pendingState[5] = {0};
 
-unsigned long changeTime[7] = {0};
+unsigned long changeTime[5] = {0};
 
-const unsigned long STABLE_TIME = 10000;
+// Sample values used until the water and temperature sensors are integrated.
+const float SAMPLE_TEMPERATURE_C = 28.0f;
+const float SAMPLE_WATER_MM = 0.2f;
+
+const unsigned long STABLE_TIME = 250;
 
 void init_sensor() {
-    for (int i = 0; i < 7; i++) {
+    for (int i = 0; i < 5; i++) {
         pinMode(sensorPins[i], INPUT);
         int current = digitalRead(sensorPins[i]);
         state[i] = current;
@@ -42,7 +47,7 @@ void init_sensor() {
 void update_sensor() {
     unsigned long now = millis();
 
-    for (int i = 0; i < 7; i++) {
+    for (int i = 0; i < 5; i++) {
         int current = digitalRead(sensorPins[i]);
 
         if (current != pendingState[i]) {
@@ -83,12 +88,13 @@ void send_UDP() {
         return;
     }
 
-    // The server protocol requires five binary slots and numeric temperature
-    // and water fields. Those two measurements are not implemented by this client.
+    // `1` means occupied and `0` means free. Temperature and water are sample
+    // values until those sensors are integrated.
     char payload[128];
     int length = snprintf(payload, sizeof(payload),
-                          "{\"type\":\"parking_update\",\"slots\":[%d,%d,%d,%d,%d],\"temperature_c\":0,\"water_mm\":0}",
-                          state[0], state[1], state[2], state[3], state[4]);
+                          "{\"type\":\"parking_update\",\"slots\":[%d,%d,%d,%d,%d],\"temperature_c\":%.1f,\"water_mm\":%.1f}",
+                          state[0], state[1], state[2], state[3], state[4],
+                          SAMPLE_TEMPERATURE_C, SAMPLE_WATER_MM);
     if (length < 0 || length >= sizeof(payload)) {
         Serial.println("UDP payload formatting failed");
         return;
