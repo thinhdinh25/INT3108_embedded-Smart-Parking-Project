@@ -1,4 +1,5 @@
 #include <ESP8266WiFi.h>
+#include <ESP8266mDNS.h>
 #include <WiFiUdp.h>
 #include <ArduinoOTA.h>
 
@@ -17,7 +18,7 @@ const char* password = "12345678";
 #define IR5    16
 
 #define WATER  4
-#define FIRE   8
+#define FIRE   5
 
 const int sensorPins[7] = {IR1, IR2, IR3, IR4, IR5, WATER, FIRE};
 
