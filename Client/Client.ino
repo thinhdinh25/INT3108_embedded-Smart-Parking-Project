@@ -36,7 +36,7 @@ const unsigned long STABLE_TIME = 250;
 
 // These IR modules assert LOW when a vehicle is detected.
 bool read_slot_state(int pin) {
-    return digitalRead(pin) == LOW;
+    return !digitalRead(pin);  // raw LOW (0) -> occupied (1); raw HIGH (1) -> empty (0)
 }
 
 void init_sensor() {
