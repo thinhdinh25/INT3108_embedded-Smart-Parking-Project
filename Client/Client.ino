@@ -1,10 +1,10 @@
 #include <ESP8266WiFi.h>
-#include <ESP8266mDNS.h>
 #include <WiFiUdp.h>
 #include <ArduinoOTA.h>
 
-const char* ssid = "Bep Vu Son";
-const char* password = "88888888";
+// Join the access point created by the ESP32 parking server.
+const char* ssid = "ESP32-Parking";
+const char* password = "12345678";
 
 
 
@@ -69,27 +69,38 @@ void update_sensor() {
 /******************UDP SECTION BEGIN**********************/
 WiFiUDP udp;
 
-IPAddress serverIP(192, 168, 1, 85);
-const uint16_t serverPort = 10000;
+// The server listens on UDP 3333 and accepts broadcast packets on its AP.
+IPAddress serverIP(192, 168, 4, 255);
+const uint16_t serverPort = 3333;
 
+const unsigned long SEND_INTERVAL = 1000;
 unsigned long lastSend = 0;
-const unsigned long SEND_INTERVAL = 10000;
 
 void send_UDP() {
-    udp.beginPacket(serverIP, serverPort);
-    for (int i = 0; i < 7; i++) {
-        udp.print(state[i]);
-        if (i < 6)
-            udp.print(",");
+    if (WiFi.status() != WL_CONNECTED) {
+        Serial.println("Wi-Fi disconnected; UDP update skipped");
+        return;
     }
-    udp.endPacket();
-    Serial.print("Sent: ");
-    for (int i = 0; i < 7; i++) {
-        Serial.print(state[i]);
-        if (i < 6)
-            Serial.print(",");
+
+    // The server protocol requires five binary slots and numeric temperature
+    // and water fields. Those two measurements are not implemented by this client.
+    char payload[128];
+    int length = snprintf(payload, sizeof(payload),
+                          "{\"type\":\"parking_update\",\"slots\":[%d,%d,%d,%d,%d],\"temperature_c\":0,\"water_mm\":0}",
+                          state[0], state[1], state[2], state[3], state[4]);
+    if (length < 0 || length >= sizeof(payload)) {
+        Serial.println("UDP payload formatting failed");
+        return;
     }
-    Serial.println();
+
+    if (udp.beginPacket(serverIP, serverPort) &&
+        udp.write(reinterpret_cast<const uint8_t*>(payload), length) == length &&
+        udp.endPacket()) {
+        Serial.print("Sent: ");
+        Serial.println(payload);
+    } else {
+        Serial.println("UDP send failed");
+    }
 }
 
 /******************UDP SECTION END**********************/
@@ -98,7 +109,17 @@ void send_UDP() {
 void setup() {
   Serial.begin(115200);
   WiFi.mode(WIFI_STA);
+  WiFi.setAutoReconnect(true);
   WiFi.begin(ssid, password);
+  Serial.print("Connecting to ");
+  Serial.println(ssid);
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    Serial.print(".");
+  }
+  Serial.println();
+  Serial.print("Connected, client IP: ");
+  Serial.println(WiFi.localIP());
   ArduinoOTA.begin();
   init_sensor();
   udp.begin(4210);
@@ -107,6 +128,9 @@ void setup() {
 void loop() {
   ArduinoOTA.handle();
   update_sensor();
-  send_UDP();
-  delay(1000);
+  unsigned long now = millis();
+  if (now - lastSend >= SEND_INTERVAL) {
+    lastSend = now;
+    send_UDP();
+  }
 }

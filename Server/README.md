@@ -81,3 +81,14 @@ idf.py -C Server set-target esp32c3
 idf.py -C Server build
 idf.py -C Server flash monitor
 ```
+
+
+| Display pin | ESP32-C3 GPIO |
+|---|---:|
+| SCL / SCK | 4 |
+| SDA / MOSI | 6 |
+| DC | 7 |
+| RES / RST | 3 |
+| CS | 10 |
+| BL / LED | 5 |
+| VCC / GND | 3V3 / GND |

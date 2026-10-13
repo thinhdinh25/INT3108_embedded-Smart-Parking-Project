@@ -9,7 +9,7 @@ UDP_PORT = 3333
 # 1 = occupied, 0 = free. Here slots 1 and 4 are occupied; 3 spaces are free.
 request = {
     "type": "parking_update",
-    "slots": [1, 0, 0, 1, 0],
+    "slots": [0, 0, 0, 0, 0],
     "temperature_c": 28.0,
     "water_mm": 0.2,
 }
