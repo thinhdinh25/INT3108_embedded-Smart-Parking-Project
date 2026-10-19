@@ -1,6 +1,7 @@
 idf_component_register(
     SRCS
         "main.c"
+        "barrier_servo.c"
         "display/lcd_display.c"
         "display/kaoruko_gif.c"
         "parking/parking_state.c"
@@ -26,6 +27,7 @@ idf_component_register(
         esp_lcd
         esp_driver_spi
         esp_driver_gpio
+        esp_driver_ledc
         lwip
         nvs_flash
 )

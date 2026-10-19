@@ -44,6 +44,8 @@ The documented TFT wiring occupies GPIO3, GPIO4, GPIO5, GPIO6, GPIO7, and GPIO10
 
 ## Firmware configuration
 
-The current server code initializes the TFT but does not implement servo PWM. Adding the physical wiring alone will not move the servos; firmware must configure two PWM outputs and provide the desired angle/position commands.
+The server firmware currently runs a servo test: both servos start closed, then move between 0° and 90°, holding each position for three seconds. The PWM signal uses GPIO0 and GPIO1 at 50 Hz. The test cycle should be replaced with network commands when the sender is ready.
+
+For the first powered run, detach the barrier arms or leave the servos unloaded. SG90 clones can have different pulse ranges, so adjust `SERVO_CLOSED_PULSE_US` and `SERVO_OPEN_PULSE_US` in `Server/main/barrier_servo.c` if a servo strains against its stop. Power both servos from an external regulated 5 V supply sized for their combined stall current; join its ground to ESP32-C3 GND.
 
 The display GPIO defaults are in `Server/sdkconfig` and can be changed through the ESP-IDF SDK Configuration Editor under **Parking TFT display**.
