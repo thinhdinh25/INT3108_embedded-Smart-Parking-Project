@@ -14,7 +14,7 @@
                 <span class="brand-mark" aria-hidden="true">&gt;_</span>
                 <span>PARKING<span class="brand-accent">_SYS</span></span>
             </a>
-            <div class="connection"><span class="pulse" aria-hidden="true"></span> ESP32 / ONLINE</div>
+            <div class="connection" id="server-connection"><span class="pulse" aria-hidden="true"></span><span id="server-status">ESP32 / CHECKING</span></div>
         </header>
 
         <section class="intro" aria-labelledby="page-title">
@@ -24,6 +24,11 @@
                 <p class="subtitle">Live facility and sensor data</p>
             </div>
             <div class="sample-badge" id="data-state"><span aria-hidden="true">●</span> WAITING FOR DATA</div>
+        </section>
+
+        <section class="fire-alert" id="fire-alert" role="alert" hidden>
+            <strong>FIRE DETECTED</strong>
+            <span>Fire sensor is active · evacuate the parking area</span>
         </section>
 
         <section class="summary" aria-label="Parking summary">
@@ -42,7 +47,7 @@
             <div class="barrier-copy">
                 <p class="eyebrow">03 / BARRIER</p>
                 <h2 id="barrier-title">Barrier control</h2>
-                <p class="barrier-note">Dashboard state only · no actuator connected</p>
+                <p class="barrier-note" id="barrier-note">SG90 servos · GPIO0 + GPIO1</p>
             </div>
             <div class="barrier-actions">
                 <span class="barrier-state" id="barrier-state" role="status">CLOSED</span>
@@ -73,9 +78,12 @@
                     <div class="metric-track"><span></span></div>
                 </article>
                 <article class="metric water">
-                    <div class="metric-copy"><p>WATER DEPTH</p><strong><span id="water-value">--</span><span>mm</span></strong></div>
+                    <div class="metric-copy"><p>WATER LEVEL</p><strong><span id="water-value">--</span><span>mm</span></strong></div>
                 </article>
-                <p class="demo-note">// refreshed on each UDP update</p>
+                <article class="metric fire-metric">
+                    <div class="metric-copy"><p>FIRE SENSOR</p><strong id="fire-value">WAITING</strong></div>
+                </article>
+                <p class="demo-note">// updated from the client sensor request</p>
             </section>
         </div>
 
@@ -86,13 +94,34 @@
         const dataState = document.getElementById('data-state');
         const barrierState = document.getElementById('barrier-state');
 
-        document.getElementById('barrier-open').addEventListener('click', () => {
-            barrierState.textContent = 'OPEN';
-            barrierState.classList.add('is-open');
-        });
-        document.getElementById('barrier-close').addEventListener('click', () => {
-            barrierState.textContent = 'CLOSED';
-            barrierState.classList.remove('is-open');
+        const barrierButtons = [document.getElementById('barrier-open'), document.getElementById('barrier-close')];
+        async function setBarrier(open) {
+            const note = document.getElementById('barrier-note');
+            barrierButtons.forEach(button => button.disabled = true);
+            note.textContent = 'Sending command…';
+            try {
+                const response = await fetch(`/api/barrier/${open ? 'open' : 'close'}`, { method: 'POST' });
+                if (!response.ok) throw new Error('Servo command failed');
+                barrierState.textContent = open ? 'OPEN' : 'CLOSED';
+                barrierState.classList.toggle('is-open', open);
+                note.textContent = 'SG90 servos · GPIO0 + GPIO1';
+            } catch (error) {
+                note.textContent = 'Command failed · check ESP32 connection';
+            } finally {
+                barrierButtons.forEach(button => button.disabled = false);
+            }
+        }
+        document.getElementById('barrier-open').addEventListener('click', () => setBarrier(true));
+        document.getElementById('barrier-close').addEventListener('click', () => setBarrier(false));
+
+        fetch('/api/barrier', { cache: 'no-store' }).then(response => {
+            if (!response.ok) throw new Error('Barrier state unavailable');
+            return response.json();
+        }).then(data => {
+            barrierState.textContent = data.open ? 'OPEN' : 'CLOSED';
+            barrierState.classList.toggle('is-open', data.open);
+        }).catch(() => {
+            document.getElementById('barrier-note').textContent = 'Barrier state unavailable';
         });
 
         function renderParking(data) {
@@ -104,6 +133,10 @@
             document.getElementById('capacity').textContent = `${available} / ${data.total} FREE`;
             document.getElementById('temperature-value').textContent = data.received ? Number(data.temperature_c).toFixed(1) : '--';
             document.getElementById('water-value').textContent = data.received ? Number(data.water_mm).toFixed(1) : '--';
+            const fireValue = document.getElementById('fire-value');
+            fireValue.textContent = data.received ? (data.fire ? 'FIRE DETECTED' : 'NO FIRE') : 'WAITING';
+            fireValue.classList.toggle('fire-active', data.received && data.fire);
+            document.getElementById('fire-alert').hidden = !data.received || !data.fire;
             spaceList.replaceChildren(...slots.map((occupied, index) => {
                 const article = document.createElement('article');
                 article.className = `space ${occupied ? 'occupied' : 'available'}`;
@@ -112,7 +145,7 @@
                     `<span class="status"><i></i> ${occupied ? 'OCCUPIED' : 'FREE'}</span></span>`;
                 return article;
             }));
-            dataState.innerHTML = `<span aria-hidden="true">●</span> ${data.received ? 'LIVE / UDP' : 'WAITING FOR DATA'}`;
+            dataState.innerHTML = `<span aria-hidden="true">●</span> ${data.received ? 'LIVE / SENSOR' : 'WAITING FOR DATA'}`;
         }
 
         async function refreshParking() {
@@ -120,8 +153,14 @@
                 const response = await fetch('/api/parking', { cache: 'no-store' });
                 if (!response.ok) throw new Error('Dashboard API unavailable');
                 renderParking(await response.json());
+                const connection = document.getElementById('server-connection');
+                document.getElementById('server-status').textContent = 'ESP32 / ONLINE';
+                connection.classList.remove('is-offline');
             } catch (error) {
                 dataState.innerHTML = '<span aria-hidden="true">●</span> SERVER OFFLINE';
+                const connection = document.getElementById('server-connection');
+                document.getElementById('server-status').textContent = 'ESP32 / OFFLINE';
+                connection.classList.add('is-offline');
             }
         }
 

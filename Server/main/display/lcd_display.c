@@ -267,6 +267,21 @@ static void draw_parking_screen(const parking_state_t *state, int free_count)
                   occupied ? COLOR_RED : COLOR_GREEN);
     }
 
+    draw_text(8, 207, state->received ? (state->fire ? "FIRE: DETECTED" : "FIRE: CLEAR") : "FIRE: WAITING",
+              1, state->received && state->fire ? COLOR_RED : COLOR_GREEN);
+
+    ESP_ERROR_CHECK(lcd_draw_bitmap_locked(0, 0, width, height, framebuffer));
+}
+
+static void draw_fire_alarm_screen(void)
+{
+    fill_rect(0, 0, width, height, COLOR_BG);
+    fill_rect(0, 0, width, 10, COLOR_RED);
+    fill_rect(0, height - 10, width, 10, COLOR_RED);
+    draw_text(24, 48, "FIRE ALARM", 2, COLOR_RED);
+    fill_rect(20, 84, width - 40, 2, COLOR_RED);
+    draw_text(28, 108, "FIRE DETECTED", 1, COLOR_WHITE);
+    draw_text(20, 138, "EVACUATE NOW", 2, COLOR_WHITE);
     ESP_ERROR_CHECK(lcd_draw_bitmap_locked(0, 0, width, height, framebuffer));
 }
 
@@ -304,10 +319,14 @@ static void draw_kaoruko_frame(int frame_index)
 static void animation_task(void *arg)
 {
     (void)arg;
+    parking_state_t state = {0};
+    int free_count = 0;
 
     for (int frame = 0;; frame = (frame + 1) % KAORUKO_FRAME_COUNT)
     {
-        draw_kaoruko_frame(frame);
+        parking_state_get(&state, &free_count);
+        if (!state.fire)
+            draw_kaoruko_frame(frame);
         vTaskDelay(pdMS_TO_TICKS(kaoruko_frame_delay_ms[frame]));
     }
 }
@@ -319,6 +338,7 @@ static void display_task(void *arg)
     int free_count = 0;
     bool first_draw = true;
     bool last_received = false;
+    bool last_fire = false;
     int last_slots[PARKING_SLOT_COUNT] = {-1, -1, -1, -1, -1};
     float last_temperature = -1000.0f;
     float last_water = -1000.0f;
@@ -329,14 +349,19 @@ static void display_task(void *arg)
 
         if (first_draw ||
             state.received != last_received ||
+            state.fire != last_fire ||
             memcmp(state.slots, last_slots, sizeof(last_slots)) != 0 ||
             state.temperature_c != last_temperature ||
             state.water_mm != last_water)
         {
-            draw_parking_screen(&state, free_count);
+            if (state.received && state.fire)
+                draw_fire_alarm_screen();
+            else
+                draw_parking_screen(&state, free_count);
 
             memcpy(last_slots, state.slots, sizeof(last_slots));
             last_received = state.received;
+            last_fire = state.fire;
             last_temperature = state.temperature_c;
             last_water = state.water_mm;
             first_draw = false;

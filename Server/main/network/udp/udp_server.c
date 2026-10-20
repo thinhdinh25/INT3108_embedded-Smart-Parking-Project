@@ -1,7 +1,4 @@
 #include <errno.h>
-#include <stdbool.h>
-#include <stdlib.h>
-#include <string.h>
 
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
@@ -11,156 +8,12 @@
 #include "lwip/sockets.h"
 
 #include "../parking/parking_state.h"
+#include "../parking/parking_update.h"
 #include "udp_server.h"
 
 #define UDP_BUFFER_SIZE 256
 
 static const char *TAG = "UDP_SERVER";
-
-static void skip_json_whitespace(const char **cursor)
-{
-    while (**cursor == ' ' || **cursor == '\t' || **cursor == '\r' || **cursor == '\n')
-        ++(*cursor);
-}
-
-static bool consume_json_char(const char **cursor, char expected)
-{
-    skip_json_whitespace(cursor);
-    if (**cursor != expected)
-        return false;
-    ++(*cursor);
-    return true;
-}
-
-static bool consume_json_string(const char **cursor, const char *expected)
-{
-    skip_json_whitespace(cursor);
-    if (**cursor != '"')
-        return false;
-    ++(*cursor);
-    while (*expected != '\0')
-    {
-        if (**cursor != *expected)
-            return false;
-        ++(*cursor);
-        ++expected;
-    }
-    if (**cursor != '"')
-        return false;
-    ++(*cursor);
-    return true;
-}
-
-/* Parse type, five binary slots, temperature_c and water_mm. */
-static bool parse_parking_update(const char *payload, parking_state_t *state)
-{
-    const char *cursor = payload;
-    bool has_type = false;
-    bool has_slots = false;
-    bool has_temperature = false;
-    bool has_water = false;
-    if (!consume_json_char(&cursor, '{'))
-        return false;
-
-    for (int field = 0; field < 4; ++field)
-    {
-        skip_json_whitespace(&cursor);
-        bool is_type = false;
-        bool is_slots = false;
-        bool is_temperature = false;
-        bool is_water = false;
-        if (strncmp(cursor, "\"type\"", 6) == 0)
-        {
-            is_type = true;
-            cursor += 6;
-            if (has_type)
-                return false;
-            has_type = true;
-        }
-        else if (strncmp(cursor, "\"slots\"", 7) == 0)
-        {
-            is_slots = true;
-            cursor += 7;
-            if (has_slots)
-                return false;
-            has_slots = true;
-        }
-        else if (strncmp(cursor, "\"temperature_c\"", 15) == 0)
-        {
-            is_temperature = true;
-            cursor += 15;
-            if (has_temperature)
-                return false;
-            has_temperature = true;
-        }
-        else if (strncmp(cursor, "\"water_mm\"", 10) == 0)
-        {
-            is_water = true;
-            cursor += 10;
-            if (has_water)
-                return false;
-            has_water = true;
-        }
-        else
-            return false;
-
-        if (!consume_json_char(&cursor, ':'))
-            return false;
-        if (is_type)
-        {
-            if (!consume_json_string(&cursor, "parking_update"))
-                return false;
-        }
-        else if (is_slots)
-        {
-            if (!consume_json_char(&cursor, '['))
-                return false;
-            for (int i = 0; i < PARKING_SLOT_COUNT; ++i)
-            {
-                skip_json_whitespace(&cursor);
-                if (*cursor != '0' && *cursor != '1')
-                    return false;
-                state->slots[i] = *cursor++ - '0';
-                if (i < PARKING_SLOT_COUNT - 1 && !consume_json_char(&cursor, ','))
-                    return false;
-            }
-            if (!consume_json_char(&cursor, ']'))
-                return false;
-        }
-        else
-        {
-            skip_json_whitespace(&cursor);
-            if ((*cursor < '0' || *cursor > '9') && *cursor != '-')
-                return false;
-            char *end = NULL;
-            float value = strtof(cursor, &end);
-            if (end == cursor)
-                return false;
-            cursor = end;
-            if (is_temperature)
-            {
-                if (!(value >= -40.0f && value <= 125.0f))
-                    return false;
-                state->temperature_c = value;
-            }
-            else if (is_water)
-            {
-                if (!(value >= 0.0f && value <= 10000.0f))
-                    return false;
-                state->water_mm = value;
-            }
-        }
-
-        if (field < 3 && !consume_json_char(&cursor, ','))
-            return false;
-    }
-
-    if (!has_type || !has_slots || !has_temperature || !has_water ||
-        !consume_json_char(&cursor, '}'))
-        return false;
-    skip_json_whitespace(&cursor);
-    return *cursor == '\0';
-}
 
 static void udp_server_task(void *arg)
 {
@@ -215,7 +68,7 @@ static void udp_server_task(void *arg)
                      ntohs(source_addr.sin_port), received, buffer);
 
             parking_state_t new_state = {0};
-            if (!parse_parking_update(buffer, &new_state))
+            if (!parking_update_parse_json(buffer, &new_state))
             {
                 ESP_LOGW(TAG, "Ignoring invalid parking update");
                 continue;

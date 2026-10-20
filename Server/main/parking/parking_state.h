@@ -11,6 +11,7 @@ typedef struct
     int slots[PARKING_SLOT_COUNT]; /* 1 = occupied, 0 = free */
     float temperature_c;
     float water_mm;
+    bool fire;
     bool received;
 } parking_state_t;
 

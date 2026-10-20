@@ -12,6 +12,7 @@ request = {
     "slots": [0, 0, 0, 0, 0],
     "temperature_c": 28.0,
     "water_mm": 0.2,
+    "fire": False,
 }
 
 payload = json.dumps(request).encode("utf-8")
