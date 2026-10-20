@@ -6,7 +6,6 @@
 
 #include "http_server.h"
 #include "../parking/parking_state.h"
-#include "../parking/parking_update.h"
 #include "../../barrier/servo.h"
 
 extern const unsigned char index_html_start[] asm("_binary_index_html_start");
@@ -50,33 +49,6 @@ static esp_err_t parking_state_get_handler(httpd_req_t *req)
     return httpd_resp_send(req, response, length);
 }
 
-static esp_err_t parking_update_post_handler(httpd_req_t *req)
-{
-    char payload[256];
-    if (req->content_len == 0)
-        return httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "JSON body is empty");
-    if (req->content_len >= sizeof(payload))
-        return httpd_resp_send_err(req, HTTPD_413_CONTENT_TOO_LARGE, "JSON body too large");
-
-    size_t received = 0;
-    while (received < req->content_len)
-    {
-        int result = httpd_req_recv(req, payload + received, (size_t)req->content_len - received);
-        if (result <= 0)
-            return ESP_FAIL;
-        received += (size_t)result;
-    }
-    payload[received] = '\0';
-
-    parking_state_t state = {0};
-    if (!parking_update_parse_json(payload, &state))
-        return httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "Invalid parking JSON");
-
-    parking_state_update(&state);
-    httpd_resp_set_type(req, "application/json");
-    return httpd_resp_sendstr(req, "{\"accepted\":true}");
-}
-
 static esp_err_t barrier_open_handler(httpd_req_t *req)
 {
     esp_err_t err = servo_set_open(true);
@@ -116,12 +88,6 @@ esp_err_t http_server_start(void)
     }
 
     const httpd_uri_t routes[] = {
-        {
-            .uri = "/api/parking",
-            .method = HTTP_POST,
-            .handler = parking_update_post_handler,
-            .user_ctx = NULL,
-        },
         {
             .uri = "/api/barrier",
             .method = HTTP_GET,

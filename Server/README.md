@@ -10,8 +10,7 @@ shows the latest parking state on a 1.54-inch ST7789 TFT.
 - Wi-Fi password: `12345678`
 - Device address: `192.168.4.1`
 - Dashboard: `http://192.168.4.1`
-- Sensor update endpoint: `POST /api/parking` with a JSON body
-- Legacy sensor endpoint: UDP `192.168.4.1:3333`
+- Sensor update endpoint: UDP `192.168.4.255:3333` (JSON datagrams)
 - Dashboard data endpoint: `GET /api/parking`
 - Barrier controls: dashboard Open/Close buttons command SG90 servos on GPIO0 and GPIO1
 
@@ -28,8 +27,7 @@ on the servos; connect both servo grounds to GND and make sure that the 5 V
 supply ground is also connected to ESP32 GND. Do not connect either servo's 5 V
 lead to an ESP32 GPIO. Verify both GPIO labels on your board before wiring.
 
-Connect the sender to the ESP32 access point and POST JSON to
-`http://192.168.4.1/api/parking`; the legacy UDP endpoint remains available at
+Connect the sender to the ESP32 access point and send JSON datagrams to
 `192.168.4.255:3333`. Slot value `1` means occupied; `0` means free.
 Temperature is sent in Celsius, water level in millimeters, and `fire` reports
 whether the fire sensor is active:
@@ -39,9 +37,9 @@ whether the fire sensor is active:
 ```
 
 The example represents 3 free spaces, a temperature of 28.0 °C, a 0.2 mm water
-level, and no fire detected. `Client/Client.ino` sends this format over HTTP;
-`../examples/udp_sender.py` (Python) and `../examples/udp_sender_espidf.c`
-(ESP-IDF) remain UDP examples. The latest accepted state is
+level, and no fire detected. `Client/Client.ino`, `../examples/udp_sender.py`
+(Python), and `../examples/udp_sender_espidf.c` (ESP-IDF) all send this format
+over UDP. The latest accepted state is
 kept in RAM and resets when the ESP32 reboots.
 
 ## Project layout
