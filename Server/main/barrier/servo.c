@@ -5,20 +5,21 @@
 #include "servo.h"
 #include <stdint.h>
 
-#define SERVO_GPIO 0
-#define SERVO_GPIO_2 1
+#define SERVO_IN_GPIO 0
+#define SERVO_OUT_GPIO 1
 #define SERVO_TIMER LEDC_TIMER_0
-#define SERVO_CHANNEL LEDC_CHANNEL_0
-#define SERVO_CHANNEL_2 LEDC_CHANNEL_1
+#define SERVO_IN_CHANNEL LEDC_CHANNEL_0
+#define SERVO_OUT_CHANNEL LEDC_CHANNEL_1
 #define SERVO_FREQUENCY_HZ 50
 #define SERVO_PERIOD_US 20000
 #define SERVO_MIN_PULSE_US 500
 #define SERVO_MAX_PULSE_US 2400
 
 static const char *TAG = "SERVO";
-static bool barrier_open;
+static bool in_open;
+static bool out_open;
 
-static esp_err_t servo_set_channel_angle(ledc_channel_t channel, int angle)
+static esp_err_t servo_set_angle(ledc_channel_t channel, int angle)
 {
     const uint32_t pulse_us = SERVO_MIN_PULSE_US +
         (SERVO_MAX_PULSE_US - SERVO_MIN_PULSE_US) * (uint32_t)angle / 180;
@@ -29,12 +30,39 @@ static esp_err_t servo_set_channel_angle(ledc_channel_t channel, int angle)
     return ledc_update_duty(LEDC_LOW_SPEED_MODE, channel);
 }
 
-static esp_err_t servo_set_angle(int angle)
+static esp_err_t servo_set_state(ledc_channel_t channel, const char *key, bool *state, bool open)
 {
-    esp_err_t err = servo_set_channel_angle(SERVO_CHANNEL, angle);
+    if (*state == open)
+        return ESP_OK;
+
+    esp_err_t err = servo_set_angle(channel, open ? 90 : 0);
     if (err != ESP_OK)
         return err;
-    return servo_set_channel_angle(SERVO_CHANNEL_2, angle);
+
+    *state = open;
+    nvs_handle_t nvs;
+    err = nvs_open("barrier", NVS_READWRITE, &nvs);
+    if (err == ESP_OK)
+    {
+        err = nvs_set_u8(nvs, key, open ? 1 : 0);
+        if (err == ESP_OK)
+            err = nvs_commit(nvs);
+        nvs_close(nvs);
+    }
+    if (err != ESP_OK)
+        ESP_LOGE(TAG, "Servo moved, but saving %s state failed: %s", key, esp_err_to_name(err));
+    return ESP_OK;
+}
+
+static esp_err_t load_state(nvs_handle_t nvs, const char *key, bool *state)
+{
+    uint8_t saved = 0;
+    esp_err_t err = nvs_get_u8(nvs, key, &saved);
+    if (err == ESP_ERR_NVS_NOT_FOUND)
+        err = ESP_OK;
+    if (err == ESP_OK)
+        *state = saved != 0;
+    return err;
 }
 
 esp_err_t servo_start(void)
@@ -50,74 +78,59 @@ esp_err_t servo_start(void)
     if (err != ESP_OK)
         return err;
 
-    const ledc_channel_config_t channel = {
-        .gpio_num = SERVO_GPIO,
-        .speed_mode = LEDC_LOW_SPEED_MODE,
-        .channel = SERVO_CHANNEL,
-        .intr_type = LEDC_INTR_DISABLE,
-        .timer_sel = SERVO_TIMER,
-        .duty = 0,
-        .hpoint = 0,
+    const ledc_channel_config_t channels[] = {
+        {.gpio_num = SERVO_IN_GPIO, .speed_mode = LEDC_LOW_SPEED_MODE, .channel = SERVO_IN_CHANNEL,
+         .intr_type = LEDC_INTR_DISABLE, .timer_sel = SERVO_TIMER, .duty = 0, .hpoint = 0},
+        {.gpio_num = SERVO_OUT_GPIO, .speed_mode = LEDC_LOW_SPEED_MODE, .channel = SERVO_OUT_CHANNEL,
+         .intr_type = LEDC_INTR_DISABLE, .timer_sel = SERVO_TIMER, .duty = 0, .hpoint = 0},
     };
-    err = ledc_channel_config(&channel);
-    if (err != ESP_OK)
-        return err;
-
-    const ledc_channel_config_t channel_2 = {
-        .gpio_num = SERVO_GPIO_2,
-        .speed_mode = LEDC_LOW_SPEED_MODE,
-        .channel = SERVO_CHANNEL_2,
-        .intr_type = LEDC_INTR_DISABLE,
-        .timer_sel = SERVO_TIMER,
-        .duty = 0,
-        .hpoint = 0,
-    };
-    err = ledc_channel_config(&channel_2);
-    if (err != ESP_OK)
-        return err;
+    for (size_t i = 0; i < sizeof(channels) / sizeof(channels[0]); ++i)
+    {
+        err = ledc_channel_config(&channels[i]);
+        if (err != ESP_OK)
+            return err;
+    }
 
     nvs_handle_t nvs;
     err = nvs_open("barrier", NVS_READWRITE, &nvs);
     if (err != ESP_OK)
         return err;
-
-    uint8_t saved_state = 0;
-    err = nvs_get_u8(nvs, "open", &saved_state);
-    if (err == ESP_ERR_NVS_NOT_FOUND)
-        err = ESP_OK;
+    err = load_state(nvs, "in_open", &in_open);
+    if (err == ESP_OK)
+        err = load_state(nvs, "out_open", &out_open);
     nvs_close(nvs);
     if (err != ESP_OK)
         return err;
 
-    barrier_open = saved_state != 0;
-    return servo_set_angle(barrier_open ? 90 : 0);
-}
-
-esp_err_t servo_set_open(bool open)
-{
-    if (barrier_open == open)
-        return ESP_OK;
-
-    esp_err_t err = servo_set_angle(open ? 90 : 0);
+    err = servo_set_angle(SERVO_IN_CHANNEL, in_open ? 90 : 0);
     if (err != ESP_OK)
         return err;
-
-    barrier_open = open;
-    nvs_handle_t nvs;
-    err = nvs_open("barrier", NVS_READWRITE, &nvs);
-    if (err == ESP_OK)
-    {
-        err = nvs_set_u8(nvs, "open", open ? 1 : 0);
-        if (err == ESP_OK)
-            err = nvs_commit(nvs);
-        nvs_close(nvs);
-    }
-    if (err != ESP_OK)
-        ESP_LOGE(TAG, "Barrier moved, but saving its state failed: %s", esp_err_to_name(err));
-    return ESP_OK;
+    return servo_set_angle(SERVO_OUT_CHANNEL, out_open ? 90 : 0);
 }
 
-bool servo_is_open(void)
+esp_err_t servo_set_in_open(bool open)
 {
-    return barrier_open;
+    return servo_set_state(SERVO_IN_CHANNEL, "in_open", &in_open, open);
+}
+
+esp_err_t servo_set_out_open(bool open)
+{
+    return servo_set_state(SERVO_OUT_CHANNEL, "out_open", &out_open, open);
+}
+
+esp_err_t servo_set_all_open(bool open)
+{
+    esp_err_t in_err = servo_set_in_open(open);
+    esp_err_t out_err = servo_set_out_open(open);
+    return in_err != ESP_OK ? in_err : out_err;
+}
+
+bool servo_is_in_open(void)
+{
+    return in_open;
+}
+
+bool servo_is_out_open(void)
+{
+    return out_open;
 }

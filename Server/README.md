@@ -12,13 +12,13 @@ shows the latest parking state on a 1.54-inch ST7789 TFT.
 - Dashboard: `http://192.168.4.1`
 - Sensor update endpoint: UDP `192.168.4.255:3333` (JSON datagrams)
 - Dashboard data endpoint: `GET /api/parking`
-- Barrier controls: dashboard Open/Close buttons command SG90 servos on GPIO0 and GPIO1
+- Barrier controls: separate IN (GPIO0) and OUT (GPIO1) Open/Close controls, plus emergency commands for both servos
 
 ### SG90 barrier servos
 
-The server firmware drives two SG90 servos together at 50 Hz. **Open** commands 90° and
-**Close** commands 0°. The ESP32 saves the last commanded state in NVS and
-restores it at startup; sending Open more than once keeps the same 90° target.
+The server firmware drives two SG90 servos independently at 50 Hz. Each
+barrier's **Open** command targets 90° and **Close** targets 0°. The ESP32 saves
+each commanded state separately in NVS and restores them at startup.
 Adjust the pulse limits in
 `main/barrier/servo.c` if your servo or barrier linkage needs calibration.
 With the default TFT wiring above, connect the signal wires to ESP32-C3

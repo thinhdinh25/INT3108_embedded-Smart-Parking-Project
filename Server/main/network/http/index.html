@@ -47,12 +47,27 @@
             <div class="barrier-copy">
                 <p class="eyebrow">03 / BARRIER</p>
                 <h2 id="barrier-title">Barrier control</h2>
-                <p class="barrier-note" id="barrier-note">SG90 servos · GPIO0 + GPIO1</p>
+                <p class="barrier-note" id="barrier-note">Independent SG90 controls · IN GPIO0 · OUT GPIO1</p>
             </div>
-            <div class="barrier-actions">
-                <span class="barrier-state" id="barrier-state" role="status">CLOSED</span>
-                <button type="button" id="barrier-open">OPEN</button>
-                <button type="button" id="barrier-close" class="secondary">CLOSE</button>
+            <div class="barrier-lanes">
+                <div class="barrier-actions" data-barrier="in">
+                    <span class="barrier-label">IN · GPIO0</span>
+                    <span class="barrier-state" id="in-state" role="status">CLOSED</span>
+                    <button type="button" data-action="open">OPEN</button>
+                    <button type="button" data-action="close" class="secondary">CLOSE</button>
+                </div>
+                <div class="barrier-actions" data-barrier="out">
+                    <span class="barrier-label">OUT · GPIO1</span>
+                    <span class="barrier-state" id="out-state" role="status">CLOSED</span>
+                    <button type="button" data-action="open">OPEN</button>
+                    <button type="button" data-action="close" class="secondary">CLOSE</button>
+                </div>
+                <div class="barrier-emergency" aria-label="Emergency barrier controls">
+                    <strong>EMERGENCY · ALL BARRIERS</strong>
+                    <button type="button" data-emergency="open">EMERGENCY OPEN ALL</button>
+                    <button type="button" data-emergency="close">EMERGENCY CLOSE ALL</button>
+                    <span id="emergency-state" role="status" aria-live="polite"></span>
+                </div>
             </div>
         </section>
 
@@ -92,36 +107,63 @@
     <script>
         const spaceList = document.getElementById('space-list');
         const dataState = document.getElementById('data-state');
-        const barrierState = document.getElementById('barrier-state');
-
-        const barrierButtons = [document.getElementById('barrier-open'), document.getElementById('barrier-close')];
-        async function setBarrier(open) {
-            const note = document.getElementById('barrier-note');
-            barrierButtons.forEach(button => button.disabled = true);
-            note.textContent = 'Sending command…';
+        async function setBarrier(direction, open, controls) {
+            const state = document.getElementById(`${direction}-state`);
+            const buttons = controls.querySelectorAll('button');
+            buttons.forEach(button => button.disabled = true);
             try {
-                const response = await fetch(`/api/barrier/${open ? 'open' : 'close'}`, { method: 'POST' });
+                const response = await fetch(`/api/barrier/${direction}/${open ? 'open' : 'close'}`, { method: 'POST' });
                 if (!response.ok) throw new Error('Servo command failed');
-                barrierState.textContent = open ? 'OPEN' : 'CLOSED';
-                barrierState.classList.toggle('is-open', open);
-                note.textContent = 'SG90 servos · GPIO0 + GPIO1';
+                state.textContent = open ? 'OPEN' : 'CLOSED';
+                state.classList.toggle('is-open', open);
             } catch (error) {
-                note.textContent = 'Command failed · check ESP32 connection';
+                state.textContent = 'ERROR';
             } finally {
-                barrierButtons.forEach(button => button.disabled = false);
+                buttons.forEach(button => button.disabled = false);
             }
         }
-        document.getElementById('barrier-open').addEventListener('click', () => setBarrier(true));
-        document.getElementById('barrier-close').addEventListener('click', () => setBarrier(false));
+        document.querySelectorAll('.barrier-actions').forEach(controls => {
+            controls.querySelectorAll('button').forEach(button => {
+                button.addEventListener('click', () => setBarrier(controls.dataset.barrier, button.dataset.action === 'open', controls));
+            });
+        });
+
+        document.querySelectorAll('[data-emergency]').forEach(button => {
+            button.addEventListener('click', async () => {
+                const open = button.dataset.emergency === 'open';
+                const status = document.getElementById('emergency-state');
+                const emergencyButtons = document.querySelectorAll('[data-emergency]');
+                emergencyButtons.forEach(control => control.disabled = true);
+                status.textContent = 'Sending command…';
+                try {
+                    const response = await fetch(`/api/barrier/all/${open ? 'open' : 'close'}`, { method: 'POST' });
+                    if (!response.ok) throw new Error('Servo command failed');
+                    [['in', 'in-state'], ['out', 'out-state']].forEach(([, id]) => {
+                        const state = document.getElementById(id);
+                        state.textContent = open ? 'OPEN' : 'CLOSED';
+                        state.classList.toggle('is-open', open);
+                    });
+                    status.textContent = open ? 'Both barriers opened' : 'Both barriers closed';
+                } catch (error) {
+                    status.textContent = 'Emergency command failed';
+                } finally {
+                    emergencyButtons.forEach(control => control.disabled = false);
+                }
+            });
+        });
 
         fetch('/api/barrier', { cache: 'no-store' }).then(response => {
             if (!response.ok) throw new Error('Barrier state unavailable');
             return response.json();
         }).then(data => {
-            barrierState.textContent = data.open ? 'OPEN' : 'CLOSED';
-            barrierState.classList.toggle('is-open', data.open);
+            [['in', data.in_open], ['out', data.out_open]].forEach(([direction, open]) => {
+                const state = document.getElementById(`${direction}-state`);
+                state.textContent = open ? 'OPEN' : 'CLOSED';
+                state.classList.toggle('is-open', open);
+            });
         }).catch(() => {
-            document.getElementById('barrier-note').textContent = 'Barrier state unavailable';
+            document.getElementById('in-state').textContent = 'UNKNOWN';
+            document.getElementById('out-state').textContent = 'UNKNOWN';
         });
 
         function renderParking(data) {
