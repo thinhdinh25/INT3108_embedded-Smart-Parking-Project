@@ -1,6 +1,7 @@
 idf_component_register(
     SRCS
         "main.c"
+        "buzzer/buzzer.c"
         "barrier/servo.c"
         "display/lcd_display.c"
         "display/kaoruko_gif.c"

@@ -64,7 +64,9 @@ master driver. It does not need an Arduino display library or an extra managed
 component. The UI is configured for a 240×240 panel and shows free slots,
 individual slot states, temperature, and water level. An active `fire` field
 replaces the normal TFT view with a fire alarm screen and shows a prominent
-dashboard alert.
+dashboard alert. The server also drives an active-low buzzer on GPIO9 while
+the latest accepted UDP update reports `fire: true`; it turns the buzzer off
+when an update reports `fire: false`. The buzzer output is initialized off.
 
 Default ESP32-C3 SuperMini wiring:
 
@@ -84,8 +86,11 @@ and run **ESP-IDF: SDK Configuration Editor**. Edit the **Parking
 TFT display** values to match the wiring, and adjust the panel X/Y offsets if
 the image is shifted. `Client/Client.ino` currently uses sample temperature
 and water values until you set its sensor-specific reading and calibration
-code. It reads a fire sensor from client GPIO2, active-low by default; change
-`FIRE` or `FIRE_ACTIVE_LEVEL` to match your module.
+code. The fire sensor is read by the client sender and the server receives that
+state in the UDP `fire` field. GPIO9 is also an ESP32-C3 strapping pin; use a
+buzzer module input that does not force GPIO9 low during reset, and verify the
+module is compatible with 3.3 V logic. This firmware assumes LOW activates
+the buzzer.
 
 ## Build and flash in VS Code
 
