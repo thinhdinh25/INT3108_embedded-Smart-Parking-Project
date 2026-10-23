@@ -120,7 +120,6 @@ void update_sensor() {
 WiFiUDP udp;
 IPAddress serverIP(192, 168, 4, 255);
 const uint16_t serverPort = 3333;
-const float SAMPLE_TEMPERATURE_C = 28.0f;
 
 const unsigned long SEND_INTERVAL = 1000;
 unsigned long lastSend = 0;
@@ -132,11 +131,11 @@ void send_UDP() {
     }
 
     // `1` means occupied/detected and `0` means free/clear.
-    char payload[128];
+    char payload[112];
     int length = snprintf(payload, sizeof(payload),
-                          "{\"type\":\"parking_update\",\"slots\":[%d,%d,%d,%d,%d],\"temperature_c\":%.1f,\"water_mm\":%.1f,\"fire\":%s}",
+                          "{\"type\":\"parking_update\",\"slots\":[%d,%d,%d,%d,%d],\"water_mm\":%.1f,\"fire\":%s}",
                           state[0], state[1], state[2], state[3], state[4],
-                          SAMPLE_TEMPERATURE_C, currentWaterMm, flameState ? "true" : "false");
+                          currentWaterMm, flameState ? "true" : "false");
     if (length < 0 || length >= sizeof(payload)) {
         Serial.println("UDP payload formatting failed");
         return;
@@ -152,7 +151,6 @@ void send_UDP() {
     }
 }
 
-// Temperature is a placeholder until a temperature sensor is installed.
 /******************UDP SECTION END**********************/
 
 void setup() {

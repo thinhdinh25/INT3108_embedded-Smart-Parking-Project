@@ -9,6 +9,8 @@
 
 #include "../parking/parking_state.h"
 #include "../parking/parking_update.h"
+#include "../parking/rfid_session.h"
+#include "esp_timer.h"
 #include "udp_server.h"
 
 #define UDP_BUFFER_SIZE 256
@@ -68,17 +70,30 @@ static void udp_server_task(void *arg)
                      ntohs(source_addr.sin_port), received, buffer);
 
             parking_state_t new_state = {0};
-            if (!parking_update_parse_json(buffer, &new_state))
+            if (parking_update_parse_json(buffer, &new_state))
             {
-                ESP_LOGW(TAG, "Ignoring invalid parking update");
+                parking_state_update(&new_state);
+                ESP_LOGI(TAG, "Parking update accepted (%d/5 free)",
+                         (new_state.slots[0] == 0) + (new_state.slots[1] == 0) +
+                         (new_state.slots[2] == 0) + (new_state.slots[3] == 0) +
+                         (new_state.slots[4] == 0));
                 continue;
             }
 
-            parking_state_update(&new_state);
-            ESP_LOGI(TAG, "Parking update accepted (%d/5 free)",
-                     (new_state.slots[0] == 0) + (new_state.slots[1] == 0) +
-                     (new_state.slots[2] == 0) + (new_state.slots[3] == 0) +
-                     (new_state.slots[4] == 0));
+            rfid_event_t event = {0};
+            if (!rfid_event_parse_json(buffer, &event))
+            {
+                ESP_LOGW(TAG, "Ignoring invalid or unknown UDP request");
+                continue;
+            }
+
+            rfid_scan_result_t result = rfid_session_scan(&event, (uint64_t)esp_timer_get_time());
+            if (result == RFID_SCAN_ENTERED)
+                ESP_LOGI(TAG, "RFID %s entered", event.card_id);
+            else if (result == RFID_SCAN_EXITED)
+                ESP_LOGI(TAG, "RFID %s exited", event.card_id);
+            else
+                ESP_LOGW(TAG, "RFID active-session capacity reached for %s", event.card_id);
         }
 
         close(socket_fd);

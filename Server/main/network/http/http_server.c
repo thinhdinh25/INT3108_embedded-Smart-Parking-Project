@@ -39,8 +39,10 @@ static esp_err_t parking_state_get_handler(httpd_req_t *req)
     int temperature_tenths = (int)(state.temperature_c * 10.0f + (state.temperature_c >= 0.0f ? 0.5f : -0.5f));
     int water_tenths = (int)(state.water_mm * 10.0f + 0.5f);
     int length = snprintf(response, sizeof(response),
-                          "{\"received\":%s,\"slots\":[%d,%d,%d,%d,%d],\"free\":%d,\"total\":5,\"temperature_c\":%s%d.%d,\"water_mm\":%d.%d,\"fire\":%s}",
-                          state.received ? "true" : "false", state.slots[0], state.slots[1],
+                          "{\"received\":%s,\"temperature_received\":%s,\"slots\":[%d,%d,%d,%d,%d],\"free\":%d,\"total\":5,\"temperature_c\":%s%d.%d,\"water_mm\":%d.%d,\"fire\":%s}",
+                          state.received ? "true" : "false",
+                          state.temperature_received ? "true" : "false", state.slots[0],
+                          state.slots[1],
                           state.slots[2], state.slots[3], state.slots[4], free_count,
                           temperature_tenths < 0 ? "-" : "", abs(temperature_tenths) / 10,
                           abs(temperature_tenths % 10),

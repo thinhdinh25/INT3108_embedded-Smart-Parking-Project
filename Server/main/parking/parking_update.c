@@ -46,7 +46,6 @@ bool parking_update_parse_json(const char *payload, parking_state_t *state)
     const char *cursor = payload;
     bool has_type = false;
     bool has_slots = false;
-    bool has_temperature = false;
     bool has_water = false;
     bool has_fire = false;
     bool expect_field = false;
@@ -65,7 +64,6 @@ bool parking_update_parse_json(const char *payload, parking_state_t *state)
 
         bool is_type = false;
         bool is_slots = false;
-        bool is_temperature = false;
         bool is_water = false;
         bool is_fire = false;
         if (strncmp(cursor, "\"type\"", 6) == 0)
@@ -83,14 +81,6 @@ bool parking_update_parse_json(const char *payload, parking_state_t *state)
             if (has_slots)
                 return false;
             has_slots = true;
-        }
-        else if (strncmp(cursor, "\"temperature_c\"", 15) == 0)
-        {
-            is_temperature = true;
-            cursor += 15;
-            if (has_temperature)
-                return false;
-            has_temperature = true;
         }
         else if (strncmp(cursor, "\"water_mm\"", 10) == 0)
         {
@@ -161,13 +151,7 @@ bool parking_update_parse_json(const char *payload, parking_state_t *state)
             if (end == cursor)
                 return false;
             cursor = end;
-            if (is_temperature)
-            {
-                if (!(value >= -40.0f && value <= 125.0f))
-                    return false;
-                state->temperature_c = value;
-            }
-            else if (is_water)
+            if (is_water)
             {
                 if (!(value >= 0.0f && value <= 10000.0f))
                     return false;
@@ -187,7 +171,7 @@ bool parking_update_parse_json(const char *payload, parking_state_t *state)
             return false;
     }
 
-    if (!has_type || !has_slots || !has_temperature || !has_water ||
+    if (!has_type || !has_slots || !has_water ||
         !consume_json_char(&cursor, '}'))
         return false;
     (void)has_fire; /* Older parking clients may omit the fire sensor field. */

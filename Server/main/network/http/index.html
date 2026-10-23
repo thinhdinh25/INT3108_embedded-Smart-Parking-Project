@@ -173,7 +173,7 @@
             document.getElementById('available-spaces').textContent = available;
             document.getElementById('occupied-spaces').textContent = data.total - available;
             document.getElementById('capacity').textContent = `${available} / ${data.total} FREE`;
-            document.getElementById('temperature-value').textContent = data.received ? Number(data.temperature_c).toFixed(1) : '--';
+            document.getElementById('temperature-value').textContent = data.temperature_received ? Number(data.temperature_c).toFixed(1) : '--';
             document.getElementById('water-value').textContent = data.received ? Number(data.water_mm).toFixed(1) : '--';
             const fireValue = document.getElementById('fire-value');
             fireValue.textContent = data.received ? (data.fire ? 'FIRE DETECTED' : 'NO FIRE') : 'WAITING';

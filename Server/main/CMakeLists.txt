@@ -6,6 +6,7 @@ idf_component_register(
         "display/kaoruko_gif.c"
         "parking/parking_state.c"
         "parking/parking_update.c"
+        "parking/rfid_session.c"
         "network/network_service.c"
         "network/wifi_ap.c"
         "network/http/http_server.c"
@@ -29,6 +30,7 @@ idf_component_register(
         esp_driver_spi
         esp_driver_gpio
         esp_driver_ledc
+        esp_timer
         lwip
         nvs_flash
 )

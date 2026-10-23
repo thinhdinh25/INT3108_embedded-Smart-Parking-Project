@@ -13,8 +13,23 @@ void parking_state_update(const parking_state_t *state)
         return;
 
     portENTER_CRITICAL(&state_lock);
-    memcpy(&current_state, state, sizeof(current_state));
+    memcpy(current_state.slots, state->slots, sizeof(current_state.slots));
+    current_state.water_mm = state->water_mm;
+    current_state.fire = state->fire;
+    if (state->temperature_received)
+    {
+        current_state.temperature_c = state->temperature_c;
+        current_state.temperature_received = true;
+    }
     current_state.received = true;
+    portEXIT_CRITICAL(&state_lock);
+}
+
+void parking_state_set_temperature(float temperature_c)
+{
+    portENTER_CRITICAL(&state_lock);
+    current_state.temperature_c = temperature_c;
+    current_state.temperature_received = true;
     portEXIT_CRITICAL(&state_lock);
 }
 

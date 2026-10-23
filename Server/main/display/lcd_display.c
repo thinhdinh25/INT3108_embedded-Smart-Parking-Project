@@ -19,6 +19,7 @@
 #include "sdkconfig.h"
 
 #include "../parking/parking_state.h"
+#include "../parking/rfid_session.h"
 #include "lcd_display.h"
 #include "kaoruko_gif.h"
 
@@ -221,7 +222,14 @@ static void remove_kaoruko_white_background(uint16_t *pixels)
             pixels[index] = COLOR_BG;
 }
 
-static void draw_parking_screen(const parking_state_t *state, int free_count)
+static void format_uptime(uint32_t seconds, char *out, size_t out_size)
+{
+    snprintf(out, out_size, "%u:%02u", (unsigned)(seconds / 3600U),
+             (unsigned)(seconds / 60U % 60U));
+}
+
+static void draw_parking_screen(const parking_state_t *state, int free_count,
+                                const rfid_receipt_t *receipt)
 {
     fill_rect(0, 0, width, height, COLOR_BG);
     fill_rect(0, 0, width, 4, COLOR_TEAL);
@@ -243,11 +251,10 @@ static void draw_parking_screen(const parking_state_t *state, int free_count)
 
     char temperature[12] = "--.-";
     char water[12] = "--.-";
-    if (state->received)
-    {
+    if (state->temperature_received)
         format_tenths(temperature, sizeof(temperature), state->temperature_c);
+    if (state->received)
         format_tenths(water, sizeof(water), state->water_mm);
-    }
     draw_text(12, 108, temperature, 1, COLOR_WHITE);
     draw_text(79, 108, water, 1, COLOR_WHITE);
 
@@ -267,8 +274,23 @@ static void draw_parking_screen(const parking_state_t *state, int free_count)
                   occupied ? COLOR_RED : COLOR_GREEN);
     }
 
-    draw_text(8, 207, state->received ? (state->fire ? "FIRE: DETECTED" : "FIRE: CLEAR") : "FIRE: WAITING",
+    draw_text(8, 194, state->received ? (state->fire ? "FIRE: DETECTED" : "FIRE: CLEAR") : "FIRE: WAITING",
               1, state->received && state->fire ? COLOR_RED : COLOR_GREEN);
+
+    if (receipt->valid)
+    {
+        char line[48], time_in[16], time_out[16];
+        format_uptime(receipt->time_in_seconds, time_in, sizeof(time_in));
+        format_uptime(receipt->time_out_seconds, time_out, sizeof(time_out));
+        snprintf(line, sizeof(line), "ID %s", receipt->card_id);
+        draw_text(8, 206, line, 1, COLOR_WHITE);
+        snprintf(line, sizeof(line), "FEE %u VND", (unsigned)receipt->fee_vnd);
+        draw_text(8, 218, line, 1, COLOR_TEAL);
+        snprintf(line, sizeof(line), "IN %s OUT %s", time_in, time_out);
+        draw_text(8, 230, line, 1, COLOR_MUTED);
+    }
+    else
+        draw_text(8, 214, "NO PARKING FEE YET", 1, COLOR_MUTED);
 
     ESP_ERROR_CHECK(lcd_draw_bitmap_locked(0, 0, width, height, framebuffer));
 }
@@ -339,6 +361,8 @@ static void display_task(void *arg)
     bool first_draw = true;
     bool last_received = false;
     bool last_fire = false;
+    rfid_receipt_t receipt = {0};
+    rfid_receipt_t last_receipt = {0};
     int last_slots[PARKING_SLOT_COUNT] = {-1, -1, -1, -1, -1};
     float last_temperature = -1000.0f;
     float last_water = -1000.0f;
@@ -346,24 +370,27 @@ static void display_task(void *arg)
     for (;;)
     {
         parking_state_get(&state, &free_count);
+        rfid_session_get_receipt(&receipt);
 
         if (first_draw ||
             state.received != last_received ||
             state.fire != last_fire ||
             memcmp(state.slots, last_slots, sizeof(last_slots)) != 0 ||
             state.temperature_c != last_temperature ||
-            state.water_mm != last_water)
+            state.water_mm != last_water ||
+            memcmp(&receipt, &last_receipt, sizeof(receipt)) != 0)
         {
             if (state.received && state.fire)
                 draw_fire_alarm_screen();
             else
-                draw_parking_screen(&state, free_count);
+                draw_parking_screen(&state, free_count, &receipt);
 
             memcpy(last_slots, state.slots, sizeof(last_slots));
             last_received = state.received;
             last_fire = state.fire;
             last_temperature = state.temperature_c;
             last_water = state.water_mm;
+            memcpy(&last_receipt, &receipt, sizeof(receipt));
             first_draw = false;
         }
 

@@ -10,7 +10,6 @@ UDP_PORT = 3333
 request = {
     "type": "parking_update",
     "slots": [0, 0, 0, 0, 0],
-    "temperature_c": 28.0,
     "water_mm": 0.2,
     "fire": False,
 }

@@ -27,20 +27,39 @@ on the servos; connect both servo grounds to GND and make sure that the 5 V
 supply ground is also connected to ESP32 GND. Do not connect either servo's 5 V
 lead to an ESP32 GPIO. Verify both GPIO labels on your board before wiring.
 
-Connect the sender to the ESP32 access point and send JSON datagrams to
-`192.168.4.255:3333`. Slot value `1` means occupied; `0` means free.
-Temperature is sent in Celsius, water level in millimeters, and `fire` reports
-whether the fire sensor is active:
+Connect both senders to the ESP32 access point and send JSON datagrams to
+`192.168.4.255:3333`. Slot value `1` means occupied; `0` means free. The parking
+sensor client sends water level in millimeters and `fire` reports whether the
+fire sensor is active:
 
 ```json
-{"type":"parking_update","slots":[1,0,0,1,0],"temperature_c":28.0,"water_mm":0.2,"fire":false}
+{"type":"parking_update","slots":[1,0,0,1,0],"water_mm":0.2,"fire":false}
 ```
 
-The example represents 3 free spaces, a temperature of 28.0 °C, a 0.2 mm water
-level, and no fire detected. `Client/Client.ino`, `../examples/udp_sender.py`
-(Python), and `../examples/udp_sender_espidf.c` (ESP-IDF) all send this format
-over UDP. The latest accepted state is
-kept in RAM and resets when the ESP32 reboots.
+Temperature is included in the RFID scan message. The first scan of a card ID
+records its entry; scanning the same card again records its exit and displays
+the latest receipt on the TFT:
+
+```json
+{"type":"rfid_event","card_id":"A1B2C3D4","temperature_c":28.0}
+```
+
+From the repository root, run:
+
+```sh
+python examples/udp_sender.py
+python examples/udp_rfid_sender.py
+```
+
+Run `udp_rfid_sender.py` once to simulate entry and run it again with the same
+card ID to simulate exit. The fee is 5,000 VND per started hour (minimum one
+hour). The TFT shows the most recent completed receipt: card ID, fee, and entry
+and exit times as hours and minutes since server boot. Active sessions and the
+receipt are held in RAM (up to five active card IDs), so a server reboot clears
+them. `Client/Client.ino`,
+`../examples/udp_sender.py` (Python), and `../examples/udp_sender_espidf.c`
+(ESP-IDF) send parking updates; `../examples/udp_rfid_sender.py` sends RFID
+scans.
 
 ## Project layout
 
