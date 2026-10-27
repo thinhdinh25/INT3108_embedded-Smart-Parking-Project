@@ -76,6 +76,9 @@ static void udp_server_task(void *arg)
             {
                 parking_state_update(&new_state);
                 buzzer_set_fire(new_state.fire);
+                esp_err_t fire_err = servo_set_fire_alarm(new_state.fire);
+                if (fire_err != ESP_OK)
+                    ESP_LOGE(TAG, "Failed to update fire barrier mode: %s", esp_err_to_name(fire_err));
                 ESP_LOGI(TAG, "Parking update accepted (%d/5 free)",
                          (new_state.slots[0] == 0) + (new_state.slots[1] == 0) +
                          (new_state.slots[2] == 0) + (new_state.slots[3] == 0) +

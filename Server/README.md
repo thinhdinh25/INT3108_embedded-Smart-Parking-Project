@@ -17,12 +17,14 @@ shows the latest parking state on a 1.54-inch ST7789 TFT.
 ### SG90 barrier servos
 
 The server firmware drives two SG90 servos independently at 50 Hz. The entry
-barrier uses 90° for open and 0° for closed. The exit barrier on GPIO1 is
-mounted in the opposite orientation, so it uses 0° for open and 90° for closed.
+gate on GPIO0 uses 90° for open and 0° for closed. The exit gate on GPIO1 is
+mounted in the opposite orientation and uses 0° for open and 90° for closed.
 The ESP32 saves each commanded state separately in NVS and restores them at
 startup. A first RFID scan opens the entry barrier; a matching scan to exit
 opens the exit barrier. RFID-triggered openings close automatically after five
-seconds. Dashboard barrier controls remain manual.
+seconds. When a parking update reports fire, both barriers open and remain open
+until a later update reports fire clear; then both barriers close. This fire
+mode takes priority over RFID auto-close and manual close commands.
 Adjust the pulse limits in
 `main/barrier/servo.c` if your servo or barrier linkage needs calibration.
 With the default TFT wiring above, connect the signal wires to ESP32-C3

@@ -9,8 +9,8 @@
 #include "servo.h"
 #include <stdint.h>
 
-#define SERVO_IN_GPIO 0
-#define SERVO_OUT_GPIO 1
+#define SERVO_IN_GPIO 1
+#define SERVO_OUT_GPIO 0
 #define SERVO_TIMER LEDC_TIMER_0
 #define SERVO_IN_CHANNEL LEDC_CHANNEL_0
 #define SERVO_OUT_CHANNEL LEDC_CHANNEL_1
@@ -23,6 +23,7 @@
 static const char *TAG = "SERVO";
 static bool in_open;
 static bool out_open;
+static bool fire_alarm_active;
 static SemaphoreHandle_t servo_mutex;
 static int64_t in_auto_close_at_us;
 static int64_t out_auto_close_at_us;
@@ -40,7 +41,7 @@ static esp_err_t servo_set_angle(ledc_channel_t channel, int angle)
 
 static int servo_angle_for_state(bool is_out_gate, bool open)
 {
-    /* The exit barrier is mounted in the opposite orientation. */
+    /* The two gates are mounted in opposite orientations. */
     if (is_out_gate)
         return open ? 0 : 90;
     return open ? 90 : 0;
@@ -170,6 +171,11 @@ esp_err_t servo_set_in_open(bool open)
     if (servo_mutex == NULL)
         return ESP_ERR_INVALID_STATE;
     xSemaphoreTake(servo_mutex, portMAX_DELAY);
+    if (fire_alarm_active && !open)
+    {
+        xSemaphoreGive(servo_mutex);
+        return ESP_ERR_INVALID_STATE;
+    }
     in_auto_close_at_us = 0;
     esp_err_t err = servo_set_state(SERVO_IN_CHANNEL, "in_open", &in_open, false, open);
     xSemaphoreGive(servo_mutex);
@@ -181,6 +187,11 @@ esp_err_t servo_set_out_open(bool open)
     if (servo_mutex == NULL)
         return ESP_ERR_INVALID_STATE;
     xSemaphoreTake(servo_mutex, portMAX_DELAY);
+    if (fire_alarm_active && !open)
+    {
+        xSemaphoreGive(servo_mutex);
+        return ESP_ERR_INVALID_STATE;
+    }
     out_auto_close_at_us = 0;
     esp_err_t err = servo_set_state(SERVO_OUT_CHANNEL, "out_open", &out_open, true, open);
     xSemaphoreGive(servo_mutex);
@@ -200,6 +211,11 @@ esp_err_t servo_open_for(servo_gate_t gate, uint32_t duration_ms)
         return ESP_ERR_INVALID_ARG;
 
     xSemaphoreTake(servo_mutex, portMAX_DELAY);
+    if (fire_alarm_active)
+    {
+        xSemaphoreGive(servo_mutex);
+        return ESP_OK;
+    }
     int64_t deadline_us = esp_timer_get_time() + (int64_t)duration_ms * 1000;
     esp_err_t err;
     if (gate == SERVO_GATE_IN)
@@ -219,6 +235,29 @@ esp_err_t servo_open_for(servo_gate_t gate, uint32_t duration_ms)
 
     xSemaphoreGive(servo_mutex);
     return err;
+}
+
+esp_err_t servo_set_fire_alarm(bool active)
+{
+    if (servo_mutex == NULL)
+        return ESP_ERR_INVALID_STATE;
+
+    xSemaphoreTake(servo_mutex, portMAX_DELAY);
+    if (fire_alarm_active == active && !active)
+    {
+        xSemaphoreGive(servo_mutex);
+        return ESP_OK;
+    }
+
+    fire_alarm_active = active;
+    in_auto_close_at_us = 0;
+    out_auto_close_at_us = 0;
+    esp_err_t in_err = servo_set_state(SERVO_IN_CHANNEL, "in_open", &in_open,
+                                       false, active);
+    esp_err_t out_err = servo_set_state(SERVO_OUT_CHANNEL, "out_open", &out_open,
+                                        true, active);
+    xSemaphoreGive(servo_mutex);
+    return in_err != ESP_OK ? in_err : out_err;
 }
 
 bool servo_is_in_open(void)
