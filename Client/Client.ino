@@ -30,6 +30,11 @@ bool flameState = false;
 bool pendingFlameState = false;
 unsigned long flameChangeTime = 0;
 
+
+unsigned long lastWaterRead = 0;
+const unsigned long WATER_READ_INTERVAL = 250;
+
+
 // Water sensor tracking and calibration
 float currentWaterMm = 0.0f;
 const int WATER_DRY_ADC = 20;            // Noise floor when sensor is dry
@@ -110,7 +115,10 @@ void update_sensor() {
     }
 
     // 3. Update Water Level Sensor
-    currentWaterMm = read_water_mm();
+    if (now - lastWaterRead >= WATER_READ_INTERVAL) {
+        lastWaterRead = now;
+        currentWaterMm = read_water_mm();
+    }
 }
 
 /******************SENSOR SECTION END**********************/
@@ -135,7 +143,7 @@ void send_UDP() {
     int length = snprintf(payload, sizeof(payload),
                           "{\"type\":\"parking_update\",\"slots\":[%d,%d,%d,%d,%d],\"water_mm\":%.1f,\"fire\":%s}",
                           state[0], state[1], state[2], state[3], state[4],
-                          currentWaterMm, flameState ? "true" : "false");
+                          currentWaterMm, flameState ? "false" : "true");
     if (length < 0 || length >= sizeof(payload)) {
         Serial.println("UDP payload formatting failed");
         return;
