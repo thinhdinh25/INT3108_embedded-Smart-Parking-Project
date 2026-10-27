@@ -28,7 +28,8 @@ MFRC522 mfrc522[NR_OF_READERS];
 DHT dht(DHTPIN, DHTTYPE);
 
 unsigned long lastDHTReadTime = 0;
-const unsigned long DHT_INTERVAL = 5000; // Chu kỳ đọc và gửi DHT11: 5000ms (5 giây)
+const unsigned long DHT_INTERVAL = 5000; // Read DHT11 every 5 seconds
+float currentTemperatureC = 0.0f;
 
 // --- BIẾN CHỐNG ĐỌC LẶP THẺ (DEBOUNCE) ---
 String lastUID[NR_OF_READERS] = {"", ""};
@@ -37,8 +38,7 @@ const unsigned long COOLDOWN_TIME = 1500; // Thời gian chờ (1.5 giây)
 
 // Khai báo hàm nguyên mẫu
 String getCardUID(byte *buffer, byte bufferSize);
-void sendUDPRfid(uint8_t readerNum, String uid);
-void sendUDPDht(float temp, float hum);
+void sendUDPRfid(String uid);
 void handleDHT11();
 void setupOTA();
 
@@ -101,7 +101,7 @@ void loop() {
   // 1. Duy trì lắng nghe nạp code qua mạng (ArduinoOTA)
   ArduinoOTA.handle();
 
-  // 2. Kiểm tra và gửi dữ liệu DHT11 mỗi 5 giây
+  // 2. Refresh the temperature included in RFID requests.
   handleDHT11();
 
   // 3. Quét lần lượt 2 đầu đọc RFID
@@ -129,7 +129,7 @@ void loop() {
         Serial.println(currentUID);
 
         // Gửi gói tin UDP RFID tới 192.168.4.255:3333
-        sendUDPRfid(reader + 1, currentUID);
+        sendUDPRfid(currentUID);
 
         // --- KHU VỰC XỬ LÝ LỆNH CHO TỪNG ĐẦU ĐỌC ---
         if (reader == 0) {
@@ -151,7 +151,7 @@ void loop() {
   }
 }
 
-// Hàm kiểm tra chu kỳ 5 giây và đọc DHT11
+// Read the temperature periodically for the next RFID request.
 void handleDHT11() {
   unsigned long now = millis();
   if (now - lastDHTReadTime >= DHT_INTERVAL) {
@@ -166,39 +166,29 @@ void handleDHT11() {
       return;
     }
 
-    // Gửi dữ liệu nhiệt độ và độ ẩm qua UDP
-    sendUDPDht(t, h);
+    // Temperature is included in the server's rfid_event request.
+    currentTemperatureC = t;
   }
 }
 
-// Hàm gửi UDP cho sự kiện quẹt thẻ RFID (type: "rfid")
-void sendUDPRfid(uint8_t readerNum, String uid) {
+// Send an RFID scan using the server's current request format.
+void sendUDPRfid(String uid) {
   if (WiFi.status() == WL_CONNECTED) {
-    // JSON mẫu: {"type":"rfid","reader":1,"uid":"A1 B2 C3 D4"}
-    String payload = "{\"type\":\"rfid\",\"reader\":" + String(readerNum) + ",\"uid\":\"" + uid + "\"}";
+    // Server format: {"type":"rfid_event","card_id":"A1B2C3D4","temperature_c":28.5}
+    char payload[128];
+    int length = snprintf(payload, sizeof(payload),
+                          "{\"type\":\"rfid_event\",\"card_id\":\"%s\",\"temperature_c\":%.1f}",
+                          uid.c_str(), currentTemperatureC);
+    if (length < 0 || length >= sizeof(payload)) {
+      Serial.println(F("-> [UDP RFID] Payload formatting failed"));
+      return;
+    }
     
     udp.beginPacket(udpAddress, udpPort);
-    udp.print(payload);
+    udp.write(reinterpret_cast<const uint8_t*>(payload), length);
     udp.endPacket();
 
     Serial.print(F("-> [UDP RFID] Đã gửi: "));
-    Serial.println(payload);
-  } else {
-    Serial.println(F("-> [Lỗi UDP] Mất kết nối WiFi!"));
-  }
-}
-
-// Hàm gửi UDP cho dữ liệu nhiệt độ/độ ẩm (type: "dht11")
-void sendUDPDht(float temp, float hum) {
-  if (WiFi.status() == WL_CONNECTED) {
-    // JSON mẫu: {"type":"dht11","temp":28.5,"hum":65.0}
-    String payload = "{\"type\":\"dht11\",\"temp\":" + String(temp, 1) + ",\"hum\":" + String(hum, 1) + "}";
-    
-    udp.beginPacket(udpAddress, udpPort);
-    udp.print(payload);
-    udp.endPacket();
-
-    Serial.print(F("-> [UDP DHT11] Đã gửi: "));
     Serial.println(payload);
   } else {
     Serial.println(F("-> [Lỗi UDP] Mất kết nối WiFi!"));
@@ -245,9 +235,6 @@ String getCardUID(byte *buffer, byte bufferSize) {
       uid += "0";
     }
     uid += String(buffer[i], HEX);
-    if (i < bufferSize - 1) {
-      uid += " ";
-    }
   }
   uid.toUpperCase();
   return uid;
