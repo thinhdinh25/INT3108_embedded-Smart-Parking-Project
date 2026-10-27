@@ -5,7 +5,6 @@
         "board/esp32c3-builtin.cfg"
     ],
     "idf.customExtraVars": {
-        "OPENOCD_USB_ADAPTER_LOCATION": "0-1",
         "IDF_TARGET": "esp32c3"
     },
     "clangd.path": "/Users/chiminhnguyen/.espressif/tools/esp-clangd/esp-21.1.3_20260408/esp-clangd/bin/clangd",

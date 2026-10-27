@@ -10,6 +10,7 @@
 #include "../parking/parking_state.h"
 #include "../parking/parking_update.h"
 #include "../parking/rfid_session.h"
+#include "../../buzzer/buzzer.h"
 #include "esp_timer.h"
 #include "udp_server.h"
 
@@ -73,6 +74,7 @@ static void udp_server_task(void *arg)
             if (parking_update_parse_json(buffer, &new_state))
             {
                 parking_state_update(&new_state);
+                buzzer_set_fire(new_state.fire);
                 ESP_LOGI(TAG, "Parking update accepted (%d/5 free)",
                          (new_state.slots[0] == 0) + (new_state.slots[1] == 0) +
                          (new_state.slots[2] == 0) + (new_state.slots[3] == 0) +

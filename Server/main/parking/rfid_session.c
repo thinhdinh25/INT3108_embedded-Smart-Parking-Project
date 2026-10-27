@@ -3,12 +3,14 @@
 #include <string.h>
 
 #include "freertos/FreeRTOS.h"
+#include "esp_timer.h"
 #include "parking_state.h"
 #include "rfid_session.h"
 
 #define RFID_MAX_ACTIVE 5
 #define PARKING_FEE_PER_HOUR_VND 5000
 #define SECONDS_PER_HOUR 3600ULL
+#define RECEIPT_DISPLAY_US 60000000ULL
 
 typedef struct
 {
@@ -135,8 +137,7 @@ rfid_scan_result_t rfid_session_scan(const rfid_event_t *event, uint64_t now_us)
             latest_receipt.valid = true;
             memcpy(latest_receipt.card_id, event->card_id, strlen(event->card_id) + 1);
             latest_receipt.duration_seconds = elapsed_seconds > UINT32_MAX ? UINT32_MAX : (uint32_t)elapsed_seconds;
-            latest_receipt.time_in_seconds = (uint32_t)(active_sessions[i].entered_us / 1000000ULL);
-            latest_receipt.time_out_seconds = (uint32_t)(now_us / 1000000ULL);
+            latest_receipt.display_until_us = now_us + RECEIPT_DISPLAY_US;
             latest_receipt.fee_vnd = billable_hours > UINT32_MAX / PARKING_FEE_PER_HOUR_VND
                 ? UINT32_MAX : (uint32_t)billable_hours * PARKING_FEE_PER_HOUR_VND;
             active_sessions[i].active = false;
@@ -172,4 +173,6 @@ void rfid_session_get_receipt(rfid_receipt_t *receipt)
     portENTER_CRITICAL(&session_lock);
     memcpy(receipt, &latest_receipt, sizeof(*receipt));
     portEXIT_CRITICAL(&session_lock);
+    if (receipt->valid && (uint64_t)esp_timer_get_time() >= receipt->display_until_us)
+        receipt->valid = false;
 }

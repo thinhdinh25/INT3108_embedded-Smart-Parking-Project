@@ -22,6 +22,7 @@
 #include "../parking/rfid_session.h"
 #include "lcd_display.h"
 #include "kaoruko_gif.h"
+#include "claude_gif.h"
 
 #define LCD_SPI_HOST SPI2_HOST
 #define LCD_SPI_CLOCK_HZ (40 * 1000 * 1000)
@@ -36,6 +37,7 @@
 #define GIF_HEIGHT KAORUKO_HEIGHT
 #define GIF_PIXEL_COUNT (GIF_WIDTH * GIF_HEIGHT)
 #define GIF_BUFFERS 2
+#define CLAUDE_Y 194
 
 static const char *TAG = "LCD_DISPLAY";
 static esp_lcd_panel_handle_t panel;
@@ -55,6 +57,9 @@ static const uint16_t COLOR_MUTED = 0xD69A;
 static const uint16_t COLOR_TEAL = 0x03D9;
 static const uint16_t COLOR_GREEN = 0x07E0;
 static const uint16_t COLOR_RED = 0xF800;
+static const uint16_t COLOR_DARK_RED = 0x4000;
+static const uint16_t COLOR_ORANGE = 0xFD20;
+static const uint16_t COLOR_YELLOW = 0xFFE0;
 
 static uint16_t rgb565_byte_swap(uint16_t color)
 {
@@ -222,12 +227,6 @@ static void remove_kaoruko_white_background(uint16_t *pixels)
             pixels[index] = COLOR_BG;
 }
 
-static void format_uptime(uint32_t seconds, char *out, size_t out_size)
-{
-    snprintf(out, out_size, "%u:%02u", (unsigned)(seconds / 3600U),
-             (unsigned)(seconds / 60U % 60U));
-}
-
 static void draw_parking_screen(const parking_state_t *state, int free_count,
                                 const rfid_receipt_t *receipt)
 {
@@ -274,36 +273,69 @@ static void draw_parking_screen(const parking_state_t *state, int free_count,
                   occupied ? COLOR_RED : COLOR_GREEN);
     }
 
-    draw_text(8, 194, state->received ? (state->fire ? "FIRE: DETECTED" : "FIRE: CLEAR") : "FIRE: WAITING",
-              1, state->received && state->fire ? COLOR_RED : COLOR_GREEN);
-
+    fill_rect(0, 194, width, 46, COLOR_PANEL);
     if (receipt->valid)
     {
-        char line[48], time_in[16], time_out[16];
-        format_uptime(receipt->time_in_seconds, time_in, sizeof(time_in));
-        format_uptime(receipt->time_out_seconds, time_out, sizeof(time_out));
+        char line[RFID_CARD_ID_MAX + 5];
+        char duration[16], fee[16];
+        uint64_t total_minutes = ((uint64_t)receipt->duration_seconds + 59U) / 60U;
+        uint64_t hours = total_minutes / 60U;
+        uint64_t minutes = total_minutes % 60U;
         snprintf(line, sizeof(line), "ID %s", receipt->card_id);
-        draw_text(8, 206, line, 1, COLOR_WHITE);
-        snprintf(line, sizeof(line), "FEE %u VND", (unsigned)receipt->fee_vnd);
-        draw_text(8, 218, line, 1, COLOR_TEAL);
-        snprintf(line, sizeof(line), "IN %s OUT %s", time_in, time_out);
-        draw_text(8, 230, line, 1, COLOR_MUTED);
+        draw_text(8, 198, line, 1, COLOR_WHITE);
+        draw_text(8, 211, "PARK TIME", 1, COLOR_MUTED);
+        snprintf(duration, sizeof(duration), "%lluH %02lluM",
+                 (unsigned long long)hours, (unsigned long long)minutes);
+        int duration_scale = strlen(duration) <= 8 ? 2 : 1;
+        draw_text(8, 223, duration, duration_scale, COLOR_WHITE);
+
+        draw_text(126, 198, "FEE VND", 1, COLOR_MUTED);
+        snprintf(fee, sizeof(fee), "%u", (unsigned)receipt->fee_vnd);
+        int fee_scale = strlen(fee) <= 5 ? 3 : (strlen(fee) <= 8 ? 2 : 1);
+        draw_text(126, fee_scale == 3 ? 209 : 216, fee, fee_scale, COLOR_TEAL);
     }
-    else
-        draw_text(8, 214, "NO PARKING FEE YET", 1, COLOR_MUTED);
 
     ESP_ERROR_CHECK(lcd_draw_bitmap_locked(0, 0, width, height, framebuffer));
 }
 
-static void draw_fire_alarm_screen(void)
+static void draw_flame(int center_x, int bottom_y, int frame, int scale)
+{
+    static const uint8_t widths[] = {7, 12, 15, 16, 14, 10, 7, 4};
+    int sway = ((frame % 5) - 2) * scale;
+    int flicker = (frame % 3) * scale;
+
+    for (int row = 0; row < (int)(sizeof(widths) / sizeof(widths[0])); ++row)
+    {
+        int w = widths[row] * scale;
+        int y = bottom_y - (row + 1) * 5 * scale + flicker;
+        int x = center_x + sway - w / 2;
+        fill_rect(x, y, w, 5 * scale, row < 3 ? COLOR_RED : COLOR_ORANGE);
+
+        if (row >= 1 && row <= 5)
+        {
+            int inner_w = w / 2;
+            fill_rect(center_x + sway / 2 - inner_w / 2,
+                      y + 2 * scale, inner_w, 3 * scale,
+                      row < 3 ? COLOR_ORANGE : COLOR_YELLOW);
+        }
+    }
+}
+
+static void draw_fire_alarm_screen(int frame)
 {
     fill_rect(0, 0, width, height, COLOR_BG);
-    fill_rect(0, 0, width, 10, COLOR_RED);
-    fill_rect(0, height - 10, width, 10, COLOR_RED);
-    draw_text(24, 48, "FIRE ALARM", 2, COLOR_RED);
-    fill_rect(20, 84, width - 40, 2, COLOR_RED);
-    draw_text(28, 108, "FIRE DETECTED", 1, COLOR_WHITE);
-    draw_text(20, 138, "EVACUATE NOW", 2, COLOR_WHITE);
+    fill_rect(0, 0, width, 8, COLOR_RED);
+    fill_rect(0, height - 8, width, 8, COLOR_RED);
+    fill_rect(8, 8, 4, height - 16, COLOR_RED);
+    fill_rect(width - 12, 8, 4, height - 16, COLOR_RED);
+    fill_rect(16, 16, width - 32, height - 32, COLOR_DARK_RED);
+    draw_text(58, 25, "DANGER", 3, COLOR_WHITE);
+    draw_flame(120 - ((frame % 5) - 2) * 3, 153, frame, 2);
+    draw_flame(66 + ((frame % 5) - 2) * 2, 148, frame + 2, 1);
+    draw_flame(174 - ((frame % 5) - 2) * 2, 148, frame + 3, 1);
+    fill_rect(27, 162, width - 54, 2, COLOR_RED);
+    draw_text(28, 176, "FIRE DETECTED", 2, COLOR_YELLOW);
+    draw_text(20, 204, "EVACUATE NOW", 2, COLOR_WHITE);
     ESP_ERROR_CHECK(lcd_draw_bitmap_locked(0, 0, width, height, framebuffer));
 }
 
@@ -338,18 +370,117 @@ static void draw_kaoruko_frame(int frame_index)
     gif_buffer_index ^= 1;
 }
 
+static void draw_claude_frame(int frame_index, int x, int previous_x,
+                              bool clear_previous)
+{
+    if (frame_index < 0 || frame_index >= CLAUDE_FRAME_COUNT)
+        return;
+
+    if (clear_previous && previous_x != x)
+    {
+        uint16_t *background = gif_framebuffer[gif_buffer_index];
+        for (size_t i = 0; i < (size_t)CLAUDE_WIDTH * CLAUDE_HEIGHT; ++i)
+            background[i] = rgb565_byte_swap(COLOR_PANEL);
+
+        esp_err_t clear_err = lcd_draw_bitmap_locked(
+            previous_x,
+            CLAUDE_Y,
+            previous_x + CLAUDE_WIDTH,
+            CLAUDE_Y + CLAUDE_HEIGHT,
+            background);
+        if (clear_err != ESP_OK)
+            ESP_LOGE(TAG, "Claude clear failed: %s", esp_err_to_name(clear_err));
+        gif_buffer_index ^= 1;
+    }
+
+    /* The decoder pre-fills the frame with the footer panel color. */
+    uint16_t *dst = gif_framebuffer[gif_buffer_index];
+    if (!claude_decode_frame(frame_index, dst,
+                             (size_t)CLAUDE_WIDTH * CLAUDE_HEIGHT))
+    {
+        ESP_LOGE(TAG, "Claude frame %d decode failed", frame_index);
+        return;
+    }
+    for (size_t i = 0; i < (size_t)CLAUDE_WIDTH * CLAUDE_HEIGHT; ++i)
+        dst[i] = rgb565_byte_swap(dst[i]);
+
+    esp_err_t err = lcd_draw_bitmap_locked(
+        x,
+        CLAUDE_Y,
+        x + CLAUDE_WIDTH,
+        CLAUDE_Y + CLAUDE_HEIGHT,
+        dst);
+    if (err != ESP_OK)
+        ESP_LOGE(TAG, "Claude frame %d draw failed: %s",
+                 frame_index, esp_err_to_name(err));
+
+    gif_buffer_index ^= 1;
+}
+
 static void animation_task(void *arg)
 {
     (void)arg;
     parking_state_t state = {0};
     int free_count = 0;
+    rfid_receipt_t receipt = {0};
+    const int min_claude_x = 8;
+    const int max_claude_x = LCD_WIDTH - CLAUDE_WIDTH - 8;
+    int claude_x = min_claude_x;
+    int last_claude_x = min_claude_x;
+    int claude_direction = 1;
+    bool claude_visible = false;
+    bool claude_frame_drawn = false;
 
-    for (int frame = 0;; frame = (frame + 1) % KAORUKO_FRAME_COUNT)
+    for (int frame = 0, claude_frame = 0;;)
     {
         parking_state_get(&state, &free_count);
+        rfid_session_get_receipt(&receipt);
         if (!state.fire)
+        {
             draw_kaoruko_frame(frame);
-        vTaskDelay(pdMS_TO_TICKS(kaoruko_frame_delay_ms[frame]));
+            if (!receipt.valid)
+            {
+                if (!claude_visible)
+                {
+                    claude_x = min_claude_x;
+                    claude_direction = 1;
+                    claude_visible = true;
+                }
+
+                claude_x += 2 * claude_direction;
+                if (claude_x >= max_claude_x)
+                {
+                    claude_x = max_claude_x;
+                    claude_direction = -1;
+                }
+                else if (claude_x <= min_claude_x)
+                {
+                    claude_x = min_claude_x;
+                    claude_direction = 1;
+                }
+
+                draw_claude_frame(claude_frame, claude_x, last_claude_x,
+                                  claude_frame_drawn);
+                last_claude_x = claude_x;
+                claude_frame_drawn = true;
+            }
+            else
+            {
+                claude_visible = false;
+                claude_frame_drawn = false;
+            }
+        }
+        else
+        {
+            claude_visible = false;
+            claude_frame_drawn = false;
+        }
+        uint16_t frame_delay = (state.fire || receipt.valid)
+                                   ? kaoruko_frame_delay_ms[frame]
+                                   : claude_frame_delay_ms[claude_frame] / 2U;
+        vTaskDelay(pdMS_TO_TICKS(frame_delay));
+        frame = (frame + 1) % KAORUKO_FRAME_COUNT;
+        claude_frame = (claude_frame + 1) % CLAUDE_FRAME_COUNT;
     }
 }
 
@@ -361,6 +492,7 @@ static void display_task(void *arg)
     bool first_draw = true;
     bool last_received = false;
     bool last_fire = false;
+    int fire_frame = 0;
     rfid_receipt_t receipt = {0};
     rfid_receipt_t last_receipt = {0};
     int last_slots[PARKING_SLOT_COUNT] = {-1, -1, -1, -1, -1};
@@ -372,7 +504,7 @@ static void display_task(void *arg)
         parking_state_get(&state, &free_count);
         rfid_session_get_receipt(&receipt);
 
-        if (first_draw ||
+        if (state.fire || first_draw ||
             state.received != last_received ||
             state.fire != last_fire ||
             memcmp(state.slots, last_slots, sizeof(last_slots)) != 0 ||
@@ -381,7 +513,10 @@ static void display_task(void *arg)
             memcmp(&receipt, &last_receipt, sizeof(receipt)) != 0)
         {
             if (state.received && state.fire)
-                draw_fire_alarm_screen();
+            {
+                draw_fire_alarm_screen(fire_frame);
+                fire_frame = (fire_frame + 1) % 15;
+            }
             else
                 draw_parking_screen(&state, free_count, &receipt);
 
@@ -394,7 +529,7 @@ static void display_task(void *arg)
             first_draw = false;
         }
 
-        vTaskDelay(pdMS_TO_TICKS(500));
+        vTaskDelay(pdMS_TO_TICKS(state.fire ? 120 : 500));
     }
 }
 

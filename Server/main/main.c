@@ -3,6 +3,7 @@
 #include "esp_log.h"
 
 #include "display/lcd_display.h"
+#include "buzzer/buzzer.h"
 #include "barrier/servo.h"
 #include "network/network_service.h"
 
@@ -25,6 +26,8 @@ void app_main(void)
 
     // Start the local screen before Wi-Fi consumes system memory.
     ESP_ERROR_CHECK(lcd_display_start());
+
+    ESP_ERROR_CHECK(buzzer_start());
 
     // GPIO0 is not used by the default TFT pin map.
     ESP_ERROR_CHECK(servo_start());

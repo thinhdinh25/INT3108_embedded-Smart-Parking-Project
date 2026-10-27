@@ -18,8 +18,7 @@ typedef struct
     char card_id[RFID_CARD_ID_MAX + 1];
     uint32_t fee_vnd;
     uint32_t duration_seconds;
-    uint32_t time_in_seconds;
-    uint32_t time_out_seconds;
+    uint64_t display_until_us;
 } rfid_receipt_t;
 
 typedef enum

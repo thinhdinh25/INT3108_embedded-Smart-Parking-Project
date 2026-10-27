@@ -1,9 +1,11 @@
 idf_component_register(
     SRCS
         "main.c"
+        "buzzer/buzzer.c"
         "barrier/servo.c"
         "display/lcd_display.c"
         "display/kaoruko_gif.c"
+        "display/claude_gif.c"
         "parking/parking_state.c"
         "parking/parking_update.c"
         "parking/rfid_session.c"

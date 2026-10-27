@@ -45,4 +45,5 @@ The documented TFT wiring occupies GPIO3, GPIO4, GPIO5, GPIO6, GPIO7, and GPIO10
 
 The firmware initializes servo PWM on GPIO0 and GPIO1 during startup; both are fixed in `Server/main/barrier/servo.c`.
 
+
 The display GPIO defaults are in `Server/sdkconfig` and can be changed through the ESP-IDF SDK Configuration Editor under **Parking TFT display**.
