@@ -1,39 +1,53 @@
 # INT3108 Embedded Smart Parking Project
 
-This project is a two-board smart parking system. The **Server** is an ESP32-C3
-SuperMini that hosts a Wi-Fi access point, receives sensor readings, runs a web
-dashboard, displays parking and fire status on an ST7789 TFT, and controls two
-barrier servos. The **Client** is a separate ESP8266 board that reads the
-parking, flame, and water sensors and sends their readings to the server over
-UDP.
+A three-board smart parking system built for the INT3108 Embedded Programming
+course (VNU-UET).
+
+- **Server** — ESP32-C3 SuperMini running ESP-IDF/FreeRTOS. Hosts the Wi-Fi
+  access point, receives UDP messages, serves a web dashboard, draws the
+  parking/fire screens on an ST7789 TFT, drives two SG90 barriers and a buzzer.
+- **Client** (`Client/Client.ino`) — ESP8266 that reads five IR parking
+  sensors, a flame sensor and an analog water sensor, and broadcasts a
+  `parking_update` once per second.
+- **Client2** (`Client2/Client2.ino`) — ESP8266 with two MFRC522 RFID readers
+  and a DHT11. Each card scan sends an `rfid_event` with the card UID and the
+  latest temperature.
+
+The full technical report (Vietnamese, LaTeX source and PDF) is in
+[`report/`](report/).
 
 ## Features
 
-- Five parking-space states from digital IR sensors.
-- Flame sensor state sent from the client to the server. The server shows a
-  fire alarm on the display and dashboard and sounds its GPIO9 buzzer while
-  the latest accepted update reports fire.
-- Water level estimate from the client's analog sensor. Temperature is
-  currently a sample value in the client firmware.
-- Browser dashboard and JSON API hosted by the server.
-- Two independently controlled SG90 barriers, with commanded open/closed
-  state saved in server NVS.
+- Five parking-space states from debounced digital IR sensors.
+- RFID entry/exit: the first scan of a card opens the entry barrier, the next
+  scan of the same card opens the exit barrier. RFID-opened barriers close
+  automatically after 5 seconds.
+- Parking fee of 5,000 VND per started hour (minimum one hour). The TFT shows
+  card ID, parking time and fee for 60 seconds after exit.
+- Fire alarm: animated "FIRE DETECTED" screen, dashboard banner and an
+  active-low buzzer on GPIO9 while the latest update reports fire.
+- Water level (mm) from the analog sensor and temperature from the DHT11.
+- Browser dashboard and JSON API hosted by the server, with independent and
+  emergency (all) barrier controls.
+- Barrier open/closed state saved in NVS and restored after reboot.
 
 ## Boards, languages, and software
 
 | Part | Hardware / software |
 | --- | --- |
 | Server | ESP32-C3 SuperMini; ESP-IDF 6.1; C; FreeRTOS (provided by ESP-IDF) |
-| Client | ESP8266 board; Arduino core for ESP8266; C++ in `Client/Client.ino` |
+| Client | ESP8266; Arduino core for ESP8266; C++ (`Client/Client.ino`) |
+| Client2 | ESP8266; Arduino; `MFRC522` and `DHT sensor library` (`Client2/Client2.ino`) |
 | Display | 1.54-inch 240×240 ST7789 SPI TFT |
 | Barriers | Two SG90 servos driven by 50 Hz LEDC PWM |
-| Sensors | Five digital IR sensors, one digital flame sensor, one analog water sensor |
-| Dashboard | HTML, CSS, and JavaScript served from the ESP32-C3 |
+| Sensors | 5 digital IR, 1 digital flame, 1 analog water, 2 × RC522 RFID, 1 × DHT11 |
+| Dashboard | HTML, CSS, and JavaScript embedded in the ESP32-C3 firmware |
 | Server storage | ESP-IDF NVS for barrier state |
 
-The server uses the ESP-IDF `esp_lcd` and SPI drivers for the display, LEDC for
-servo PWM, GPIO for the active-low buzzer, ESP Wi-Fi SoftAP for networking,
-FreeRTOS tasks for services, and lwIP sockets for UDP.
+The server uses `esp_lcd` + SPI (DMA, 40 MHz) for the display, LEDC for servo
+PWM, GPIO for the buzzer, Wi-Fi SoftAP, `esp_http_server`, lwIP sockets for
+UDP, and FreeRTOS tasks/mutexes/critical sections for concurrency. Both
+ESP8266 clients support ArduinoOTA updates.
 
 ## Hardware connections
 
@@ -50,20 +64,18 @@ FreeRTOS tasks for services, and lwIP sockets for UDP.
 | TFT VCC / GND | 3V3 / GND |
 | IN barrier servo signal | GPIO0 |
 | OUT barrier servo signal | GPIO1 |
-| Buzzer signal | GPIO9 |
+| Buzzer signal (active-low) | GPIO9 |
 
-The buzzer is configured as **active-low**: GPIO9 LOW sounds it when fire is
-reported; GPIO9 HIGH leaves it silent. GPIO9 is an ESP32-C3 boot-strapping pin.
-Use a buzzer module whose input does not pull GPIO9 low during reset, and whose
-input is compatible with 3.3 V logic. The buzzer output starts HIGH (off).
+GPIO9 is an ESP32-C3 boot-strapping pin; use a buzzer module that does not pull
+it low during reset. The buzzer output starts HIGH (silent).
 
-Power the servos from a suitable 5 V supply, not from the ESP32-C3 3V3 pin.
-Connect the external supply ground to ESP32-C3 GND. Do not connect a servo's 5
-V lead to a GPIO. Check the labels on the exact board and modules before wiring.
+Power the servos from a 5 V supply, not from the ESP32-C3 3V3 pin, and connect
+the supply ground to ESP32-C3 GND. Display GPIOs and panel offsets can be
+changed under **Parking TFT display** in `idf.py menuconfig`
+(`Server/main/Kconfig.projbuild`). More detail:
+[`docs/esp32-c3-tft-and-sg90-wiring.md`](docs/esp32-c3-tft-and-sg90-wiring.md).
 
-### ESP8266 client
-
-The current `Client/Client.ino` uses these numeric ESP8266 GPIO values:
+### ESP8266 sensor client (`Client/`)
 
 | Sensor | Client pin |
 | --- | --- |
@@ -71,47 +83,69 @@ The current `Client/Client.ino` uses these numeric ESP8266 GPIO values:
 | Flame sensor digital output | GPIO5 |
 | Water sensor analog output | A0 |
 
-IR and flame modules are read as active-low in the current firmware. The water
-level conversion uses the calibration constants in `Client/Client.ino`; adjust
-them for the actual sensor. The temperature is currently set to a sample value
-of 28 °C. Use the voltage limits for your particular ESP8266 board when wiring
-the analog water sensor.
+IR modules are active-low (LOW = car present). For the flame module used in the
+project, the firmware sends `fire: true` when the DO pin reads HIGH. Each
+digital input is debounced for 250 ms. The water conversion uses
+`WATER_DRY_ADC = 20`, `WATER_MAX_ADC = 700` and a 40 mm sensor length; calibrate
+these for your sensor.
 
-## Network and data flow
+### ESP8266 RFID client (`Client2/`)
 
-The ESP32-C3 creates the access point and the ESP8266 client joins it:
+| Device | Client2 pin |
+| --- | --- |
+| RC522 #1 (entry) SDA/SS | GPIO4 (D2) |
+| RC522 #2 (exit) SDA/SS | GPIO5 (D1) |
+| RC522 RST (shared) | GPIO16 (D0) |
+| RC522 SCK / MOSI / MISO | GPIO14 / GPIO13 / GPIO12 (hardware SPI) |
+| DHT11 data | GPIO2 (D4) |
 
-- SSID: `ESP32-Parking`
-- Password: `12345678`
-- Server address: `192.168.4.1`
-- Dashboard: [http://192.168.4.1](http://192.168.4.1)
-- UDP sensor receiver: port `3333` (client sends to `192.168.4.255`)
-- Dashboard JSON endpoint: `GET /api/parking`
+The two readers share the SPI bus and take turns: only one antenna is on at a
+time. The same card is ignored on the same reader for 1.5 s. The DHT11 is read
+every 5 s.
 
-The client sends an update once per second. Example:
+## Network and protocol
+
+The ESP32-C3 creates the access point and both ESP8266 clients join it:
+
+- SSID `ESP32-Parking`, password `12345678`, WPA2-PSK, channel 1, max 4 stations
+- Server address `192.168.4.1`, dashboard [http://192.168.4.1](http://192.168.4.1)
+- UDP receiver on port `3333`; clients send to broadcast `192.168.4.255:3333`
+
+Sensor update (Client, every 1 s). Slot `1` means occupied, `0` free:
 
 ```json
-{"type":"parking_update","slots":[1,0,0,1,0],"temperature_c":28.0,"water_mm":0.2,"fire":false}
+{"type":"parking_update","slots":[1,0,0,1,0],"water_mm":0.2,"fire":false}
 ```
 
-Slot `1` means occupied and `0` means free. The `fire` field must be a JSON
-boolean. When it is `true`, the server updates its display and dashboard and
-drives the buzzer on GPIO9. When it is `false`, the server silences the buzzer.
-The server applies the buzzer output after accepting a valid update. After an
-RFID exit, the TFT footer shows the elapsed parking duration and the calculated
-fee.
+RFID scan (Client2, per card read):
 
-The default access point password is intended for a local project setup. Change
-the credentials in `Server/main/network/wifi_ap.c` and `Client/Client.ino`
-together before using the system on a shared or public network.
+```json
+{"type":"rfid_event","card_id":"A1B2C3D4","temperature_c":28.0}
+```
+
+The server parsers are strict: unknown keys, duplicate keys, wrong types or
+trailing data reject the datagram. `fire` must be a JSON boolean and may be
+omitted by older clients.
+
+HTTP API:
+
+| Method | Path | Result |
+| --- | --- | --- |
+| GET | `/` , `/style.css` | Dashboard |
+| GET | `/api/parking` | Slots, free count, temperature, water, fire |
+| GET | `/api/barrier` | `{"in_open":…,"out_open":…}` |
+| POST | `/api/barrier/{in,out,all}/{open,close}` | Move barriers manually |
+
+The default password is for a local demo. Change it in
+`Server/main/network/wifi_ap.c`, `Client/Client.ino` and `Client2/Client2.ino`
+together before using a shared network.
 
 ## Setup and run
 
-### 1. Build and flash the ESP32-C3 server
+### 1. Server (ESP32-C3)
 
-Install ESP-IDF 6.1 and its ESP32-C3 toolchain, then open an ESP-IDF configured
-terminal in the repository. The root `CMakeLists.txt` forwards the app component
-from `Server/main`, so the project can be built from the repository root:
+Install ESP-IDF 6.1 with the ESP32-C3 toolchain. From the repository root (the
+root `CMakeLists.txt` points at `Server/main`):
 
 ```sh
 idf.py set-target esp32c3
@@ -119,41 +153,44 @@ idf.py build
 idf.py -p PORT flash monitor
 ```
 
-Replace `PORT` with the serial port for the ESP32-C3. In VS Code, select
-`Server/` with **ESP-IDF: Pick a Workspace Folder**, then use the ESP-IDF
-Build, Flash, and Monitor commands. Default TFT GPIOs and panel offsets are
-configured in `Server/sdkconfig` and `Server/main/Kconfig.projbuild`.
+### 2. Clients (ESP8266)
 
-### 2. Build and flash the ESP8266 client
+In Arduino IDE install the ESP8266 core, then the `MFRC522` and
+`DHT sensor library` libraries for Client2. Open `Client/Client.ino` and
+`Client2/Client2.ino`, select the ESP8266 board and port, and upload. After the
+first upload, both sketches can be updated over the network with ArduinoOTA.
 
-Install Arduino IDE (or Arduino CLI) and the ESP8266 Arduino core. Open
-`Client/Client.ino`, select the matching ESP8266 board and serial port, and
-upload it. The Wi-Fi credentials and UDP destination are defined near the top
-of the sketch. The ESP8266 joins the server access point and starts sending
-sensor updates.
+### 3. Use
 
-### 3. Start and use the system
+Power the server, join `ESP32-Parking` from a phone or laptop and open
+`http://192.168.4.1`. Power the clients; the TFT and dashboard show live data.
+Scan a card to enter, scan it again to exit and see the fee.
 
-Power the server and connect a phone or computer to `ESP32-Parking`. Open
-`http://192.168.4.1` to view the dashboard. Then power the client; the server
-display and dashboard should show incoming sensor state. Test fire behavior by
-activating the client flame sensor: the server should show the fire alarm and
-the GPIO9 buzzer should sound. Clear the sensor and wait for its debounce and
-next UDP update; the buzzer should stop.
+Without hardware, simulate the clients from a computer on the AP:
+
+```sh
+python examples/udp_sender.py
+python examples/udp_rfid_sender.py A1B2C3D4
+```
+
+Run the RFID sender twice with the same ID to simulate entry and exit.
 
 ## Repository layout
 
 ```text
-Server/                 ESP32-C3 ESP-IDF server firmware and server README
-  main/buzzer/          GPIO9 active-low buzzer output
-  main/barrier/         Servo PWM and NVS state
-  main/display/         ST7789 UI and fire alarm screen
-  main/network/         Wi-Fi AP, HTTP dashboard/API, UDP receiver
-  main/parking/         Parking state and update parser
-Client/Client.ino       ESP8266 Arduino sensor sender
-examples/               Python and ESP-IDF UDP example senders
-docs/                   Additional wiring notes
+Server/main/
+  main.c                App startup (NVS, display, buzzer, servo, network)
+  barrier/              SG90 LEDC PWM, NVS state, auto-close task
+  buzzer/               GPIO9 active-low buzzer
+  display/              ST7789 UI, fire screen, LZSS-compressed GIF frames
+  network/              Wi-Fi AP, HTTP dashboard/API, UDP receiver
+  parking/              Shared state, JSON parsers, RFID sessions and fees
+Client/Client.ino       ESP8266 IR / flame / water sender
+Client2/Client2.ino     ESP8266 dual RC522 + DHT11 sender
+examples/               Python and ESP-IDF UDP test senders
+docs/                   Wiring notes
+report/                 Technical report (LaTeX + PDF, Vietnamese)
 ```
 
-See [`Server/README.md`](Server/README.md) for server-specific wiring and
-firmware details.
+Active RFID sessions and the last receipt are kept in RAM (up to five cars), so
+a server reboot clears them.

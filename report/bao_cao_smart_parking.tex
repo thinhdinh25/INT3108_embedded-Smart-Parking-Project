@@ -1,0 +1,1585 @@
+% =====================================================================
+%  BÁO CÁO KỸ THUẬT — HỆ THỐNG BÃI ĐỖ XE THÔNG MINH
+%  Môn: Lập trình nhúng (INT3108) — Trường ĐH Công nghệ, ĐHQGHN
+%
+%  Biên dịch (khuyến nghị XeLaTeX):
+%     xelatex bao_cao_smart_parking.tex   (chạy 2 lần để có mục lục)
+%  hoặc:
+%     tectonic bao_cao_smart_parking.tex
+%  Trên Overleaf: Menu -> Compiler -> XeLaTeX.
+% =====================================================================
+\documentclass[12pt,a4paper]{report}
+
+% ---------- Thông tin nhóm: SỬA Ở ĐÂY trước khi nộp ----------
+\newcommand{\tenmon}{Lập trình nhúng (INT3108)}
+\newcommand{\tendetai}{Hệ thống bãi đỗ xe thông minh\\[2pt]sử dụng ESP32-C3 và ESP8266}
+\newcommand{\giangvien}{[Họ tên giảng viên]}
+\newcommand{\lopmonhoc}{[Mã lớp môn học]}
+\newcommand{\thanhvien}{%
+  {[Họ và tên thành viên 1]} & {[MSSV]} \\
+  {[Họ và tên thành viên 2]} & {[MSSV]} \\
+  {[Họ và tên thành viên 3]} & {[MSSV]} \\
+  {[Họ và tên thành viên 4]} & {[MSSV]} \\}
+% -------------------------------------------------------------
+
+\usepackage{iftex}
+\ifXeTeX
+  \usepackage{fontspec}
+  \setmainfont{texgyretermes}[Extension=.otf,UprightFont=*-regular,
+    BoldFont=*-bold,ItalicFont=*-italic,BoldItalicFont=*-bolditalic]
+  \setsansfont{texgyreheros}[Extension=.otf,UprightFont=*-regular,
+    BoldFont=*-bold,ItalicFont=*-italic,BoldItalicFont=*-bolditalic]
+  \setmonofont{texgyrecursor}[Extension=.otf,UprightFont=*-regular,
+    BoldFont=*-bold,ItalicFont=*-italic,BoldItalicFont=*-bolditalic]
+\else
+  \usepackage[T5]{fontenc}
+  \usepackage[utf8]{inputenc}
+\fi
+\usepackage[vietnamese,shorthands=off]{babel}
+
+\usepackage[left=3cm,right=2cm,top=2.5cm,bottom=2.5cm]{geometry}
+\usepackage{setspace}
+\setstretch{1.25}
+\usepackage{amsmath,amssymb}
+\usepackage{graphicx}
+\usepackage{xcolor}
+\usepackage{booktabs,longtable,tabularx,array,multirow}
+\usepackage{enumitem}
+\setlist{itemsep=2pt,topsep=4pt}
+\usepackage{float}
+\usepackage{caption}
+\captionsetup{font=small,labelfont=bf}
+\usepackage{fancyhdr}
+\usepackage{titlesec}
+\usepackage{listings}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta,positioning,shapes.geometric,fit,calc,backgrounds}
+\usepackage[hidelinks]{hyperref}
+
+\definecolor{uetblue}{RGB}{0,62,126}
+\definecolor{codebg}{RGB}{246,247,249}
+\definecolor{codekw}{RGB}{0,82,163}
+\definecolor{codecm}{RGB}{90,120,90}
+\definecolor{codestr}{RGB}{163,21,21}
+\definecolor{boxA}{RGB}{225,236,250}
+\definecolor{boxB}{RGB}{232,245,233}
+\definecolor{boxC}{RGB}{255,243,224}
+\definecolor{boxD}{RGB}{252,228,236}
+
+\titleformat{\chapter}[hang]{\Large\bfseries\color{uetblue}}{Chương \thechapter.}{0.6em}{}
+\titlespacing*{\chapter}{0pt}{-10pt}{14pt}
+\titleformat{\section}{\large\bfseries\color{uetblue}}{\thesection}{0.6em}{}
+\titleformat{\subsection}{\normalsize\bfseries}{\thesubsection}{0.6em}{}
+
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\small\itshape Báo cáo kỹ thuật — Bãi đỗ xe thông minh}
+\fancyhead[R]{\small\itshape \tenmon}
+\fancyfoot[C]{\thepage}
+\renewcommand{\headrulewidth}{0.4pt}
+\setlength{\headheight}{15pt}
+\fancypagestyle{plain}{\fancyhf{}\fancyfoot[C]{\thepage}\renewcommand{\headrulewidth}{0pt}}
+
+\lstset{
+  basicstyle=\ttfamily\footnotesize,
+  backgroundcolor=\color{codebg},
+  keywordstyle=\color{codekw}\bfseries,
+  commentstyle=\color{codecm}\itshape,
+  stringstyle=\color{codestr},
+  numbers=left, numberstyle=\tiny\color{gray}, numbersep=6pt,
+  frame=single, rulecolor=\color{gray!40},
+  breaklines=true, showstringspaces=false, tabsize=4,
+  xleftmargin=1.5em, framexleftmargin=1.5em,
+  captionpos=b, columns=fullflexible, keepspaces=true
+}
+\lstdefinelanguage{json}{
+  morestring=[b]", stringstyle=\color{codestr},
+  literate={:}{{\textcolor{codekw}{:}}}1 {,}{{\textcolor{codekw}{,}}}1
+}
+\renewcommand{\lstlistingname}{Mã nguồn}
+\renewcommand{\lstlistlistingname}{Danh mục mã nguồn}
+
+\newcommand{\codeus}{\textunderscore\allowbreak}
+\newcommand{\code}[1]{{\ttfamily\let\_\codeus #1}}
+\setlength{\emergencystretch}{3em}
+\newcommand{\file}[1]{\texttt{\small #1}}
+
+% Hộp "Lý do lựa chọn"
+\usepackage[most]{tcolorbox}
+\newtcolorbox{lydo}[1][Lý do lựa chọn]{breakable,enhanced,colback=boxA!60,
+  colframe=uetblue,boxrule=0pt,leftrule=3pt,arc=0pt,outer arc=0pt,
+  left=6pt,right=6pt,top=4pt,bottom=4pt,before skip=8pt,after skip=8pt,
+  fonttitle=\bfseries\color{uetblue},coltitle=uetblue,colbacktitle=boxA!60,
+  title={#1},attach title to upper={.\ }}
+
+\begin{document}
+
+% =====================================================================
+%  TRANG BÌA
+% =====================================================================
+\begin{titlepage}
+  \centering
+  \begin{tikzpicture}[remember picture,overlay]
+    \draw[uetblue,line width=2pt] ($(current page.north west)+(2cm,-1.5cm)$)
+      rectangle ($(current page.south east)+(-1.5cm,1.5cm)$);
+    \draw[uetblue,line width=0.6pt] ($(current page.north west)+(2.15cm,-1.65cm)$)
+      rectangle ($(current page.south east)+(-1.65cm,1.65cm)$);
+  \end{tikzpicture}
+  {\large ĐẠI HỌC QUỐC GIA HÀ NỘI\par}
+  {\large\bfseries TRƯỜNG ĐẠI HỌC CÔNG NGHỆ\par}
+  {\large\bfseries KHOA ĐIỆN TỬ VIỄN THÔNG / KHOA CÔNG NGHỆ THÔNG TIN\par}
+  \vspace{0.4cm}
+  \rule{0.5\linewidth}{0.8pt}\par
+  \vspace{2.2cm}
+  {\Large BÁO CÁO BÀI TẬP LỚN\par}
+  \vspace{0.3cm}
+  {\large Môn học: \tenmon\par}
+  \vspace{1.4cm}
+  {\LARGE\bfseries\color{uetblue} \tendetai\par}
+  \vspace{2.2cm}
+  \begin{tabular}{@{}ll@{}}
+    \textbf{Giảng viên hướng dẫn:} & \giangvien \\
+    \textbf{Lớp môn học:} & \lopmonhoc \\
+  \end{tabular}
+  \par\vspace{0.8cm}
+  \textbf{Nhóm sinh viên thực hiện}\par\vspace{0.2cm}
+  \begin{tabular}{|l|c|}
+    \hline
+    \textbf{Họ và tên} & \textbf{MSSV} \\ \hline
+    \thanhvien
+    \hline
+  \end{tabular}
+  \vfill
+  {\large Hà Nội, tháng 10 năm 2026\par}
+\end{titlepage}
+
+% =====================================================================
+\pagenumbering{roman}
+\chapter*{Tóm tắt}
+\addcontentsline{toc}{chapter}{Tóm tắt}
+
+Báo cáo trình bày thiết kế và hiện thực một hệ thống bãi đỗ xe thông minh quy mô
+mô hình gồm năm chỗ đỗ, được xây dựng trên ba vi điều khiển Wi-Fi giá rẻ của
+Espressif. Một bo \textbf{ESP32-C3 SuperMini} đóng vai trò máy chủ trung tâm: phát
+mạng Wi-Fi riêng (SoftAP), nhận dữ liệu cảm biến qua giao thức UDP, quản lý
+phiên gửi xe bằng thẻ RFID và tính phí, điều khiển hai thanh chắn (servo SG90),
+còi báo cháy, hiển thị trạng thái trên màn hình TFT ST7789 $240\times240$ và
+phục vụ một trang web giám sát (dashboard) cùng API JSON. Hai bo
+\textbf{ESP8266} làm nút cảm biến: một bo đọc 5 cảm biến hồng ngoại (IR) phát hiện
+xe, cảm biến lửa và cảm biến mực nước; bo còn lại đọc hai đầu đọc RFID MFRC522
+(cổng vào và cổng ra) cùng cảm biến nhiệt độ DHT11.
+
+Firmware máy chủ được viết bằng C trên \textbf{ESP-IDF 6.1} với hệ điều hành thời
+gian thực \textbf{FreeRTOS}, chia thành các tác vụ (task) độc lập có mức ưu tiên
+khác nhau; firmware các nút cảm biến viết bằng C++ trên nền Arduino cho ESP8266.
+Báo cáo đi sâu vào lý do lựa chọn từng linh kiện, từng công nghệ, từng chân GPIO
+và từng thông số (tần số PWM, độ phân giải, thời gian chống rung, chu kỳ gửi,
+tốc độ SPI, kích thước bộ đệm, \ldots), kèm theo phân tích bộ nhớ, kết quả kiểm
+thử và đánh giá hạn chế. Bộ kiểm thử đơn vị chạy trên máy tính cho các module phân
+tích gói tin và tính phí đạt 26/26 phép kiểm tra.
+
+\medskip
+\noindent\textbf{Từ khóa:} ESP32-C3, ESP8266, FreeRTOS, ESP-IDF, UDP, SoftAP, RFID
+MFRC522, LEDC PWM, ST7789, SPI DMA, NVS, hệ thống nhúng.
+
+\tableofcontents
+\listoffigures
+\listoftables
+\lstlistoflistings
+
+\chapter*{Danh mục từ viết tắt}
+\addcontentsline{toc}{chapter}{Danh mục từ viết tắt}
+\begin{longtable}{@{}p{2.6cm}p{11.5cm}@{}}
+\toprule
+\textbf{Viết tắt} & \textbf{Ý nghĩa} \\ \midrule
+ADC & Analog-to-Digital Converter — bộ chuyển đổi tương tự–số \\
+AP / SoftAP & Access Point — điểm truy cập Wi-Fi do chính vi điều khiển phát ra \\
+API & Application Programming Interface \\
+DMA & Direct Memory Access — truy cập bộ nhớ trực tiếp, không qua CPU \\
+GPIO & General Purpose Input/Output \\
+HTTP & HyperText Transfer Protocol \\
+IR & Infrared — hồng ngoại \\
+ISR & Interrupt Service Routine \\
+JSON & JavaScript Object Notation \\
+LEDC & LED Control — khối phát PWM phần cứng của ESP32 \\
+LZSS & Lempel–Ziv–Storer–Szymanski — thuật toán nén từ điển \\
+NVS & Non-Volatile Storage — vùng lưu trữ khóa–giá trị trên flash của ESP-IDF \\
+OTA & Over-The-Air — nạp firmware qua mạng \\
+PWM & Pulse Width Modulation — điều chế độ rộng xung \\
+RFID & Radio Frequency Identification \\
+RTOS & Real-Time Operating System \\
+SPI & Serial Peripheral Interface \\
+SSID & Service Set Identifier — tên mạng Wi-Fi \\
+TFT & Thin-Film Transistor (màn hình) \\
+UDP & User Datagram Protocol \\
+UID & Unique Identifier — mã định danh của thẻ RFID \\
+\bottomrule
+\end{longtable}
+
+\cleardoublepage
+\pagenumbering{arabic}
+
+% =====================================================================
+\chapter{Giới thiệu}
+% =====================================================================
+
+\section{Bối cảnh và động lực}
+Tại các đô thị lớn như Hà Nội, việc tìm chỗ đỗ xe tiêu tốn nhiều thời gian và
+gây ùn tắc cục bộ. Các bãi xe truyền thống quản lý bằng vé giấy, ghi chép thủ công,
+không cho biết trước còn bao nhiêu chỗ trống và thiếu cơ chế cảnh báo an toàn
+(cháy nổ, ngập nước tầng hầm). Một hệ thống bãi đỗ xe thông minh giải quyết các vấn
+đề này bằng cách tự động phát hiện chỗ trống, kiểm soát ra vào bằng thẻ, tính phí
+tự động và giám sát môi trường theo thời gian thực.
+
+Đây là một bài toán điển hình của \emph{lập trình nhúng}: nhiều cảm biến và cơ cấu
+chấp hành, tài nguyên phần cứng hạn chế (vài trăm KB RAM), yêu cầu phản hồi
+nhanh, chạy liên tục không có người giám sát và giao tiếp không dây giữa nhiều nút.
+
+\section{Mục tiêu đề tài}
+\begin{enumerate}
+  \item Phát hiện trạng thái trống/có xe của 5 chỗ đỗ bằng cảm biến hồng ngoại.
+  \item Kiểm soát xe ra vào bằng thẻ RFID: quẹt thẻ lần đầu mở thanh chắn cổng vào,
+        quẹt lại cùng thẻ mở thanh chắn cổng ra; thanh chắn tự đóng sau 5 giây.
+  \item Tính phí gửi xe tự động theo thời gian (5.000\,VNĐ cho mỗi giờ bắt đầu, tối
+        thiểu 1 giờ) và hiển thị hóa đơn trên màn hình.
+  \item Giám sát môi trường: phát hiện lửa (kèm còi và màn hình cảnh báo), đo mực
+        nước, đo nhiệt độ.
+  \item Cung cấp giao diện web giám sát và điều khiển thanh chắn từ điện thoại/máy
+        tính, không cần Internet hay ứng dụng cài đặt.
+  \item Toàn bộ hệ thống hoạt động độc lập, tự tạo mạng riêng, khởi động lại vẫn
+        giữ trạng thái thanh chắn.
+\end{enumerate}
+
+\section{Phạm vi}
+Hệ thống là \textbf{mô hình} quy mô phòng thí nghiệm (5 chỗ đỗ, 2 cổng). Các
+vấn đề như thanh toán điện tử, cơ sở dữ liệu đám mây, nhận dạng biển số không nằm
+trong phạm vi; chúng được đề cập ở phần hướng phát triển (Chương~\ref{chap:danhgia}).
+
+\section{Cấu trúc báo cáo}
+Chương~\ref{chap:yeucau} phân tích yêu cầu. Chương~\ref{chap:kientruc} trình bày
+kiến trúc tổng thể. Chương~\ref{chap:phancung} và~\ref{chap:congnghe} giải thích lựa
+chọn phần cứng và công nghệ phần mềm. Chương~\ref{chap:server} mô tả chi tiết
+firmware máy chủ; Chương~\ref{chap:client} mô tả firmware hai nút cảm biến.
+Chương~\ref{chap:giaothuc} đặc tả giao thức truyền thông và giao diện web.
+Chương~\ref{chap:tainguyen} phân tích tài nguyên. Chương~\ref{chap:kiemthu} trình
+bày kiểm thử, Chương~\ref{chap:danhgia} đánh giá và hướng phát triển.
+
+% =====================================================================
+\chapter{Phân tích yêu cầu}\label{chap:yeucau}
+% =====================================================================
+
+\section{Yêu cầu chức năng}
+\begin{longtable}{@{}p{1.2cm}p{12.8cm}@{}}
+\caption{Yêu cầu chức năng}\label{tab:fr}\\
+\toprule \textbf{Mã} & \textbf{Mô tả} \\ \midrule \endfirsthead
+\toprule \textbf{Mã} & \textbf{Mô tả} \\ \midrule \endhead
+FR1 & Đọc trạng thái 5 chỗ đỗ, loại bỏ nhiễu/rung tín hiệu, cập nhật về trung tâm định kỳ. \\
+FR2 & Hiển thị số chỗ trống và trạng thái từng chỗ trên màn hình tại bãi và trên web. \\
+FR3 & Nhận mã UID thẻ RFID tại cổng; lần quẹt đầu là \emph{vào}, lần quẹt kế tiếp của cùng thẻ là \emph{ra}. \\
+FR4 & Mở thanh chắn tương ứng khi có sự kiện vào/ra; tự đóng sau 5 giây. \\
+FR5 & Tính phí khi xe ra: làm tròn lên theo giờ, tối thiểu 1 giờ, 5.000\,VNĐ/giờ; hiển thị UID, thời gian gửi, số tiền trong 60 giây. \\
+FR6 & Khi cảm biến lửa kích hoạt: hiển thị màn hình cảnh báo động, bật còi, hiện băng rôn cảnh báo trên web. \\
+FR7 & Đo và hiển thị mực nước (mm) và nhiệt độ (°C). \\
+FR8 & Cho phép mở/đóng từng thanh chắn và mở/đóng khẩn cấp đồng thời cả hai từ web. \\
+FR9 & Lưu trạng thái thanh chắn vào bộ nhớ không mất dữ liệu và khôi phục khi khởi động lại. \\
+FR10 & Từ chối từ xe mới khi đã có 5 phiên gửi xe đang hoạt động (bãi đầy). \\
+\bottomrule
+\end{longtable}
+
+\section{Yêu cầu phi chức năng}
+\begin{longtable}{@{}p{1.2cm}p{12.8cm}@{}}
+\caption{Yêu cầu phi chức năng}\label{tab:nfr}\\
+\toprule \textbf{Mã} & \textbf{Mô tả} \\ \midrule \endfirsthead
+NFR1 & \textbf{Độ trễ}: thay đổi chỗ đỗ hiển thị trong khoảng $\le 2$\,s; thanh chắn phản hồi thẻ RFID dưới 1\,s. \\
+NFR2 & \textbf{Độc lập hạ tầng}: không phụ thuộc router hay Internet. \\
+NFR3 & \textbf{Bền vững}: firmware chạy liên tục, tự phục hồi khi socket lỗi, mất Wi-Fi. \\
+NFR4 & \textbf{An toàn đầu vào}: mọi gói tin từ mạng phải được kiểm tra chặt chẽ, không tràn bộ đệm, không cấp phát động khi phân tích. \\
+NFR5 & \textbf{Tài nguyên}: vừa trong 400\,KB SRAM và 2\,MB flash của ESP32-C3 SuperMini. \\
+NFR6 & \textbf{Chi phí thấp}: linh kiện phổ thông, tổng chi phí dưới vài trăm nghìn đồng. \\
+NFR7 & \textbf{Dễ bảo trì}: mã nguồn chia module, có công cụ giả lập để kiểm thử không cần phần cứng. \\
+\bottomrule
+\end{longtable}
+
+% =====================================================================
+\chapter{Kiến trúc tổng thể}\label{chap:kientruc}
+% =====================================================================
+
+\section{Sơ đồ khối hệ thống}
+Hệ thống gồm ba nút phần cứng và các thiết bị người dùng (điện thoại, máy tính)
+cùng kết nối vào một mạng Wi-Fi cục bộ do máy chủ phát (Hình~\ref{fig:arch}).
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[
+  node distance=0.6cm and 0.9cm,
+  board/.style={draw,rounded corners,thick,align=center,minimum width=4.2cm,minimum height=1.1cm,font=\small},
+  dev/.style={draw,rounded corners=2pt,align=center,font=\scriptsize,minimum width=2.4cm,minimum height=0.6cm,fill=white},
+  arr/.style={-{Stealth[length=2mm]},thick},
+  lbl/.style={font=\scriptsize,fill=white,inner sep=1pt}
+]
+\node[board,fill=boxA,minimum height=1.6cm] (srv) {\textbf{SERVER}\\ESP32-C3 SuperMini\\ESP-IDF 6.1 + FreeRTOS};
+
+\node[dev,above left=0.7cm and 0.4cm of srv] (tft) {TFT ST7789\\240$\times$240 (SPI)};
+\node[dev,above=0.7cm of srv] (servo) {2 $\times$ Servo SG90\\(LEDC PWM)};
+\node[dev,above right=0.7cm and 0.4cm of srv] (buz) {Còi báo cháy\\(GPIO9)};
+\node[dev,right=1.2cm of srv] (nvs) {Flash NVS\\(trạng thái barrier)};
+\draw[arr] (srv) -- (tft);
+\draw[arr] (srv) -- (servo);
+\draw[arr] (srv) -- (buz);
+\draw[arr,<->] (srv) -- (nvs);
+
+\node[board,fill=boxB,below left=2.0cm and -0.6cm of srv] (c1) {\textbf{CLIENT}\\ESP8266 (Arduino)\\Cảm biến bãi xe};
+\node[board,fill=boxC,below right=2.0cm and -0.6cm of srv] (c2) {\textbf{CLIENT2}\\ESP8266 (Arduino)\\RFID + nhiệt độ};
+\node[dev,below=0.6cm of c1] (s1) {5 $\times$ IR, cảm biến lửa,\\cảm biến mực nước (A0)};
+\node[dev,below=0.6cm of c2] (s2) {2 $\times$ MFRC522 (SPI),\\DHT11};
+\draw[arr] (s1) -- (c1);
+\draw[arr] (s2) -- (c2);
+
+\node[board,fill=boxD,left=1.3cm of srv,minimum width=3.0cm] (web) {Trình duyệt\\điện thoại / PC};
+
+\draw[arr] (c1.north) -- node[lbl,left,pos=0.45]{UDP \code{parking\_update} 1\,Hz} (srv.south west);
+\draw[arr] (c2.north) -- node[lbl,right,pos=0.45]{UDP \code{rfid\_event}} (srv.south east);
+\draw[arr,<->] (web) -- node[lbl,above]{HTTP} (srv);
+
+\begin{scope}[on background layer]
+\node[draw,dashed,gray,rounded corners,fit=(srv)(c1)(c2)(web)(tft)(buz)(nvs),inner sep=8pt,
+      label={[font=\scriptsize\itshape,gray]above:Mạng Wi-Fi \code{ESP32-Parking} — 192.168.4.0/24}] {};
+\end{scope}
+\end{tikzpicture}
+\caption{Sơ đồ khối tổng thể của hệ thống}\label{fig:arch}
+\end{figure}
+
+\section{Phân chia vai trò}
+\begin{table}[H]
+\centering\small
+\caption{Vai trò của từng nút}\label{tab:roles}
+\begin{tabularx}{\linewidth}{@{}lXl@{}}
+\toprule
+\textbf{Nút} & \textbf{Nhiệm vụ} & \textbf{Mã nguồn} \\ \midrule
+Server & Phát Wi-Fi, nhận UDP, quản lý phiên RFID + tính phí, điều khiển barrier, còi, màn hình, web server & \file{Server/main/} \\
+Client & Đọc 5 IR + lửa + nước, chống rung, gửi trạng thái đầy đủ mỗi 1\,s & \file{Client/Client.ino} \\
+Client2 & Quét luân phiên 2 đầu đọc RFID, đọc DHT11, gửi sự kiện mỗi lần quẹt thẻ & \file{Client2/Client2.ino} \\
+Trình duyệt & Hiển thị dashboard, gọi API điều khiển barrier & \file{Server/main/network/http/} \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\begin{lydo}[Tại sao tách thành 3 bo mạch thay vì 1]
+(1) \emph{Giới hạn chân GPIO}: ESP32-C3 SuperMini chỉ có khoảng 13 chân GPIO dùng
+được; màn hình đã chiếm 6 chân, 2 servo và còi chiếm 3 chân. Năm cảm biến IR, cảm
+biến lửa, cảm biến nước, hai đầu đọc RFID (mỗi đầu cần chân SS riêng + bus SPI) và
+DHT11 cần thêm hơn 12 chân — không thể đặt chung. (2) \emph{Phân bố vật lý}: trong
+thực tế cảm biến chỗ đỗ nằm trong bãi, đầu đọc RFID nằm ở cổng, bộ điều khiển trung
+tâm đặt ở phòng bảo vệ; kết nối không dây giúp không phải kéo dây dài. (3)
+\emph{Cô lập lỗi}: một nút cảm biến bị treo không làm dừng màn hình hay thanh chắn.
+(4) \emph{Phân công nhóm}: mỗi thành viên phát triển, nạp và kiểm thử một bo độc lập.
+\end{lydo}
+
+\section{Luồng hoạt động chính}
+\paragraph{Luồng cập nhật chỗ đỗ.} Client đọc cảm biến liên tục trong \code{loop()},
+lọc nhiễu 250\,ms, cứ mỗi 1\,s đóng gói \emph{toàn bộ trạng thái} thành JSON và gửi
+broadcast UDP. Server nhận, kiểm tra cú pháp, ghi vào biến trạng thái dùng chung
+(bảo vệ bởi critical section), bật/tắt còi. Tác vụ màn hình và trang web đọc lại
+trạng thái này để hiển thị.
+
+\paragraph{Luồng xe vào/ra bằng RFID.} Hình~\ref{fig:seq} mô tả trình tự.
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[font=\scriptsize,
+  msg/.style={-{Stealth[length=1.8mm]},thick},
+  act/.style={draw,fill=boxA,rounded corners=2pt,minimum width=2.2cm,minimum height=0.6cm,align=center}]
+\node[act] (u) at (0,0) {Người lái};
+\node[act] (c) at (3,0) {Client2\\(RC522)};
+\node[act] (s) at (6.4,0) {Server\\UDP task};
+\node[act] (r) at (9.4,0) {rfid\_session};
+\node[act] (b) at (12.2,0) {Servo task};
+\foreach \n in {u,c,s,r,b} \draw[gray,dashed] (\n.south) -- ++(0,-8.2);
+\draw[msg] (0,-1.0) -- node[above]{quẹt thẻ} (3,-1.0);
+\draw[msg] (3,-1.6) -- node[above]{\code{rfid\_event} (UDP)} (6.4,-1.6);
+\draw[msg] (6.4,-2.2) -- node[above]{\code{rfid\_session\_scan()}} (9.4,-2.2);
+\draw[msg,dashed] (9.4,-2.8) -- node[above]{ENTERED} (6.4,-2.8);
+\draw[msg] (6.4,-3.4) -- node[above]{\code{servo\_open\_for(IN,5000)}} (12.2,-3.4);
+\node[draw,fill=boxC,align=center] at (12.2,-4.4) {mở 90°\\hẹn đóng $t+5$\,s};
+\node[align=left,anchor=west] at (9.6,-5.6) {\ldots sau 5\,s: tự đóng};
+\draw[msg] (0,-6.4) -- node[above]{quẹt lại cùng thẻ} (3,-6.4);
+\draw[msg] (3,-6.9) -- (6.4,-6.9);
+\draw[msg] (6.4,-7.4) -- node[above]{EXITED + tính phí} (9.4,-7.4);
+\draw[msg] (6.4,-7.9) -- node[above]{\code{servo\_open\_for(OUT,5000)}} (12.2,-7.9);
+\end{tikzpicture}
+\caption{Biểu đồ tuần tự xe vào và ra bằng thẻ RFID}\label{fig:seq}
+\end{figure}
+
+% =====================================================================
+\chapter{Lựa chọn phần cứng}\label{chap:phancung}
+% =====================================================================
+
+\section{Vi điều khiển máy chủ: ESP32-C3 SuperMini}
+\begin{table}[H]
+\centering\small
+\caption{So sánh các phương án vi điều khiển cho máy chủ}\label{tab:mcu}
+\begin{tabularx}{\linewidth}{@{}lXXXX@{}}
+\toprule
+\textbf{Tiêu chí} & \textbf{ESP32-C3} & \textbf{ESP32 (classic)} & \textbf{ESP8266} & \textbf{Arduino Uno + module Wi-Fi} \\ \midrule
+CPU & RISC-V 32-bit, 160\,MHz, 1 nhân & Xtensa LX6, 240\,MHz, 2 nhân & Xtensa L106, 80/160\,MHz & AVR 8-bit, 16\,MHz \\
+SRAM & 400\,KB & 520\,KB & $\sim$80\,KB khả dụng & 2\,KB \\
+Wi-Fi/BLE & 802.11 b/g/n + BLE 5 & b/g/n + BT/BLE 4.2 & b/g/n & cần module ngoài \\
+PWM phần cứng & LEDC 6 kênh, 14 bit & LEDC 16 kênh & PWM mềm & 6 kênh 8 bit \\
+SPI DMA & Có (GDMA) & Có & Hạn chế & Không \\
+RTOS chính thức & FreeRTOS (ESP-IDF) & FreeRTOS & Non-OS / RTOS SDK & Không \\
+Kích thước bo & $22\times18$\,mm & $\sim 50\times 28$\,mm & $\sim 48\times26$\,mm & lớn \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\begin{lydo}
+Máy chủ phải \emph{đồng thời} chạy Wi-Fi AP, web server, UDP server, vẽ màn hình
+$240\times240$ màu 16 bit và tạo PWM cho servo. Màn hình cần một framebuffer
+$240\times240\times2 = 115\,200$ byte — vượt xa toàn bộ RAM của ESP8266 hay Arduino.
+ESP32-C3 có 400\,KB SRAM, có DMA cho SPI để đẩy dữ liệu màn hình mà CPU không phải
+chờ, có khối LEDC tạo PWM phần cứng chính xác (servo không bị giật khi CPU bận xử
+lý mạng), và được hỗ trợ chính thức bởi ESP-IDF/FreeRTOS. So với ESP32 classic, C3
+rẻ hơn, nhỏ gọn hơn (bản SuperMini chỉ $22\times18$\,mm) và một nhân 160\,MHz đã thừa
+năng lực cho bài toán này. Kiến trúc RISC-V cũng là một điểm học thuật thú vị.
+\end{lydo}
+
+\section{Vi điều khiển nút cảm biến: ESP8266}
+\begin{lydo}
+Nút cảm biến chỉ cần đọc vài chân số, một chân ADC, giao tiếp SPI với RC522 và gửi
+một gói UDP nhỏ — nhu cầu tính toán rất thấp. ESP8266 (NodeMCU/Wemos D1) là bo
+Wi-Fi rẻ nhất, phổ biến nhất trên thị trường Việt Nam, nhóm đã có sẵn, có chân
+ADC A0 (ESP32-C3 cũng có ADC nhưng chân đã dùng hết), và có hệ sinh thái thư viện
+Arduino rất lớn (\code{MFRC522}, \code{DHT}, \code{ArduinoOTA}) giúp rút ngắn thời
+gian phát triển.
+\end{lydo}
+
+\section{Màn hình TFT ST7789 1.54 inch $240\times240$}
+\begin{lydo}
+Màn hình màu cho phép thể hiện trực quan (xanh = trống, đỏ = có xe, màn hình đỏ
+nhấp nháy khi cháy) — điều mà LCD1602 ký tự không làm được. ST7789 dùng giao tiếp
+SPI chỉ ghi (không cần MISO) nên chỉ tốn 6 chân; độ phân giải $240\times240$ vuông
+vừa đủ chi tiết nhưng framebuffer 115\,KB vẫn vừa RAM của C3. ESP-IDF có sẵn driver
+\code{esp\_lcd\_panel\_st7789}, không cần thư viện ngoài. So với OLED SSD1306
+($128\times64$, đơn sắc), ST7789 hiển thị được nhiều thông tin hơn và có màu.
+\end{lydo}
+
+\section{Servo SG90 cho thanh chắn}
+\begin{lydo}
+SG90 rẻ, nhẹ (9\,g), mô-men khoảng 1,8\,kg$\cdot$cm — dư sức nâng một thanh chắn
+bằng nhựa/que nhẹ của mô hình. Servo có mạch phản hồi vị trí bên trong nên chỉ cần
+cấp xung PWM 50\,Hz là giữ được góc, không cần cảm biến vị trí hay mạch cầu H như
+động cơ DC. Hai servo được dùng riêng cho cổng vào và cổng ra để xe vào và ra
+không phải dùng chung một làn.
+\end{lydo}
+
+\section{Cảm biến}
+\begin{table}[H]
+\centering\small
+\caption{Các cảm biến và lý do lựa chọn}\label{tab:sensors}
+\begin{tabularx}{\linewidth}{@{}p{3.0cm}p{2.2cm}X@{}}
+\toprule
+\textbf{Cảm biến} & \textbf{Ngõ ra} & \textbf{Lý do lựa chọn} \\ \midrule
+IR phản xạ (TCRT5000/FC-51) $\times5$ & Số, tích cực mức thấp & Rẻ, phát hiện vật cản ở cự ly vài cm phù hợp mô hình xe; có so sánh LM393 và biến trở chỉnh ngưỡng trên module nên vi điều khiển chỉ cần đọc mức logic. Siêu âm HC-SR04 chính xác hơn nhưng cần 2 chân/cảm biến và đo thời gian, tốn tài nguyên cho 5 chỗ. \\
+Cảm biến lửa (IR 760–1100\,nm) & Số (DO) & Nhạy với bức xạ hồng ngoại của ngọn lửa, phản ứng nhanh hơn cảm biến khói/nhiệt; module có ngõ ra số sẵn ngưỡng. \\
+Cảm biến mực nước điện trở & Tương tự & Đơn giản, đo được mức ngập 0–40\,mm của mô hình tầng hầm, chỉ cần 1 chân ADC. \\
+RFID MFRC522 13,56\,MHz $\times2$ & SPI & Đọc thẻ MIFARE phổ biến (thẻ sinh viên, móc khóa), tầm đọc vài cm phù hợp quẹt thẻ tại cổng; thư viện Arduino ổn định; giá rẻ. \\
+DHT11 & 1-wire riêng & Đo nhiệt độ 0–50\,°C, sai số $\pm2$\,°C — đủ cho giám sát môi trường; chỉ cần 1 chân. \\
+Còi (buzzer module) & — & Báo động âm thanh tại chỗ khi có cháy, điều khiển bằng 1 chân số. \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\section{Bảng phân chân và lý do chọn chân}
+\subsection{Máy chủ ESP32-C3 SuperMini}
+\begin{table}[H]
+\centering\small
+\caption{Phân chân ESP32-C3}\label{tab:pin-srv}
+\begin{tabularx}{\linewidth}{@{}llX@{}}
+\toprule
+\textbf{Tín hiệu} & \textbf{GPIO} & \textbf{Ghi chú / lý do} \\ \midrule
+TFT SCK & 4 & Chân thường, ghép vào SPI2 qua GPIO matrix \\
+TFT MOSI (SDA) & 6 & Chân thường; màn hình không cần MISO \\
+TFT DC & 7 & Chọn lệnh/dữ liệu \\
+TFT RST & 3 & Reset phần cứng màn hình khi khởi động \\
+TFT CS & 10 & Chip select \\
+TFT BL & 5 & Đèn nền: tắt trong lúc khởi tạo để không thấy rác, bật sau khi vẽ xong \\
+Servo cổng vào & 0 & Chân thường (chung với XTAL 32\,kHz, bo SuperMini không dùng thạch anh này) \\
+Servo cổng ra & 1 & Như trên \\
+Còi & 9 & Tích cực mức thấp (xem lưu ý bên dưới) \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+Khi chọn chân, nhóm \textbf{tránh} các chân có chức năng đặc biệt trên ESP32-C3:
+GPIO18/19 (USB-Serial/JTAG dùng để nạp và xem log), GPIO20/21 (UART0), GPIO12–17
+(nối flash SPI nội), GPIO8 (chân strapping, nối LED trên bo). Toàn bộ chân màn hình
+được khai báo trong \file{Kconfig.projbuild} nên có thể đổi qua \code{idf.py
+menuconfig} mà không sửa mã nguồn.
+
+\paragraph{Lưu ý về GPIO9.} GPIO9 là chân \emph{strapping} quyết định chế độ khởi
+động (mức thấp lúc reset = vào chế độ nạp firmware). Chân này có điện trở kéo lên
+mặc định nên ở trạng thái nghỉ là mức cao. Nhóm dùng còi loại \emph{tích cực mức
+thấp}: mức cao = im lặng, nên trạng thái mặc định của chân trùng với trạng thái
+``còi tắt'' — đây là lý do còi được gắn vào GPIO9 và firmware đặt chân lên mức cao
+ngay khi khởi tạo. Cần đảm bảo module còi không kéo chân xuống thấp lúc cấp nguồn,
+nếu không bo sẽ vào chế độ nạp.
+
+\subsection{Nút cảm biến ESP8266 (Client)}
+\begin{table}[H]
+\centering\small
+\caption{Phân chân Client}\label{tab:pin-c1}
+\begin{tabularx}{\linewidth}{@{}llX@{}}
+\toprule
+\textbf{Cảm biến} & \textbf{GPIO} & \textbf{Ghi chú} \\ \midrule
+IR 1–5 & 12, 13, 14, 4, 16 & Tránh GPIO0, 2, 15 (strapping) và GPIO1, 3 (UART log); GPIO16 không có ngắt nhưng firmware dùng polling nên không ảnh hưởng \\
+Lửa (DO) & 5 & Chân thường \\
+Nước & A0 & Chân ADC duy nhất của ESP8266 (10 bit) \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\subsection{Nút RFID ESP8266 (Client2)}
+\begin{table}[H]
+\centering\small
+\caption{Phân chân Client2}\label{tab:pin-c2}
+\begin{tabularx}{\linewidth}{@{}llX@{}}
+\toprule
+\textbf{Tín hiệu} & \textbf{GPIO} & \textbf{Ghi chú} \\ \midrule
+SCK / MOSI / MISO & 14 / 13 / 12 & SPI phần cứng (HSPI) của ESP8266, dùng chung cho 2 đầu đọc \\
+SS đầu đọc 1 (cổng vào) & 4 (D2) & Mỗi thiết bị SPI cần một chân chọn chip riêng \\
+SS đầu đọc 2 (cổng ra) & 5 (D1) & \\
+RST (chung) & 16 (D0) & Dùng chung reset để tiết kiệm chân \\
+DHT11 & 2 (D4) & GPIO2 phải ở mức cao khi khởi động; DHT11 có điện trở kéo lên nên phù hợp \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\section{Nguồn điện}
+Servo SG90 có dòng khởi động/kẹt tới vài trăm mA mỗi con. Nếu cấp từ chân 3V3 của
+bo, sụt áp sẽ làm ESP32-C3 reset (brown-out) mỗi lần thanh chắn chuyển động. Vì vậy
+servo được cấp từ nguồn 5\,V riêng, \textbf{nối chung GND} với ESP32-C3 để tín hiệu
+PWM có cùng mức tham chiếu. Tín hiệu PWM 3,3\,V của ESP32-C3 vẫn được SG90 nhận
+đúng mức cao.
+
+% =====================================================================
+\chapter{Lựa chọn công nghệ phần mềm}\label{chap:congnghe}
+% =====================================================================
+
+\section{ESP-IDF + FreeRTOS cho máy chủ, Arduino cho nút cảm biến}
+\begin{lydo}[Tại sao máy chủ dùng ESP-IDF thay vì Arduino]
+Máy chủ có nhiều hoạt động diễn ra song song với chu kỳ khác nhau: nhận UDP
+(sự kiện bất kỳ lúc nào), vẽ màn hình (500\,ms), hoạt hình GIF (100\,ms/khung),
+kiểm tra hẹn giờ đóng thanh chắn (50\,ms), phục vụ HTTP. Viết tất cả trong một
+\code{loop()} của Arduino buộc phải dùng máy trạng thái thủ công và một thao tác
+chậm (ví dụ vẽ màn hình) sẽ làm chậm toàn bộ. ESP-IDF cung cấp FreeRTOS với
+\emph{task} có ưu tiên, \emph{mutex}, \emph{critical section}; cung cấp driver chính
+thức cho \code{esp\_lcd} (SPI DMA), LEDC, NVS, \code{esp\_http\_server}, lwIP socket.
+Đây cũng là framework được Espressif hỗ trợ dài hạn và là trọng tâm kiến thức của
+môn lập trình nhúng (RTOS, driver, quản lý bộ nhớ).
+\end{lydo}
+
+\begin{lydo}[Tại sao nút cảm biến dùng Arduino]
+Logic của nút cảm biến tuần tự và đơn giản; ưu tiên là phát triển nhanh và dùng được
+thư viện cộng đồng đã kiểm chứng (MFRC522, DHT). Arduino core cho ESP8266 vẫn chạy
+trên SDK của Espressif nên đủ ổn định, đồng thời có \code{ArduinoOTA} để nạp lại
+firmware qua Wi-Fi khi các bo đã gắn cố định vào mô hình.
+\end{lydo}
+
+\section{Mạng: Wi-Fi SoftAP do máy chủ phát}
+\begin{lydo}
+Nếu dùng router có sẵn, hệ thống phụ thuộc vào hạ tầng bên ngoài, địa chỉ IP máy
+chủ thay đổi theo DHCP và mạng trường thường chặn thiết bị lạ. Khi ESP32-C3 tự phát
+AP, địa chỉ máy chủ luôn cố định là \code{192.168.4.1}, các client luôn biết đích
+đến, hệ thống mang đi demo ở bất kỳ đâu và người dùng chỉ cần kết nối Wi-Fi rồi mở
+trình duyệt. Các thông số: kênh 1 (một trong ba kênh không chồng lấn 1/6/11 của
+băng 2,4\,GHz); tối đa 4 trạm (2 client + 2 thiết bị xem dashboard; mỗi trạm tốn RAM
+trong AP nên không đặt lớn hơn); WPA2-PSK với mật khẩu 8 ký tự (độ dài tối thiểu
+của WPA2); PMF không bắt buộc để tương thích với ESP8266.
+\end{lydo}
+
+\section{Giao thức truyền: UDP broadcast}
+\begin{table}[H]
+\centering\small
+\caption{So sánh giao thức truyền dữ liệu cảm biến}\label{tab:proto}
+\begin{tabularx}{\linewidth}{@{}lXXX@{}}
+\toprule
+& \textbf{UDP} & \textbf{HTTP/TCP} & \textbf{MQTT} \\ \midrule
+Thiết lập kết nối & Không & Bắt tay 3 bước mỗi request (hoặc giữ kết nối) & Cần broker \\
+Overhead mỗi bản tin & 8 byte header & Vài trăm byte header HTTP & 2+ byte, nhưng trên TCP \\
+Bộ nhớ phía server & 1 socket, 1 bộ đệm 256 B & Mỗi kết nối 1 socket + bộ đệm & Cần chạy broker trên ESP \\
+Khi mất gói & Mất — gói kế tiếp bù lại & Tự truyền lại & Có QoS \\
+Hạ tầng thêm & Không & Không & Broker (Mosquitto\ldots) \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\begin{lydo}
+Dữ liệu chỗ đỗ được gửi dưới dạng \textbf{ảnh chụp trạng thái đầy đủ} (full
+snapshot) mỗi giây, không phải dạng ``sự kiện thay đổi''. Do đó mất một gói không
+làm sai trạng thái lâu dài: gói sau 1\,s sẽ sửa lại. Với đặc tính đó, độ tin cậy của
+TCP là không cần thiết, trong khi chi phí của nó (bắt tay, socket, bộ đệm, tác vụ)
+là đáng kể trên vi điều khiển. Lịch sử phát triển của nhóm cũng phản ánh điều này:
+nhóm đã thử định dạng request khác rồi quay lại UDP (commit \code{revert to udp}).
+Gửi tới địa chỉ \emph{broadcast} \code{192.168.4.255} giúp client không cần biết IP
+máy chủ và cho phép một máy tính trong mạng ``nghe lén'' để gỡ lỗi. Cổng 3333 là
+cổng không đặc quyền, không trùng dịch vụ phổ biến và là cổng mẫu trong ví dụ UDP
+của ESP-IDF.
+\end{lydo}
+
+Hạn chế của lựa chọn này (sự kiện RFID không có xác nhận, gói broadcast trên Wi-Fi
+không được MAC-layer ACK) được phân tích ở Chương~\ref{chap:danhgia}.
+
+\section{Định dạng bản tin: JSON}
+\begin{lydo}
+JSON đọc được bằng mắt trong log, dễ sinh từ \code{snprintf} trên ESP8266 và từ
+Python khi giả lập, và có trường \code{type} để phân biệt nhiều loại bản tin trên
+cùng một cổng. Bản tin dài khoảng 60–80 byte, vừa một gói UDP nhỏ (không phân mảnh
+IP). Định dạng nhị phân sẽ ngắn hơn nhưng khó gỡ lỗi; với tần suất 1 gói/giây,
+lợi ích băng thông không đáng kể.
+\end{lydo}
+
+\section{Giao diện web nhúng trong firmware}
+\begin{lydo}
+Trang \file{index.html} và \file{style.css} được nhúng thẳng vào firmware bằng
+\code{EMBED\_TXTFILES} của CMake/ESP-IDF; trình liên kết tạo các ký hiệu
+\code{\_binary\_index\_html\_start/\_end}. Cách này không cần phân vùng file
+(SPIFFS/LittleFS), chỉ cần nạp \emph{một} file \code{.bin}, và tệp HTML luôn đồng bộ
+phiên bản với firmware. Trình duyệt có sẵn trên mọi điện thoại nên không cần viết
+ứng dụng di động.
+\end{lydo}
+
+\section{Lưu trữ: NVS}
+\begin{lydo}
+Chỉ cần lưu hai giá trị boolean (barrier vào/ra đang mở hay đóng). NVS của ESP-IDF
+là kho khóa–giá trị trên flash có cân bằng hao mòn (wear levelling) và an toàn khi
+mất điện giữa chừng, phù hợp hơn tự ghi flash thô. NVS cũng đã phải khởi tạo cho
+Wi-Fi (lưu dữ liệu hiệu chuẩn PHY) nên không tốn thêm phân vùng.
+\end{lydo}
+
+% =====================================================================
+\chapter{Thiết kế firmware máy chủ (ESP32-C3)}\label{chap:server}
+% =====================================================================
+
+\section{Cấu trúc mã nguồn}
+\begin{lstlisting}[language={},caption={Cây thư mục firmware máy chủ},numbers=none]
+Server/main/
+|-- main.c                 app_main(): thu tu khoi dong
+|-- Kconfig.projbuild      Cau hinh chan TFT (menuconfig)
+|-- barrier/servo.c        LEDC PWM, NVS, task tu dong dong
+|-- buzzer/buzzer.c        Coi active-low GPIO9
+|-- display/lcd_display.c  Giao dien ST7789, man hinh bao chay
+|-- display/*_gif.c        Khung hinh GIF nen LZSS + bo giai nen
+|-- network/wifi_ap.c      SoftAP
+|-- network/http/          Web server + dashboard nhung
+|-- network/udp/           UDP server (cong 3333)
+`-- parking/
+    |-- parking_state.c    Trang thai dung chung (critical section)
+    |-- parking_update.c   Bo phan tich JSON parking_update
+    `-- rfid_session.c     Phien gui xe RFID + tinh phi
+\end{lstlisting}
+
+Mỗi thư mục là một module có file \code{.h} công khai tối thiểu (ví dụ
+\file{servo.h} chỉ có 7 hàm). Module mạng không biết chi tiết màn hình, màn hình
+không biết chi tiết UDP; chúng chỉ giao tiếp qua \code{parking\_state} và
+\code{rfid\_session}. Thiết kế này giúp kiểm thử độc lập các module \code{parking/}
+trên máy tính (Chương~\ref{chap:kiemthu}).
+
+\section{Trình tự khởi động}
+\begin{lstlisting}[language=C,caption={Hàm \code{app\_main} (\file{main.c})}]
+void app_main(void)
+{
+    esp_err_t ret = nvs_flash_init();
+    if (ret == ESP_ERR_NVS_NO_FREE_PAGES ||
+        ret == ESP_ERR_NVS_NEW_VERSION_FOUND) {
+        ESP_ERROR_CHECK(nvs_flash_erase());
+        ret = nvs_flash_init();
+    }
+    ESP_ERROR_CHECK(ret);
+    // Start the local screen before Wi-Fi consumes system memory.
+    ESP_ERROR_CHECK(lcd_display_start());
+    ESP_ERROR_CHECK(buzzer_start());
+    ESP_ERROR_CHECK(servo_start());
+    ESP_ERROR_CHECK(network_service_start());
+}
+\end{lstlisting}
+
+\begin{lydo}[Tại sao thứ tự khởi động như vậy]
+\begin{enumerate}[leftmargin=*]
+\item \textbf{NVS trước tiên} vì cả Wi-Fi và servo đều đọc NVS. Nếu phân vùng NVS
+  đầy hoặc khác phiên bản (sau khi đổi ESP-IDF), xóa và khởi tạo lại — đây là mẫu
+  chuẩn của Espressif.
+\item \textbf{Màn hình trước Wi-Fi}: màn hình cần một khối bộ nhớ \emph{liên tục}
+  115\,KB có khả năng DMA. Wi-Fi cấp phát rất nhiều khối nhỏ làm phân mảnh heap;
+  cấp phát framebuffer trước đảm bảo còn khối lớn liền mạch.
+\item \textbf{Còi trước mạng}: đặt GPIO9 lên mức cao (im lặng) càng sớm càng tốt,
+  trước khi có bất kỳ bản tin nào.
+\item \textbf{Servo trước mạng}: khôi phục vị trí barrier từ NVS trước khi có lệnh
+  từ web/RFID, tránh trạng thái không xác định.
+\item \textbf{Mạng sau cùng}: chỉ nhận lệnh khi mọi thiết bị đã sẵn sàng.
+\end{enumerate}
+\code{ESP\_ERROR\_CHECK} áp dụng nguyên tắc \emph{fail-fast}: nếu khởi tạo thất bại,
+hệ thống in lỗi và khởi động lại thay vì chạy tiếp ở trạng thái nửa vời.
+\end{lydo}
+
+\section{Các tác vụ FreeRTOS và đồng bộ}
+\begin{table}[H]
+\centering\small
+\caption{Các tác vụ FreeRTOS trên máy chủ}\label{tab:tasks}
+\begin{tabularx}{\linewidth}{@{}llllX@{}}
+\toprule
+\textbf{Task} & \textbf{Ưu tiên} & \textbf{Stack} & \textbf{Chu kỳ} & \textbf{Nhiệm vụ} \\ \midrule
+\code{udp\_server} & 5 & 4096 B & theo sự kiện & Chặn ở \code{recvfrom}, phân tích, cập nhật trạng thái, ra lệnh servo/còi \\
+\code{servo\_auto\_close} & 5 & 3072 B & 50 ms & Đóng barrier khi đến hạn \\
+\code{httpd} (ESP-IDF) & 5 & 4096 B & theo request & Phục vụ trang web và API \\
+\code{lcd\_display} & 4 & 4096 B & 500 ms (120 ms khi cháy) & Vẽ lại màn hình khi trạng thái đổi \\
+\code{lcd\_animation} & 3 & 3072 B & 100 ms/khung & Hoạt hình GIF trang trí \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\begin{lydo}[Tại sao đặt ưu tiên như vậy]
+Ưu tiên phản ánh \emph{mức độ quan trọng đối với người dùng}. Nhận lệnh và điều
+khiển thanh chắn (ưu tiên 5) liên quan trực tiếp đến xe đang chờ ở cổng nên phải
+được chạy ngay. Màn hình thông tin (4) quan trọng hơn hoạt hình trang trí (3): nếu
+CPU bận, hoạt hình chậm đi chứ thông tin không bị trễ. Kích thước stack 3–4\,KB đủ
+cho các biến cục bộ (bộ đệm UDP 256\,B, chuỗi định dạng) cộng với \code{ESP\_LOG}
+(dùng \code{vprintf} khá tốn stack); với \code{FREERTOS\_HZ = 100}, tick 10\,ms
+nên các chu kỳ đều là bội số của tick.
+\end{lydo}
+
+Hệ thống dùng \textbf{hai cơ chế đồng bộ khác nhau} một cách có chủ đích:
+\begin{itemize}
+\item \code{parking\_state} và \code{rfid\_session} dùng \textbf{critical section}
+  (\code{portENTER\_CRITICAL} với spinlock \code{portMUX\_TYPE}). Vùng bảo vệ chỉ là
+  vài lệnh \code{memcpy} trên cấu trúc vài chục byte — chạy trong vài micro giây.
+  Critical section rẻ hơn mutex và an toàn kể cả nếu sau này gọi từ ngắt.
+\item \code{servo} và \code{lcd} dùng \textbf{mutex} (\code{xSemaphoreCreateMutex}).
+  Vùng bảo vệ của servo bao gồm ghi NVS (ghi flash, có thể mất hàng mili giây) và
+  vùng của LCD bao gồm gửi dữ liệu SPI. Không được làm việc lâu như vậy trong
+  critical section vì nó tắt ngắt và chặn bộ lập lịch; mutex cho phép task khác
+  vẫn chạy và có cơ chế kế thừa ưu tiên (priority inheritance) tránh đảo ưu tiên.
+\end{itemize}
+
+\section{Module trạng thái bãi xe}
+\begin{lstlisting}[language=C,caption={Cấu trúc trạng thái dùng chung (\file{parking\_state.h})}]
+#define PARKING_SLOT_COUNT 5
+typedef struct {
+    int slots[PARKING_SLOT_COUNT]; /* 1 = occupied, 0 = free */
+    float temperature_c;
+    float water_mm;
+    bool fire;
+    bool received;              /* da nhan it nhat 1 ban tin */
+    bool temperature_received;  /* nhiet do den tu RFID event */
+} parking_state_t;
+\end{lstlisting}
+Các cờ \code{received} và \code{temperature\_received} cho phép giao diện hiển thị
+``\code{--.-}'' / ``WAITING'' thay vì số 0 giả khi chưa có dữ liệu — tránh hiểu lầm
+``mực nước 0\,mm'' khi thực ra cảm biến chưa kết nối. Hàm \code{parking\_state\_get}
+trả về \emph{bản sao} và đếm số chỗ trống ngay trong critical section, nên người
+đọc luôn nhận được một ảnh nhất quán (không có trường hợp đọc nửa cũ nửa mới).
+
+\section{Bộ phân tích JSON tự viết}
+\begin{lydo}[Tại sao không dùng thư viện cJSON]
+Gói UDP đến từ mạng là \emph{ranh giới tin cậy}: bất kỳ thiết bị nào kết nối vào AP
+đều gửi được. cJSON cấp phát heap cho từng nút, có thể phân mảnh heap khi chạy dài
+ngày và chấp nhận mọi JSON hợp lệ (kể cả trường lạ, mảng 1000 phần tử). Bộ phân tích
+tự viết (khoảng 180 dòng) \textbf{không cấp phát động}, chỉ chấp nhận đúng lược đồ
+mong đợi và có \textbf{vòng lặp giới hạn} (tối đa 5 trường cho \code{parking\_update},
+3 trường cho \code{rfid\_event}) nên thời gian xử lý bị chặn trên, không thể bị làm
+treo bằng gói tin độc hại.
+\end{lydo}
+
+Các quy tắc kiểm tra:
+\begin{itemize}
+\item Khóa phải thuộc tập cho phép; khóa lạ hoặc lặp lại $\Rightarrow$ từ chối.
+\item \code{slots} phải đúng 5 phần tử, mỗi phần tử chỉ là ký tự \code{0} hoặc \code{1}.
+\item \code{water\_mm} trong $[0;\,10\,000]$; \code{temperature\_c} trong $[-40;\,125]$
+  (dải đo của hầu hết cảm biến nhiệt độ bán dẫn, bao trùm DHT11); biểu thức
+  \code{!(v >= a \&\& v <= b)} còn loại được giá trị \code{NaN}.
+\item \code{fire} phải là JSON boolean (\code{true}/\code{false}), không chấp nhận
+  \code{1}/\code{0}; được phép thiếu để tương thích client cũ.
+\item \code{card\_id} chỉ gồm chữ, số, \code{-}, \code{\_}, tối đa 31 ký tự (UID
+  MIFARE dài nhất 10 byte = 20 ký tự hex), được chuẩn hóa thành chữ hoa để
+  \code{a1b2} và \code{A1B2} là cùng một thẻ.
+\item Không được có dữ liệu thừa sau dấu \code{\}} đóng.
+\end{itemize}
+Bộ đệm nhận có kích thước 256 byte và \code{recvfrom} chỉ đọc tối đa 255 byte, sau
+đó gán \code{buffer[received] = '\textbackslash 0'}, đảm bảo luôn là chuỗi kết thúc
+hợp lệ; gói dài hơn bị cắt và sẽ bị bộ phân tích từ chối. 256 byte gấp hơn 3 lần
+bản tin dài nhất ($\approx$80 byte), đủ dư cho mở rộng.
+
+\section{Phiên gửi xe RFID và tính phí}
+Mỗi phiên gồm UID và thời điểm vào (\code{esp\_timer\_get\_time()}, micro giây kể
+từ khi khởi động, 64 bit — không tràn trong hơn 290\,000 năm). Bảng phiên có
+\code{RFID\_MAX\_ACTIVE = 5} phần tử, \emph{bằng số chỗ đỗ}: không thể có nhiều xe
+trong bãi hơn số chỗ, đồng thời dùng mảng tĩnh thay vì danh sách liên kết cấp phát
+động.
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[font=\small,
+  st/.style={draw,thick,rounded corners,fill=boxA,minimum width=3.2cm,minimum height=1cm,align=center},
+  arr/.style={-{Stealth[length=2mm]},thick}]
+\node[st] (out) {Thẻ \textbf{không} có\\phiên hoạt động};
+\node[st,right=4.2cm of out] (in) {Thẻ \textbf{có}\\phiên hoạt động};
+\draw[arr] (out.north east) to[bend left=25] node[above,align=center,font=\scriptsize]{quẹt thẻ, còn chỗ trống\\ENTERED: lưu $t_{\text{vào}}$, mở cổng vào 5\,s} (in.north west);
+\draw[arr] (in.south west) to[bend left=25] node[below,align=center,font=\scriptsize]{quẹt thẻ\\EXITED: tính phí, mở cổng ra 5\,s} (out.south east);
+\draw[arr] (out.west) to[out=200,in=160,looseness=5] node[left,align=center,font=\scriptsize]{bảng đầy\\FULL: không\\mở cổng} (out.west);
+\end{tikzpicture}
+\caption{Máy trạng thái của một thẻ RFID}\label{fig:fsm}
+\end{figure}
+
+Công thức tính phí với $t$ là số giây gửi xe:
+\begin{equation}
+  h = \max\!\left(1,\ \left\lceil \frac{t}{3600} \right\rceil\right), \qquad
+  \text{Phí} = 5000 \cdot h\ \ (\text{VNĐ})
+\end{equation}
+Trong mã nguồn, phép làm tròn lên được viết bằng số nguyên
+\code{(t + 3600 - 1) / 3600} để tránh dùng số thực. Kết quả được bão hòa ở
+\code{UINT32\_MAX} nếu tràn. Ví dụ: gửi 1 giờ 1 phút ($t=3660$) $\Rightarrow h = 2$
+$\Rightarrow$ 10.000\,VNĐ; gửi 10 giây $\Rightarrow$ 5.000\,VNĐ (tối thiểu).
+
+\begin{lydo}[Tại sao chọn các thông số này]
+\textbf{5.000\,VNĐ/giờ} gần với mức phí gửi xe phổ biến tại Hà Nội; \textbf{làm
+tròn lên theo giờ, tối thiểu 1 giờ} là cách tính phí thông dụng của bãi xe và dễ
+giải thích cho người dùng. Hóa đơn hiển thị \textbf{60 giây} — đủ thời gian để tài
+xế đọc và trả tiền, sau đó màn hình trở về trạng thái bình thường. Barrier mở
+\textbf{5 giây} — đủ để một xe mô hình đi qua, nhưng không quá lâu để xe thứ hai
+``đi ké''.
+\end{lydo}
+
+\section{Điều khiển thanh chắn bằng LEDC PWM}
+Servo SG90 nhận xung chu kỳ 20\,ms (50\,Hz); độ rộng xung quyết định góc. Firmware
+dùng dải hiệu chỉnh 500–2400\,µs cho 0–180° (giá trị đo thực tế của SG90; datasheet
+danh nghĩa là 1000–2000\,µs nhưng thường không đạt đủ 180°).
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[x=0.55cm,y=0.7cm,font=\scriptsize]
+\draw[-{Stealth}] (0,0) -- (23,0) node[right]{$t$ (ms)};
+\draw[-{Stealth}] (0,0) -- (0,1.8) node[left]{PWM};
+\draw[thick,uetblue] (0,0) -- (0,1.2) -- (1.45,1.2) -- (1.45,0) -- (20,0) -- (20,1.2) -- (21.45,1.2) -- (21.45,0) -- (22.5,0);
+\draw[{Stealth}-{Stealth}] (0,-0.5) -- node[below]{chu kỳ $T = 20$\,ms (50\,Hz)} (20,-0.5);
+\draw[{Stealth}-{Stealth}] (0,1.5) -- node[above]{$p$} (1.45,1.5);
+\node[align=left,anchor=west] at (3,1.0) {$p = 500$\,µs $\to 0°$ (đóng cổng vào)\\$p = 1450$\,µs $\to 90°$ (mở cổng vào)\\$p = 2400$\,µs $\to 180°$};
+\end{tikzpicture}
+\caption{Dạng xung điều khiển servo SG90}\label{fig:pwm}
+\end{figure}
+
+Từ góc $\theta$, độ rộng xung và giá trị duty của bộ đếm 14 bit được tính:
+\begin{equation}
+  p(\theta) = 500 + \frac{1900\,\theta}{180}\ \text{µs}, \qquad
+  D = \left\lfloor \frac{p \cdot (2^{14}-1)}{20\,000} \right\rfloor
+\end{equation}
+Với $\theta=90°$: $p = 1450$\,µs, $D = 1187$; với $\theta = 0°$: $p = 500$\,µs,
+$D = 409$.
+
+\begin{lydo}[Tại sao 50\,Hz, 14 bit, LEDC]
+\textbf{50\,Hz} là tần số chuẩn của servo RC analog; tần số cao hơn có thể làm
+nóng hoặc rung SG90. \textbf{14 bit} là độ phân giải lớn nhất của LEDC trên
+ESP32-C3: mỗi bước $= 20\,000/16\,384 \approx 1{,}22$\,µs, tương ứng
+$\approx 0{,}12°$ — mịn hơn nhiều so với vùng chết của SG90 (khoảng 1°), nên servo
+không bị ``rung tìm vị trí''. \textbf{LEDC} là PWM phần cứng: sau khi đặt duty, xung
+được phát liên tục mà CPU không phải can thiệp, nên dù Wi-Fi hay màn hình đang bận
+thì servo vẫn giữ góc ổn định — điều PWM bằng phần mềm không đảm bảo được. Hai
+servo dùng chung một timer (cùng 50\,Hz) nhưng hai kênh khác nhau.
+\end{lydo}
+
+\begin{lstlisting}[language=C,caption={Đặt góc servo và ánh xạ trạng thái (\file{servo.c})}]
+static esp_err_t servo_set_angle(ledc_channel_t channel, int angle)
+{
+    const uint32_t pulse_us = SERVO_MIN_PULSE_US +
+        (SERVO_MAX_PULSE_US - SERVO_MIN_PULSE_US) * (uint32_t)angle / 180;
+    const uint32_t duty = pulse_us * ((1U << 14) - 1) / SERVO_PERIOD_US;
+    esp_err_t err = ledc_set_duty(LEDC_LOW_SPEED_MODE, channel, duty);
+    if (err != ESP_OK)
+        return err;
+    return ledc_update_duty(LEDC_LOW_SPEED_MODE, channel);
+}
+
+static int servo_angle_for_state(bool is_out_gate, bool open)
+{
+    /* The exit barrier is mounted in the opposite orientation. */
+    if (is_out_gate)
+        return open ? 0 : 90;
+    return open ? 90 : 0;
+}
+\end{lstlisting}
+
+Một số quyết định thiết kế quan trọng:
+\begin{itemize}
+\item \textbf{Barrier ra lắp đối xứng} với barrier vào trên mô hình, nên góc
+  mở/đóng bị đảo (0° = mở). Thay vì đảo dây hay đảo logic ở nhiều nơi, việc ánh
+  xạ được gom vào một hàm duy nhất \code{servo\_angle\_for\_state}.
+\item \textbf{Chỉ quay trong 0–90°}: một phần tư vòng là đủ nâng thanh chắn từ ngang
+  lên dọc; quay ít hơn thì nhanh hơn và ít tải hơn.
+\item \textbf{Kênh LEDC khởi tạo với duty = 0} (không phát xung) cho đến khi đọc xong
+  trạng thái từ NVS, sau đó mới đặt góc. Như vậy khi khởi động lại, servo đi thẳng
+  đến vị trí đã lưu, không bị giật về một góc mặc định trước.
+\item \textbf{Chỉ ghi NVS khi trạng thái thay đổi} (\code{if (*state == open)
+  return}), giảm số lần ghi flash (flash có tuổi thọ giới hạn số lần xóa). Nếu ghi
+  NVS lỗi, servo vẫn được coi là đã chuyển động thành công vì trạng thái vật lý mới
+  là điều quan trọng; lỗi chỉ được ghi log.
+\end{itemize}
+
+\paragraph{Tự động đóng.} \code{servo\_open\_for()} mở barrier và ghi thời điểm
+hết hạn \code{now + 5000\,ms}. Task \code{servo\_auto\_close} thức dậy mỗi 50\,ms,
+so sánh với \code{esp\_timer\_get\_time()} và đóng khi đến hạn.
+
+\begin{lydo}[Tại sao dùng task kiểm tra 50\,ms thay vì software timer]
+Mỗi lần đóng cần ghi NVS, là thao tác có thể chặn — không nên thực hiện trong
+callback của \code{esp\_timer} hay FreeRTOS timer (chạy trong task timer dùng chung,
+stack nhỏ). Task riêng có stack 3\,KB và có thể lấy mutex an toàn. Sai số đóng tối đa
+50\,ms (5 tick) so với 5\,s là 1\%, người dùng không nhận thấy, mà CPU chỉ thức
+20 lần/giây. Lệnh điều khiển thủ công từ web đặt lại hạn đóng về 0, tức là
+\textbf{lệnh của người vận hành luôn được ưu tiên} hơn lịch tự động.
+\end{lydo}
+
+\section{Còi báo cháy}
+Còi được cấu hình là ngõ ra số, không kéo lên/xuống nội, và đặt mức cao ngay lập
+tức (im lặng). Mỗi khi một bản tin \code{parking\_update} hợp lệ được chấp nhận,
+\code{buzzer\_set\_fire(new\_state.fire)} được gọi. Còi kêu liên tục trong lúc bản
+tin mới nhất báo cháy, và tắt khi bản tin báo hết cháy.
+
+\section{Màn hình ST7789}
+\subsection{Cấu hình SPI}
+\begin{lydo}[Tại sao SPI 40\,MHz và DMA]
+Một khung hình đầy đủ là $240 \times 240 \times 16 = 921\,600$ bit. Ở 40\,MHz,
+thời gian truyền lý thuyết là $921\,600 / 40\cdot10^6 \approx 23$\,ms, tức tối đa
+khoảng 43 khung/giây — dư cho giao diện tĩnh và màn hình cảnh báo cháy 8 khung/giây.
+40\,MHz bằng đúng $80\,\text{MHz}/2$ (xung APB), là ước số nguyên nên không có
+sai số tần số, đồng thời nằm dưới giới hạn ghi của ST7789 (chu kỳ ghi tối thiểu
+khoảng 16\,ns $\approx$ 62\,MHz) với biên an toàn cho dây cắm breadboard. DMA được
+bật (\code{SPI\_DMA\_CH\_AUTO}) để CPU không phải đẩy từng byte; hàng đợi giao dịch
+sâu 10 (\code{trans\_queue\_depth}) cho phép xếp nhiều lần vẽ liên tiếp.
+\end{lydo}
+
+\subsection{Framebuffer và định dạng màu}
+Toàn bộ giao diện được vẽ vào một framebuffer RGB565 trong RAM (cấp phát với
+\code{MALLOC\_CAP\_DMA}), rồi gửi một lần bằng \code{esp\_lcd\_panel\_draw\_bitmap}.
+\begin{itemize}
+\item \textbf{RGB565} (16 bit/điểm ảnh) thay vì RGB666 (18 bit) giảm 1/3 băng thông
+  và bộ nhớ, mắt người khó phân biệt trên màn 1,54 inch.
+\item \textbf{Đảo byte} (\code{rgb565\_byte\_swap}): ESP32-C3 là little-endian, trong
+  khi ST7789 nhận byte cao trước qua SPI. Đảo một lần khi ghi vào framebuffer rẻ hơn
+  cấu hình driver đảo từng giao dịch.
+\item \textbf{Đảo màu} (\code{esp\_lcd\_panel\_invert\_color(true)}): các module IPS
+  ST7789 phổ biến cần lệnh INVON để hiển thị đúng màu (nếu không, đen thành trắng).
+\item \textbf{Font 5$\times$7 tự định nghĩa} cho 36 ký tự A–Z, 0–9 (180 byte) cộng
+  vài ký hiệu, có thể phóng to theo hệ số \code{scale}. Không cần thư viện đồ họa
+  (LVGL tốn hàng trăm KB flash và RAM) cho một giao diện cố định.
+\end{itemize}
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[x=0.024cm,y=-0.024cm,font=\tiny]
+\fill[black] (0,0) rectangle (240,240);
+\fill[cyan!70!blue] (0,0) rectangle (240,4);
+\node[white,anchor=west,font=\scriptsize\bfseries] at (12,18) {PARKSENSE};
+\draw[gray] (8,32) -- (232,32);
+\node[gray!60,anchor=west] at (10,44) {FREE SPACES};
+\node[white,anchor=west,font=\large\bfseries] at (10,66) {3/5};
+\fill[gray!25!black] (8,87) rectangle (68,127);
+\fill[gray!25!black] (75,87) rectangle (135,127);
+\node[gray!60,anchor=west] at (12,96) {TEMP C};
+\node[gray!60,anchor=west] at (78,96) {WATER MM};
+\node[white,anchor=west] at (12,112) {28.0};
+\node[white,anchor=west] at (79,112) {0.2};
+\fill[pink!60] (144,40) rectangle (240,136);
+\node[align=center] at (192,88) {GIF\\96$\times$96};
+\node[gray!60,anchor=west] at (8,138) {SPACE STATUS};
+\foreach \i/\c in {0/red,1/green,2/green,3/red,4/green}{
+  \fill[gray!25!black] (8+\i*46,147) rectangle (51+\i*46,190);
+  \fill[\c] (8+\i*46,147) rectangle (11+\i*46,190);
+}
+\fill[gray!25!black] (0,194) rectangle (240,240);
+\node[white,anchor=west] at (8,203) {ID A1B2C3D4};
+\node[gray!60,anchor=west] at (8,214) {PARK TIME};
+\node[white,anchor=west,font=\scriptsize] at (8,229) {1H 01M};
+\node[gray!60,anchor=west] at (126,203) {FEE VND};
+\node[cyan,anchor=west,font=\small\bfseries] at (126,224) {10000};
+\draw[gray] (0,0) rectangle (240,240);
+\end{tikzpicture}
+\hspace{1cm}
+\begin{minipage}[b]{6cm}\small
+Bố cục 240$\times$240:\\[2pt]
+• Hàng 0–32: tiêu đề.\\
+• Hàng 41–80: số chỗ trống, cỡ chữ $\times3$.\\
+• Hàng 87–127: nhiệt độ, mực nước.\\
+• Góc phải: ảnh động 96$\times$96.\\
+• Hàng 147–190: 5 ô chỗ đỗ, vạch màu đỏ/xanh.\\
+• Hàng 194–240: hóa đơn sau khi xe ra (hoặc ảnh động nhỏ khi không có hóa đơn).
+\vspace{6pt}
+\end{minipage}
+\caption{Bố cục giao diện màn hình TFT (mô phỏng)}\label{fig:tft}
+\end{figure}
+
+\subsection{Chỉ vẽ lại khi cần}
+Task \code{lcd\_display} lưu bản sao của trạng thái lần vẽ trước và chỉ vẽ lại khi
+có khác biệt (chỗ đỗ, nhiệt độ, nước, cháy, hóa đơn). Ở trạng thái bình thường
+task thức mỗi 500\,ms — đủ nhanh so với chu kỳ dữ liệu 1\,s. Khi có cháy, chu kỳ
+rút xuống 120\,ms ($\approx$ 8 khung/giây) để ngọn lửa nhấp nháy, thu hút sự chú ý.
+Cách làm này tiết kiệm băng thông SPI và CPU cho các tác vụ mạng.
+
+\subsection{Hoạt hình GIF nén LZSS}
+Ảnh GIF trang trí được chuyển trước (trên máy tính) thành các khung RGB565, nén bằng
+LZSS và lưu dưới dạng mảng hằng trong flash. Mỗi khung được giải nén ngay trước khi
+hiển thị vào một bộ đệm DMA nhỏ.
+\begin{table}[H]
+\centering\small
+\caption{Hiệu quả nén khung hình}\label{tab:lzss}
+\begin{tabular}{@{}lrrrr@{}}
+\toprule
+\textbf{Ảnh} & \textbf{Kích thước} & \textbf{Số khung} & \textbf{Dữ liệu thô} & \textbf{Sau nén LZSS} \\ \midrule
+Kaoruko & 96$\times$96 & 10 & 184\,320 B & 71\,652 B (2,6$\times$) \\
+Claude & 68$\times$46 & 18 & 112\,608 B & 16\,325 B (6,9$\times$) \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{lydo}[Tại sao nén LZSS thay vì lưu thô hoặc giải mã GIF trên chip]
+Lưu thô tốn gần 300\,KB flash trong khi phân vùng ứng dụng chỉ có 1\,MB; giải mã
+GIF (LZW + bảng màu) trên chip cần bảng từ điển lớn và mã phức tạp. LZSS có bộ giải
+nén chỉ khoảng 40 dòng, \emph{không cần bộ nhớ phụ} (tham chiếu ngược ngay trong bộ
+đệm đầu ra), mỗi mã gồm 12 bit khoảng cách + 4 bit độ dài (3–18 điểm ảnh) rất hợp
+với ảnh có nhiều vùng màu đồng nhất. Bộ giải nén kiểm tra biên đầy đủ
+(\code{distance > output}, \code{length > pixel\_count - output}) nên dữ liệu hỏng
+không gây ghi tràn bộ nhớ.
+\end{lydo}
+
+\paragraph{Hai bộ đệm (double buffering).} \code{esp\_lcd\_panel\_draw\_bitmap} chỉ
+\emph{xếp hàng} giao dịch DMA rồi trả về ngay. Nếu giải nén khung kế tiếp vào cùng
+bộ đệm khi DMA vẫn đang đọc, ảnh sẽ bị xé/rác. Vì vậy có hai bộ đệm
+$96\times96\times2 = 18\,432$ byte dùng luân phiên (\code{gif\_buffer\_index \^{}= 1}).
+\paragraph{Xóa nền trắng.} Ảnh gốc có nền trắng; thuật toán loang (flood fill) từ
+viền ảnh đánh dấu các điểm gần trắng liên thông với viền là nền và tô đen, nhưng
+giữ các chi tiết trắng nằm bên trong nhân vật. Thay vì hàng đợi BFS (tới
+$9216 \times 2$ byte), thuật toán dùng một \textbf{bitset 1\,152 byte} và lặp lan
+truyền cho đến khi không còn thay đổi — đổi một ít thời gian CPU lấy bộ nhớ.
+\paragraph{Mutex LCD.} Hai task (\code{lcd\_display} và \code{lcd\_animation}) cùng
+ghi vào một panel; mutex đảm bảo các giao dịch vẽ không chen ngang nhau.
+
+\section{UDP server}
+\begin{lstlisting}[language=C,caption={Vòng lặp chính của UDP server (rút gọn)}]
+for (;;) {
+    int sock = socket(AF_INET, SOCK_DGRAM, IPPROTO_IP);
+    if (sock < 0) { vTaskDelay(pdMS_TO_TICKS(1000)); continue; }
+    bind(sock, /* INADDR_ANY:3333 */ ...);
+    for (;;) {
+        char buffer[256];
+        int n = recvfrom(sock, buffer, sizeof(buffer) - 1, 0, ...);
+        if (n < 0) break;                       /* tao lai socket */
+        buffer[n] = '\0';
+        parking_state_t s = {0};
+        if (parking_update_parse_json(buffer, &s)) {
+            parking_state_update(&s);
+            buzzer_set_fire(s.fire);
+            continue;
+        }
+        rfid_event_t e = {0};
+        if (!rfid_event_parse_json(buffer, &e)) continue; /* bo qua */
+        switch (rfid_session_scan(&e, esp_timer_get_time())) {
+        case RFID_SCAN_ENTERED: servo_open_for(SERVO_GATE_IN, 5000);  break;
+        case RFID_SCAN_EXITED:  servo_open_for(SERVO_GATE_OUT, 5000); break;
+        default: /* bai day */ break;
+        }
+    }
+    close(sock);
+    vTaskDelay(pdMS_TO_TICKS(1000));
+}
+\end{lstlisting}
+Task chặn ở \code{recvfrom} nên \textbf{không tiêu tốn CPU} khi không có gói tin.
+Hai vòng lặp lồng nhau tạo cơ chế \textbf{tự phục hồi}: nếu socket lỗi, task đóng
+socket, chờ 1\,s (tránh vòng lặp lỗi liên tục chiếm CPU) rồi tạo lại. Bind vào
+\code{INADDR\_ANY} để nhận cả gói unicast tới \code{192.168.4.1} lẫn gói broadcast.
+
+\section{HTTP server và API}
+Server dùng \code{esp\_http\_server} với \code{max\_uri\_handlers = 10} — đúng bằng
+số route đã đăng ký (mặc định của ESP-IDF là 8, không đủ). Các lệnh điều khiển dùng
+phương thức \code{POST} vì chúng làm thay đổi trạng thái (trình duyệt hay công cụ
+tìm kiếm có thể tự động gọi \code{GET} khi tải trước liên kết). Phản hồi JSON của
+\code{/api/parking} định dạng số thực bằng số nguyên ``phần mười''
+(\code{(int)(v*10 + 0.5)}) để luôn có đúng một chữ số thập phân, xử lý đúng số âm và
+không phụ thuộc hỗ trợ \code{\%f} của thư viện C trên vi điều khiển.
+
+% =====================================================================
+\chapter{Thiết kế firmware nút cảm biến (ESP8266)}\label{chap:client}
+% =====================================================================
+
+\section{Client: cảm biến chỗ đỗ, lửa và nước}
+\subsection{Vòng lặp không chặn}
+Toàn bộ chương trình dựa trên \code{millis()} thay vì \code{delay()}: mỗi vòng
+\code{loop()} gọi \code{ArduinoOTA.handle()}, đọc cảm biến, và chỉ gửi UDP khi đã
+đủ 1\,s kể từ lần gửi trước. Như vậy cảm biến được lấy mẫu liên tục (hàng nghìn lần
+mỗi giây), OTA luôn phản hồi và Wi-Fi stack của ESP8266 (cần được nhường CPU
+thường xuyên) không bị bỏ đói. Phép so sánh dạng \code{now - last >= interval}
+với số không dấu vẫn đúng khi \code{millis()} tràn sau khoảng 49,7 ngày.
+
+\subsection{Chống rung (debounce) 250\,ms}
+\begin{lstlisting}[language=C++,caption={Thuật toán chống rung cho cảm biến IR (\file{Client.ino})}]
+int current = read_active_low(sensorPins[i]);
+if (current != pendingState[i]) {      // tin hieu vua thay doi
+    pendingState[i] = current;
+    changeTime[i] = now;               // bat dau dem lai
+}
+if (pendingState[i] != state[i] &&
+    now - changeTime[i] >= STABLE_TIME) {
+    state[i] = pendingState[i];        // on dinh du 250 ms -> chap nhan
+}
+\end{lstlisting}
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[x=0.9cm,y=0.6cm,font=\scriptsize]
+\node[anchor=east] at (-0.2,2.5) {Tín hiệu thô};
+\draw[thick] (0,2) -- (2,2) -- (2,3) -- (2.3,3) -- (2.3,2) -- (2.5,2) -- (2.5,3) -- (2.7,3) -- (2.7,2) -- (2.9,2) -- (2.9,3) -- (11,3);
+\node[anchor=east] at (-0.2,0.5) {Trạng thái};
+\draw[thick,uetblue] (0,0) -- (5.4,0) -- (5.4,1) -- (11,1);
+\draw[dashed,gray] (2.9,3.3) -- (2.9,-0.4);
+\draw[dashed,gray] (5.4,3.3) -- (5.4,-0.4);
+\draw[{Stealth}-{Stealth}] (2.9,-0.6) -- node[below]{250\,ms ổn định} (5.4,-0.6);
+\node[align=center] at (2.45,3.8) {nhiễu khi xe\\đang lăn vào};
+\end{tikzpicture}
+\caption{Nguyên lý chống rung: chỉ chấp nhận mức mới khi giữ ổn định đủ 250\,ms}\label{fig:debounce}
+\end{figure}
+
+\begin{lydo}[Tại sao 250\,ms]
+Khi xe đang tiến vào chỗ, mép xe và bánh xe làm tín hiệu IR bật/tắt liên tục; cảm
+biến lửa cũng nhấp nháy theo ngọn lửa. Thời gian ổn định phải \emph{lớn hơn} thời
+gian nhiễu này (thường vài chục đến hơn trăm mili giây) nhưng \emph{nhỏ hơn đáng kể}
+chu kỳ gửi 1\,s để không làm tăng độ trễ cảm nhận. 250\,ms là điểm cân bằng nhóm đã
+tinh chỉnh thực nghiệm (commit \code{update stable\_time}). Mỗi cảm biến có bộ đếm
+riêng nên nhiễu ở chỗ này không ảnh hưởng chỗ khác.
+\end{lydo}
+
+\subsection{Logic tích cực mức thấp và cảm biến lửa}
+Module IR kéo ngõ ra xuống mức thấp khi phát hiện vật, nên hàm
+\code{read\_active\_low()} trả về \code{!digitalRead(pin)}, chuẩn hóa thành
+``1 = có xe''. Với cảm biến lửa, firmware gửi \code{fire = true} khi chân DO ở
+\emph{mức cao} (\code{flameState ? "false" : "true"}). Theo lịch sử commit
+(\code{reverse signal}), đây là kết quả hiệu chỉnh thực nghiệm với module lửa mà
+nhóm sử dụng (ngưỡng biến trở và mức logic của module đảo so với IR). Khi thay
+module khác cần kiểm tra lại mức logic này.
+
+\subsection{Quy đổi mực nước}
+ADC của ESP8266 là 10 bit (0–1023). Giá trị được quy đổi tuyến tính sang
+milimét:
+\begin{equation}
+  h_{\text{mm}} =
+  \begin{cases}
+  0, & raw \le 20 \\[2pt]
+  \dfrac{\min(raw, 700) - 20}{700 - 20} \cdot 40, & raw > 20
+  \end{cases}
+\end{equation}
+\begin{lydo}[Tại sao các hằng số 20, 700, 40, 250\,ms]
+\code{WATER\_DRY\_ADC = 20} là mức nhiễu đo được khi cảm biến khô — dưới mức này
+coi là 0 để màn hình không nhảy 0.1, 0.2 vô nghĩa. \code{WATER\_MAX\_ADC = 700} là
+giá trị khi nhúng ngập hoàn toàn (không đạt 1023 do điện trở nước và mạch chia áp
+của module). \code{40\,mm} là chiều dài vùng đo của loại cảm biến điện trở phổ biến.
+Hàm \code{constrain} đảm bảo kết quả không vượt 40\,mm. Đọc ADC mỗi 250\,ms thay vì
+mỗi vòng lặp vì trên ESP8266 gọi \code{analogRead} quá dày có thể làm ảnh hưởng tới
+Wi-Fi (ADC dùng chung tài nguyên với RF), trong khi mực nước thay đổi chậm.
+\end{lydo}
+
+\subsection{Đóng gói và gửi}
+\begin{lstlisting}[language=C++,caption={Tạo bản tin \code{parking\_update}}]
+char payload[112];
+int length = snprintf(payload, sizeof(payload),
+  "{\"type\":\"parking_update\",\"slots\":[%d,%d,%d,%d,%d],"
+  "\"water_mm\":%.1f,\"fire\":%s}",
+  state[0], state[1], state[2], state[3], state[4],
+  currentWaterMm, flameState ? "false" : "true");
+if (length < 0 || length >= sizeof(payload)) return;  // khong gui ban tin cut cut
+\end{lstlisting}
+Bộ đệm tĩnh trên stack, \code{snprintf} giới hạn độ dài và kiểm tra giá trị trả về
+nên không bao giờ gửi một bản tin bị cắt dở. Trước khi gửi, kiểm tra
+\code{WiFi.status()}; \code{setAutoReconnect(true)} giúp tự nối lại khi máy chủ khởi
+động lại.
+
+\begin{lydo}[Tại sao chu kỳ gửi 1\,s]
+1\,s khớp với chu kỳ làm mới của dashboard (cũng 1\,s), đảm bảo yêu cầu độ trễ
+$\le 2$\,s kể cả khi mất một gói. Gửi nhanh hơn (ví dụ 100\,ms) không mang lại lợi
+ích cảm nhận được với chỗ đỗ xe nhưng tăng 10 lần lưu lượng broadcast (broadcast
+Wi-Fi truyền ở tốc độ cơ sở thấp nên tốn thời gian kênh) và tăng tải cho máy chủ.
+\end{lydo}
+
+\section{Client2: hai đầu đọc RFID và DHT11}
+\subsection{Ghép hai MFRC522 trên một bus SPI}
+Hai đầu đọc dùng chung SCK/MOSI/MISO và chân RST, mỗi đầu có chân SS riêng. Khi
+khởi tạo, cả hai SS được kéo lên cao (không chọn), sau đó lần lượt
+\code{PCD\_Init}, đặt \textbf{độ khuếch đại ăng-ten tối đa 48\,dB} để tăng tầm đọc
+và \textbf{tắt ăng-ten}.
+
+\begin{lstlisting}[language=C++,caption={Quét luân phiên hai đầu đọc (\file{Client2.ino})}]
+for (uint8_t reader = 0; reader < NR_OF_READERS; reader++) {
+    mfrc522[reader].PCD_AntennaOn();
+    delay(4);  // cho tu truong nap nang luong cho the
+    if (mfrc522[reader].PICC_IsNewCardPresent() &&
+        mfrc522[reader].PICC_ReadCardSerial()) {
+        String uid = getCardUID(mfrc522[reader].uid.uidByte,
+                                mfrc522[reader].uid.size);
+        if (uid != lastUID[reader] ||
+            millis() - lastReadTime[reader] >= COOLDOWN_TIME)
+            sendUDPRfid(uid);
+        mfrc522[reader].PICC_HaltA();
+        mfrc522[reader].PCD_StopCrypto1();
+    }
+    mfrc522[reader].PCD_AntennaOff();  // nhuong cho dau doc kia
+    yield();
+}
+\end{lstlisting}
+
+\begin{lydo}[Tại sao bật/tắt ăng-ten luân phiên, 4\,ms, 48\,dB, 1,5\,s]
+Hai đầu đọc cùng phát sóng 13,56\,MHz đặt gần nhau sẽ \textbf{nhiễu chéo}: thẻ đặt
+ở cổng vào có thể bị cả hai đầu đọc cùng cấp năng lượng và trả lời lẫn lộn. Chỉ bật
+một ăng-ten tại một thời điểm loại bỏ hoàn toàn vấn đề này. Thẻ thụ động cần vài mili
+giây để nhận đủ năng lượng từ trường và khởi động; \textbf{4\,ms} là đủ cho thẻ
+MIFARE mà vẫn giữ chu kỳ quét hai đầu đọc ngắn (vài chục ms), người dùng không cảm
+nhận được độ trễ. Gain \textbf{48\,dB} bù lại tầm đọc bị giảm khi đặt đầu đọc sau
+lớp vỏ mô hình. Khi thẻ được giữ yên trên đầu đọc, nó sẽ bị đọc lại liên tục; thời
+gian chờ \textbf{1,5\,s} cho cùng một thẻ trên cùng một đầu đọc ngăn gửi nhiều sự
+kiện, vì với logic chuyển trạng thái vào/ra, một lần quẹt bị gửi hai lần sẽ biến
+``vào'' thành ``ra'' ngay lập tức. 1,5\,s đủ dài để người dùng nhấc thẻ ra, nhưng
+ngắn hơn 5\,s barrier mở. \code{PICC\_HaltA} và \code{PCD\_StopCrypto1} đưa thẻ về
+trạng thái nghỉ đúng chuẩn ISO 14443A.
+\end{lydo}
+
+UID được chuyển thành chuỗi hex in hoa, mỗi byte luôn 2 ký tự (thêm \code{0} đứng
+trước nếu nhỏ hơn \code{0x10}) để cùng một thẻ luôn cho cùng một chuỗi.
+
+\subsection{Cảm biến nhiệt độ DHT11}
+\begin{lydo}[Tại sao đọc DHT11 mỗi 5\,s]
+DHT11 yêu cầu khoảng cách giữa hai lần đọc tối thiểu 1\,s, và mỗi lần đọc giao thức
+1-wire mất khoảng 20–25\,ms với ngắt bị tắt — có thể làm lỡ thẻ RFID hoặc gói
+Wi-Fi. Nhiệt độ môi trường thay đổi chậm, nên 5\,s là chu kỳ hợp lý. Kết quả
+\code{NaN} (đọc lỗi) bị bỏ qua và giữ giá trị cũ, không gửi số sai cho máy chủ.
+Nhiệt độ được gửi kèm mỗi sự kiện RFID, nên máy chủ cập nhật nhiệt độ mỗi khi có xe
+ra vào.
+\end{lydo}
+
+\subsection{Nạp firmware qua mạng (OTA)}
+Cả hai client gọi \code{ArduinoOTA.begin()} và \code{handle()} trong vòng lặp.
+Sau khi gắn bo vào mô hình, nhóm có thể nạp firmware mới qua Wi-Fi
+\code{ESP32-Parking} từ Arduino IDE mà không phải tháo bo. Trong lúc OTA, ăng-ten
+RFID được tắt để giảm nhiễu và tải.
+
+% =====================================================================
+\chapter{Giao thức truyền thông và giao diện web}\label{chap:giaothuc}
+% =====================================================================
+
+\section{Thông số mạng}
+\begin{table}[H]
+\centering\small
+\caption{Thông số mạng}\label{tab:net}
+\begin{tabular}{@{}ll@{}}
+\toprule
+SSID / mật khẩu & \code{ESP32-Parking} / \code{12345678} (WPA2-PSK) \\
+Kênh / số trạm tối đa & 1 / 4 \\
+Địa chỉ máy chủ & \code{192.168.4.1} (DHCP server cấp IP cho client) \\
+Cổng UDP & 3333, client gửi tới \code{192.168.4.255:3333} \\
+Web & \code{http://192.168.4.1} (cổng 80) \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\section{Bản tin UDP}
+\begin{lstlisting}[language=json,caption={Bản tin \code{parking\_update} (Client $\to$ Server, mỗi 1\,s)}]
+{"type":"parking_update","slots":[1,0,0,1,0],"water_mm":0.2,"fire":false}
+\end{lstlisting}
+\begin{lstlisting}[language=json,caption={Bản tin \code{rfid\_event} (Client2 $\to$ Server, mỗi lần quẹt thẻ)}]
+{"type":"rfid_event","card_id":"A1B2C3D4","temperature_c":28.0}
+\end{lstlisting}
+
+\begin{table}[H]
+\centering\small
+\caption{Đặc tả trường dữ liệu}\label{tab:fields}
+\begin{tabularx}{\linewidth}{@{}llX@{}}
+\toprule
+\textbf{Trường} & \textbf{Kiểu} & \textbf{Ràng buộc} \\ \midrule
+\code{type} & chuỗi & \code{"parking\_update"} hoặc \code{"rfid\_event"} \\
+\code{slots} & mảng 5 số & mỗi phần tử 0 (trống) hoặc 1 (có xe) \\
+\code{water\_mm} & số & $0 \le x \le 10\,000$ \\
+\code{fire} & boolean & tùy chọn; \code{true} = có cháy \\
+\code{card\_id} & chuỗi & 1–31 ký tự \code{[A-Za-z0-9\_-]}, chuẩn hóa in hoa \\
+\code{temperature\_c} & số & $-40 \le x \le 125$ \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\section{HTTP API}
+\begin{table}[H]
+\centering\small
+\caption{Các endpoint HTTP}\label{tab:api}
+\begin{tabularx}{\linewidth}{@{}llX@{}}
+\toprule
+\textbf{Phương thức} & \textbf{Đường dẫn} & \textbf{Chức năng} \\ \midrule
+GET & \code{/}, \code{/style.css} & Trang dashboard \\
+GET & \code{/api/parking} & Trạng thái: \code{received}, \code{slots}, \code{free}, \code{total}, \code{temperature\_c}, \code{water\_mm}, \code{fire} \\
+GET & \code{/api/barrier} & \code{\{"in\_open":bool,"out\_open":bool\}} \\
+POST & \code{/api/barrier/in/open|close} & Mở/đóng barrier vào \\
+POST & \code{/api/barrier/out/open|close} & Mở/đóng barrier ra \\
+POST & \code{/api/barrier/all/open|close} & Khẩn cấp: mở/đóng cả hai \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\section{Dashboard}
+Trang web là HTML/CSS/JavaScript thuần (không framework) để kích thước nhỏ và không
+phụ thuộc CDN — điện thoại kết nối vào AP không có Internet. JavaScript gọi
+\code{fetch('/api/parking')} mỗi 1\,s với \code{cache: 'no-store'} để không nhận dữ
+liệu cũ từ bộ đệm trình duyệt. Nếu request lỗi, trang hiển thị ``ESP32 / OFFLINE''.
+Khi người dùng bấm nút điều khiển barrier, các nút bị vô hiệu hóa cho tới khi có
+phản hồi, tránh gửi lệnh trùng. Nút khẩn cấp mở cả hai barrier phục vụ tình huống
+sơ tán khi có cháy.
+
+\begin{lydo}[Tại sao polling 1\,s thay vì WebSocket]
+Polling không giữ trạng thái kết nối trên máy chủ: mỗi request độc lập, xử lý xong
+giải phóng ngay — phù hợp với giới hạn socket và RAM của vi điều khiển, và đơn giản
+khi có nhiều trình duyệt cùng xem. Với dữ liệu thay đổi theo giây, độ trễ tối đa
+thêm 1\,s là chấp nhận được.
+\end{lydo}
+
+% =====================================================================
+\chapter{Phân tích tài nguyên}\label{chap:tainguyen}
+% =====================================================================
+
+\section{Bộ nhớ RAM máy chủ}
+\begin{table}[H]
+\centering\small
+\caption{Các vùng nhớ lớn do ứng dụng cấp phát (ước tính từ mã nguồn)}\label{tab:ram}
+\begin{tabular}{@{}lr@{}}
+\toprule
+\textbf{Thành phần} & \textbf{Kích thước} \\ \midrule
+Framebuffer màn hình $240\times240\times2$ (DMA) & 115\,200 B \\
+2 bộ đệm GIF $96\times96\times2$ (DMA) & 36\,864 B \\
+Bitset xóa nền & 1\,152 B \\
+Stack các task ứng dụng ($4096\times2 + 3072\times2$) & 14\,336 B \\
+Bảng phiên RFID (5 phiên) + hóa đơn & $<$ 400 B \\
+\midrule
+\textbf{Tổng phần ứng dụng} & $\approx$ \textbf{168 KB} \\
+\bottomrule
+\end{tabular}
+\end{table}
+ESP32-C3 có 400\,KB SRAM; sau khi trừ phần dành cho cache, ROM và hệ điều hành, heap
+khả dụng ban đầu khoảng 300\,KB. Wi-Fi + lwIP + HTTP server cần thêm khoảng
+60–100\,KB. Tổng vẫn nằm trong giới hạn, nhưng framebuffer chiếm phần lớn — đây là
+lý do màn hình được khởi tạo trước Wi-Fi (xem trình tự khởi động ở Chương~\ref{chap:server}). Nếu cần thêm RAM, có thể vẽ theo dải (ví dụ 240$\times$40) thay vì cả khung.
+
+\section{Bộ nhớ flash máy chủ}
+Bo dùng flash 2\,MB với bảng phân vùng ``single app'' (phân vùng \code{factory}
+1\,MB). Bản build ngày 23/10/2026 có kích thước \code{.bin} là 1\,025\,888 byte,
+tức khoảng \textbf{97,8\%} phân vùng ứng dụng; phần lớn là dữ liệu ảnh động
+($\approx$ 88\,KB sau nén) và các thư viện Wi-Fi/lwIP/HTTP. Đây là điểm cần lưu ý:
+thêm tính năng lớn sẽ vượt phân vùng. Giải pháp là dùng bảng phân vùng tùy chỉnh
+(ứng dụng $\approx$1,9\,MB trên flash 2\,MB) hoặc bỏ bớt khung ảnh động.
+
+\section{Thời gian và băng thông}
+\begin{itemize}
+\item Truyền một khung màn hình đầy đủ: $\approx$23\,ms ở 40\,MHz.
+\item Khung GIF $96\times96$: $147\,456$ bit $\Rightarrow \approx$3,7\,ms.
+\item Lưu lượng UDP từ Client: $\approx$75 byte/s — không đáng kể.
+\item Độ trễ cảm nhận chỗ đỗ: 250\,ms (debounce) + tối đa 1\,s (chu kỳ gửi) + tối đa
+  500\,ms (chu kỳ vẽ) $\approx$ \textbf{tối đa 1,75\,s}, đạt NFR1.
+\item Độ trễ RFID $\to$ barrier: thời gian quét ($<$ 50\,ms) + truyền UDP (vài ms) +
+  xử lý ($<$ 1\,ms) + servo quay 90° (SG90 $\approx$ 0,1\,s/60° $\Rightarrow$
+  $\approx$ 0,15\,s) $\approx$ \textbf{dưới 0,3\,s}.
+\end{itemize}
+
+% =====================================================================
+\chapter{Kiểm thử}\label{chap:kiemthu}
+% =====================================================================
+
+\section{Kiểm thử đơn vị trên máy tính}
+Vì các module trong \file{Server/main/parking/} không phụ thuộc phần cứng (chỉ dùng
+\code{portENTER\_CRITICAL} và \code{esp\_timer\_get\_time}), chúng có thể được biên
+dịch trên máy tính với hai header giả lập (stub) và kiểm tra bằng \code{assert}.
+Bộ kiểm thử gồm 26 phép kiểm tra, biên dịch bằng \code{cc -std=c11 -Wall -Wextra}
+không có cảnh báo; \textbf{kết quả: 26/26 đạt}.
+
+\begin{longtable}{@{}p{1.1cm}>{\raggedright\arraybackslash}p{8.4cm}>{\raggedright\arraybackslash}p{5.3cm}@{}}
+\caption{Các trường hợp kiểm thử đơn vị}\label{tab:unittest}\\
+\toprule \textbf{\#} & \textbf{Đầu vào} & \textbf{Kỳ vọng / Kết quả} \\ \midrule \endfirsthead
+\toprule \textbf{\#} & \textbf{Đầu vào} & \textbf{Kỳ vọng / Kết quả} \\ \midrule \endhead
+1 & \code{parking\_update} chuẩn của Client & Chấp nhận, đúng slot — Đạt \\
+2 & Thứ tự trường đảo, có khoảng trắng, \code{fire:true} & Chấp nhận — Đạt \\
+3 & Thiếu trường \code{fire} (client cũ) & Chấp nhận — Đạt \\
+4 & \code{slots} chỉ có 4 phần tử & Từ chối — Đạt \\
+5 & Slot có giá trị 2 & Từ chối — Đạt \\
+6 & \code{water\_mm} âm & Từ chối — Đạt \\
+7 & \code{fire: 1} (không phải boolean) & Từ chối — Đạt \\
+8 & Trường lạ \code{temperature\_c} trong \code{parking\_update} & Từ chối — Đạt \\
+9 & Khóa \code{type} bị lặp & Từ chối — Đạt \\
+10 & Dữ liệu thừa sau \code{\}} & Từ chối — Đạt \\
+11 & \code{rfid\_event} với UID chữ thường & Chấp nhận, chuẩn hóa \code{A1B2C3D4} — Đạt \\
+12 & UID có dấu cách & Từ chối — Đạt \\
+13 & Nhiệt độ 200\,°C & Từ chối — Đạt \\
+14 & Thiếu \code{temperature\_c} & Từ chối — Đạt \\
+15–17 & Thẻ vào, ra sau 3660\,s & ENTERED, EXITED, phí 10.000\,VNĐ, thời gian 3660\,s — Đạt \\
+18–20 & Thẻ vào, ra sau 10\,s & ENTERED, EXITED, phí tối thiểu 5.000\,VNĐ — Đạt \\
+21–25 & Năm thẻ khác nhau vào liên tiếp & Cả 5 ENTERED — Đạt \\
+26 & Thẻ thứ sáu khi bãi đầy & FULL — Đạt \\
+\bottomrule
+\end{longtable}
+
+\section{Kiểm thử tích hợp bằng công cụ giả lập}
+Thư mục \file{examples/} chứa các chương trình gửi bản tin giả lập, cho phép kiểm
+thử máy chủ khi chưa có nút cảm biến:
+\begin{itemize}
+\item \file{udp\_sender.py}: gửi một \code{parking\_update}.
+\item \file{udp\_rfid\_sender.py <UID>}: gửi một \code{rfid\_event}; chạy hai lần
+  cùng UID để giả lập vào rồi ra.
+\item \file{udp\_sender\_espidf.c}: ví dụ gửi từ một bo ESP-IDF khác.
+\end{itemize}
+Máy tính kết nối vào AP \code{ESP32-Parking}, chạy các script và quan sát log qua
+\code{idf.py monitor}, màn hình TFT và dashboard.
+
+\section{Kịch bản kiểm thử hệ thống}
+\begin{longtable}{@{}p{0.9cm}>{\raggedright\arraybackslash}p{6.3cm}>{\raggedright\arraybackslash}p{7.6cm}@{}}
+\caption{Kịch bản kiểm thử trên phần cứng và hành vi mong đợi}\label{tab:systest}\\
+\toprule \textbf{\#} & \textbf{Thao tác} & \textbf{Hành vi mong đợi} \\ \midrule \endfirsthead
+\toprule \textbf{\#} & \textbf{Thao tác} & \textbf{Hành vi mong đợi} \\ \midrule \endhead
+S1 & Cấp nguồn máy chủ & AP \code{ESP32-Parking} xuất hiện; TFT hiện giao diện, các giá trị \code{--.-}; barrier về vị trí đã lưu \\
+S2 & Cấp nguồn Client & Sau khi kết nối, TFT/dashboard hiển thị 5/5 FREE, mực nước \\
+S3 & Đặt vật cản trước IR số 2 & Trong $\le 2$\,s, ô S2 chuyển BUSY (đỏ), FREE SPACES giảm 1 \\
+S4 & Rê vật nhanh qua IR ($<$ 250\,ms) & Trạng thái không đổi (chống rung) \\
+S5 & Quẹt thẻ mới ở đầu đọc 1 & Barrier vào mở, tự đóng sau $\approx$5\,s; nhiệt độ cập nhật \\
+S6 & Giữ thẻ trên đầu đọc 1\,s & Chỉ một sự kiện được gửi (cooldown 1,5\,s) \\
+S7 & Quẹt lại cùng thẻ & Barrier ra mở; footer TFT hiện ID, thời gian, phí; hóa đơn biến mất sau 60\,s \\
+S8 & Quẹt thẻ thứ 6 khi đã có 5 phiên & Không mở barrier; log cảnh báo bãi đầy \\
+S9 & Đưa bật lửa gần cảm biến lửa & Màn hình DANGER/FIRE DETECTED có lửa động, còi kêu, dashboard hiện băng rôn đỏ \\
+S10 & Tắt lửa & Sau debounce và gói kế tiếp, còi tắt, màn hình trở lại bình thường \\
+S11 & Nhúng cảm biến nước & Giá trị mực nước tăng, tối đa 40\,mm \\
+S12 & Bấm OPEN/CLOSE trên web & Barrier tương ứng chuyển động; trạng thái hiển thị đúng \\
+S13 & Mở barrier từ web rồi rút nguồn, cấp lại & Barrier khôi phục trạng thái mở (NVS) \\
+S14 & Tắt máy chủ khi đang mở web & Dashboard báo ESP32 / OFFLINE; Client tự kết nối lại khi máy chủ bật \\
+S15 & Gửi gói UDP rác từ máy tính & Máy chủ ghi log ``Ignoring invalid'' và tiếp tục hoạt động \\
+\bottomrule
+\end{longtable}
+
+% =====================================================================
+\chapter{Đánh giá, hạn chế và hướng phát triển}\label{chap:danhgia}
+% =====================================================================
+
+\section{Kết quả đạt được}
+Hệ thống đáp ứng các yêu cầu chức năng FR1–FR10: phát hiện chỗ đỗ, ra vào bằng
+RFID với barrier tự đóng, tính phí, cảnh báo cháy bằng màn hình và còi, giám sát
+nước và nhiệt độ, dashboard điều khiển, lưu trạng thái barrier qua khởi động lại.
+Về kỹ thuật, nhóm đã vận dụng các kiến thức trọng tâm của lập trình nhúng: lập trình
+đa tác vụ với FreeRTOS và các cơ chế đồng bộ phù hợp, PWM phần cứng, SPI với DMA,
+quản lý bộ nhớ hạn chế (framebuffer, nén dữ liệu, tránh cấp phát động), lưu trữ
+không mất dữ liệu, lập trình socket và xử lý đầu vào không tin cậy.
+
+\section{Hạn chế}
+\begin{enumerate}
+\item \textbf{Bảo mật}: bản tin UDP không được xác thực — bất kỳ thiết bị nào biết
+  mật khẩu Wi-Fi đều có thể giả mạo thẻ RFID, báo cháy giả hoặc gọi API mở barrier
+  (HTTP không có đăng nhập). Mật khẩu Wi-Fi cố định trong mã nguồn.
+\item \textbf{Sự kiện RFID có thể mất}: khác với \code{parking\_update}, sự kiện
+  RFID không được gửi lại định kỳ; nếu gói broadcast bị mất, xe phải quẹt lại. Không
+  có cơ chế xác nhận (ACK).
+\item \textbf{Phiên gửi xe lưu trong RAM}: máy chủ khởi động lại thì mất toàn bộ
+  phiên và hóa đơn; thời gian là thời gian kể từ khi khởi động, không phải giờ thực.
+\item \textbf{Hướng vào/ra xác định theo phiên}, không theo đầu đọc: quẹt thẻ ở đầu
+  đọc cổng ra khi chưa vào vẫn được xem là ``vào''.
+\item \textbf{Nhiệt độ chỉ cập nhật khi có xe quẹt thẻ} vì đi kèm bản tin RFID.
+\item \textbf{Số phiên RFID độc lập với cảm biến IR}: hai nguồn thông tin về số xe
+  chưa được đối chiếu.
+\item \textbf{Flash gần đầy} ($\approx$ 98\% phân vùng ứng dụng).
+\item \textbf{GPIO9 là chân strapping}: module còi không phù hợp có thể khiến bo
+  vào chế độ nạp khi khởi động.
+\end{enumerate}
+
+\section{Hướng phát triển}
+\begin{itemize}
+\item Thêm mã xác thực HMAC-SHA256 với khóa bí mật chung cho mỗi bản tin UDP (có
+  sẵn trong mbedTLS của ESP-IDF) và số thứ tự chống phát lại; thêm đăng nhập cho
+  API điều khiển barrier.
+\item Thêm bản tin ACK cho \code{rfid\_event}, client gửi lại nếu không nhận được.
+\item Lưu phiên gửi xe vào NVS; đồng bộ giờ thực bằng SNTP (khi có Internet) hoặc
+  module RTC DS3231.
+\item Gửi kèm chỉ số đầu đọc trong \code{rfid\_event} để phân biệt cổng vào/ra.
+\item Kết nối MQTT lên đám mây để quản lý nhiều bãi, thống kê doanh thu, đặt chỗ
+  trước qua ứng dụng; thanh toán bằng mã QR.
+\item Dùng bảng phân vùng tùy chỉnh và hỗ trợ OTA cho chính máy chủ.
+\item Thay cảm biến IR bằng cảm biến siêu âm hoặc từ trường để chính xác hơn với xe
+  thật; thêm cảm biến khói MQ-2 bổ sung cho cảm biến lửa.
+\end{itemize}
+
+% =====================================================================
+\chapter*{Kết luận}
+\addcontentsline{toc}{chapter}{Kết luận}
+% =====================================================================
+Đề tài đã xây dựng thành công một hệ thống bãi đỗ xe thông minh hoàn chỉnh ở quy mô
+mô hình với ba vi điều khiển giá rẻ, tự vận hành trên mạng Wi-Fi riêng. Mỗi lựa
+chọn — từ vi điều khiển, giao thức UDP, bộ phân tích JSON không cấp phát động, PWM
+14 bit 50\,Hz, SPI 40\,MHz với DMA, đến các thông số thời gian 250\,ms, 1\,s, 1,5\,s,
+5\,s — đều được cân nhắc dựa trên giới hạn tài nguyên của hệ thống nhúng và trải
+nghiệm của người dùng. Qua đề tài, nhóm đã hiểu sâu hơn về thiết kế phần mềm nhúng
+thời gian thực, giao tiếp ngoại vi và mạng, cũng như cách cân bằng giữa tính năng,
+độ tin cậy và tài nguyên.
+
+% =====================================================================
+\chapter*{Tài liệu tham khảo}
+\addcontentsline{toc}{chapter}{Tài liệu tham khảo}
+\begin{enumerate}[label={[\arabic*]}]
+\item Espressif Systems, \emph{ESP32-C3 Series Datasheet} và \emph{ESP32-C3 Technical
+  Reference Manual}.
+\item Espressif Systems, \emph{ESP-IDF Programming Guide} (v6.1): Wi-Fi, LEDC, SPI
+  Master, LCD, NVS, HTTP Server, FreeRTOS.
+\item Espressif Systems, \emph{ESP8266EX Datasheet}.
+\item ESP8266 Community, \emph{ESP8266 Arduino Core Documentation}.
+\item Sitronix, \emph{ST7789V Datasheet — 240RGB$\times$320 dot 262K Color TFT
+  Controller}.
+\item NXP Semiconductors, \emph{MFRC522 Standard Performance MIFARE and NTAG
+  Frontend}, Product Data Sheet.
+\item TowerPro, \emph{SG90 Micro Servo Datasheet}.
+\item Aosong, \emph{DHT11 Humidity \& Temperature Sensor Datasheet}.
+\item R.~Barry, \emph{Mastering the FreeRTOS Real Time Kernel}, Real Time Engineers Ltd.
+\item J.~A.~Storer, T.~G.~Szymanski, ``Data compression via textual substitution'',
+  \emph{Journal of the ACM}, 29(4), 1982.
+\item Thư viện \emph{MFRC522} (miguelbalboa) và \emph{DHT sensor library} (Adafruit)
+  cho Arduino.
+\end{enumerate}
+
+% =====================================================================
+\appendix
+\chapter{Hướng dẫn biên dịch và nạp chương trình}
+% =====================================================================
+\section*{Máy chủ ESP32-C3}
+Cài ESP-IDF 6.1 cùng toolchain ESP32-C3, mở terminal đã cấu hình ESP-IDF tại thư mục
+gốc của kho mã:
+\begin{lstlisting}[language=bash,numbers=none]
+idf.py set-target esp32c3
+idf.py build
+idf.py -p <CONG_SERIAL> flash monitor
+\end{lstlisting}
+Đổi chân màn hình (nếu cần): \code{idf.py menuconfig} $\to$ \emph{Parking TFT display}.
+
+\section*{Nút cảm biến ESP8266}
+Trong Arduino IDE: cài ESP8266 core, cài thư viện \code{MFRC522} và
+\code{DHT sensor library} (cho Client2), mở \file{Client/Client.ino} hoặc
+\file{Client2/Client2.ino}, chọn bo ESP8266 và cổng, bấm Upload. Các lần sau có thể
+nạp qua mạng (cổng mạng OTA xuất hiện trong menu Port khi máy tính kết nối
+\code{ESP32-Parking}).
+
+\section*{Giả lập không cần phần cứng}
+\begin{lstlisting}[language=bash,numbers=none]
+python examples/udp_sender.py
+python examples/udp_rfid_sender.py A1B2C3D4   # chay 2 lan: vao roi ra
+\end{lstlisting}
+
+\chapter{Phân công công việc}
+\begin{table}[H]
+\centering\small
+\caption{Phân công công việc (nhóm điền)}
+\begin{tabularx}{\linewidth}{@{}lX@{}}
+\toprule
+\textbf{Thành viên} & \textbf{Công việc} \\ \midrule
+{[Thành viên 1]} & Firmware máy chủ: Wi-Fi AP, UDP/HTTP server, màn hình ST7789, dashboard \\
+{[Thành viên 2]} & Firmware Client: cảm biến IR, lửa, nước; hiệu chỉnh debounce \\
+{[Thành viên 3]} & Firmware Client2: RFID MFRC522, DHT11, OTA \\
+{[Thành viên 4]} & Barrier servo, còi báo cháy, phiên RFID và tính phí, tài liệu \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\end{document}
