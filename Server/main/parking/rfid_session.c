@@ -66,8 +66,8 @@ bool rfid_event_parse_json(const char *payload, rfid_event_t *event)
     if (!payload || !event || !consume_char(&payload, '{'))
         return false;
 
-    bool has_type = false, has_id = false, has_temp = false;
-    for (int field = 0; field < 3; ++field)
+    bool has_type = false, has_id = false, has_gate = false, has_temp = false;
+    for (int field = 0; field < 4; ++field)
     {
         char key[20], value[RFID_CARD_ID_MAX + 1];
         if (!parse_string(&payload, key, sizeof(key)) ||
@@ -92,6 +92,20 @@ bool rfid_event_parse_json(const char *payload, rfid_event_t *event)
                 *c = (char)toupper((unsigned char)*c);
             has_id = true;
         }
+        else if (strcmp(key, "gate") == 0)
+        {
+            if (has_gate || !parse_string(&payload, value, sizeof(value)))
+                return false;
+            for (char *c = value; *c; ++c)
+                *c = (char)tolower((unsigned char)*c);
+            if (strcmp(value, "in") == 0)
+                event->gate = RFID_GATE_IN;
+            else if (strcmp(value, "out") == 0)
+                event->gate = RFID_GATE_OUT;
+            else
+                return false;
+            has_gate = true;
+        }
         else if (strcmp(key, "temperature_c") == 0)
         {
             if (has_temp)
@@ -109,12 +123,18 @@ bool rfid_event_parse_json(const char *payload, rfid_event_t *event)
 
         skip_ws(&payload);
         if (*payload == ',')
+        {
+            if (field == 3)
+                return false;
             ++payload;
-        else if (*payload != '}')
+        }
+        else if (*payload == '}')
+            break;
+        else
             return false;
     }
 
-    return has_type && has_id && has_temp && consume_char(&payload, '}') &&
+    return has_type && has_id && has_gate && has_temp && consume_char(&payload, '}') &&
            (skip_ws(&payload), *payload == '\0');
 }
 
@@ -125,12 +145,29 @@ rfid_scan_result_t rfid_session_scan(const rfid_event_t *event, uint64_t now_us)
 
     rfid_scan_result_t result = RFID_SCAN_ENTERED;
     portENTER_CRITICAL(&session_lock);
+    int active_index = -1;
     int free_index = -1;
     for (int i = 0; i < RFID_MAX_ACTIVE; ++i)
     {
         if (active_sessions[i].active && strcmp(active_sessions[i].card_id, event->card_id) == 0)
         {
-            uint64_t elapsed_seconds = (now_us - active_sessions[i].entered_us) / 1000000ULL;
+            active_index = i;
+            break;
+        }
+        if (!active_sessions[i].active && free_index < 0)
+            free_index = i;
+    }
+
+    if (active_index >= 0)
+    {
+        /* Card is currently inside: can exit if and only if scanned on the OUT reader. */
+        if (event->gate != RFID_GATE_OUT)
+        {
+            result = RFID_SCAN_INVALID_GATE;
+        }
+        else
+        {
+            uint64_t elapsed_seconds = (now_us - active_sessions[active_index].entered_us) / 1000000ULL;
             uint64_t billable_hours = (elapsed_seconds + SECONDS_PER_HOUR - 1) / SECONDS_PER_HOUR;
             if (billable_hours == 0)
                 billable_hours = 1;
@@ -140,24 +177,28 @@ rfid_scan_result_t rfid_session_scan(const rfid_event_t *event, uint64_t now_us)
             latest_receipt.display_until_us = now_us + RECEIPT_DISPLAY_US;
             latest_receipt.fee_vnd = billable_hours > UINT32_MAX / PARKING_FEE_PER_HOUR_VND
                 ? UINT32_MAX : (uint32_t)billable_hours * PARKING_FEE_PER_HOUR_VND;
-            active_sessions[i].active = false;
+            active_sessions[active_index].active = false;
             result = RFID_SCAN_EXITED;
-            break;
         }
-        if (!active_sessions[i].active && free_index < 0)
-            free_index = i;
     }
-
-    if (result == RFID_SCAN_ENTERED)
+    else
     {
-        if (free_index < 0)
+        /* Card is currently outside: can enter if and only if scanned on the IN reader. */
+        if (event->gate != RFID_GATE_IN)
+        {
+            result = RFID_SCAN_INVALID_GATE;
+        }
+        else if (free_index < 0)
+        {
             result = RFID_SCAN_FULL;
+        }
         else
         {
             active_sessions[free_index].active = true;
             memcpy(active_sessions[free_index].card_id, event->card_id,
                    strlen(event->card_id) + 1);
             active_sessions[free_index].entered_us = now_us;
+            result = RFID_SCAN_ENTERED;
         }
     }
     portEXIT_CRITICAL(&session_lock);

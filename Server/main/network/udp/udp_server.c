@@ -96,17 +96,22 @@ static void udp_server_task(void *arg)
             rfid_scan_result_t result = rfid_session_scan(&event, (uint64_t)esp_timer_get_time());
             if (result == RFID_SCAN_ENTERED)
             {
-                ESP_LOGI(TAG, "RFID %s entered", event.card_id);
+                ESP_LOGI(TAG, "RFID %s entered via IN reader", event.card_id);
                 esp_err_t err = servo_open_for(SERVO_GATE_IN, 5000);
                 if (err != ESP_OK)
                     ESP_LOGE(TAG, "Failed to open entry barrier: %s", esp_err_to_name(err));
             }
             else if (result == RFID_SCAN_EXITED)
             {
-                ESP_LOGI(TAG, "RFID %s exited", event.card_id);
+                ESP_LOGI(TAG, "RFID %s exited via OUT reader", event.card_id);
                 esp_err_t err = servo_open_for(SERVO_GATE_OUT, 5000);
                 if (err != ESP_OK)
                     ESP_LOGE(TAG, "Failed to open exit barrier: %s", esp_err_to_name(err));
+            }
+            else if (result == RFID_SCAN_INVALID_GATE)
+            {
+                ESP_LOGW(TAG, "RFID %s rejected: scanned on wrong reader (%s)",
+                         event.card_id, event.gate == RFID_GATE_IN ? "IN" : "OUT");
             }
             else
                 ESP_LOGW(TAG, "RFID active-session capacity reached for %s", event.card_id);

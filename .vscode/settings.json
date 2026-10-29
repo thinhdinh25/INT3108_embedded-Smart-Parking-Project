@@ -33,7 +33,7 @@
     "IDF_TARGET": "esp32c3",
     "OPENOCD_USB_ADAPTER_LOCATION": "0-1"
   },
-  "idf.port": "COM3",
+  "idf.port": "COM4",
   "idf.flashType": "UART",
   "livePreview.defaultPreviewPath": "/main/server/index.html"
 }

@@ -9,8 +9,8 @@
 #include "servo.h"
 #include <stdint.h>
 
-#define SERVO_IN_GPIO 1
-#define SERVO_OUT_GPIO 0
+#define SERVO_IN_GPIO 0
+#define SERVO_OUT_GPIO 1
 #define SERVO_TIMER LEDC_TIMER_0
 #define SERVO_IN_CHANNEL LEDC_CHANNEL_0
 #define SERVO_OUT_CHANNEL LEDC_CHANNEL_1
@@ -102,17 +102,6 @@ static void servo_auto_close_task(void *arg)
     }
 }
 
-static esp_err_t load_state(nvs_handle_t nvs, const char *key, bool *state)
-{
-    uint8_t saved = 0;
-    esp_err_t err = nvs_get_u8(nvs, key, &saved);
-    if (err == ESP_ERR_NVS_NOT_FOUND)
-        err = ESP_OK;
-    if (err == ESP_OK)
-        *state = saved != 0;
-    return err;
-}
-
 esp_err_t servo_start(void)
 {
     servo_mutex = xSemaphoreCreateMutex();
@@ -143,16 +132,12 @@ esp_err_t servo_start(void)
             return err;
     }
 
-    nvs_handle_t nvs;
-    err = nvs_open("barrier", NVS_READWRITE, &nvs);
-    if (err != ESP_OK)
-        return err;
-    err = load_state(nvs, "in_open", &in_open);
-    if (err == ESP_OK)
-        err = load_state(nvs, "out_open", &out_open);
-    nvs_close(nvs);
-    if (err != ESP_OK)
-        return err;
+    /* Default both gates to closed on startup. */
+    in_open = false;
+    out_open = false;
+    fire_alarm_active = false;
+    in_auto_close_at_us = 0;
+    out_auto_close_at_us = 0;
 
     err = servo_set_angle(SERVO_IN_CHANNEL, servo_angle_for_state(false, in_open));
     if (err != ESP_OK)
@@ -160,6 +145,20 @@ esp_err_t servo_start(void)
     err = servo_set_angle(SERVO_OUT_CHANNEL, servo_angle_for_state(true, out_open));
     if (err != ESP_OK)
         return err;
+
+    nvs_handle_t nvs;
+    err = nvs_open("barrier", NVS_READWRITE, &nvs);
+    if (err == ESP_OK)
+    {
+        err = nvs_set_u8(nvs, "in_open", 0);
+        if (err == ESP_OK)
+            err = nvs_set_u8(nvs, "out_open", 0);
+        if (err == ESP_OK)
+            err = nvs_commit(nvs);
+        nvs_close(nvs);
+    }
+    if (err != ESP_OK)
+        ESP_LOGE(TAG, "Failed to save default closed state to NVS: %s", esp_err_to_name(err));
 
     if (xTaskCreate(servo_auto_close_task, "servo_auto_close", 3072, NULL, 5, NULL) != pdPASS)
         return ESP_ERR_NO_MEM;

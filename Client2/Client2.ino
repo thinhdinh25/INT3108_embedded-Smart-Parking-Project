@@ -15,9 +15,12 @@ const unsigned int udpPort = 3333;              // Cổng UDP đích
 
 // --- CẤU HÌNH PHẦN CỨNG RC522 ---
 #define RST_PIN   16  // GPIO 16 (D0) dùng chung cả 2 module
-#define SS_1_PIN  4   // GPIO 4 (D2) cho Đầu đọc 1
-#define SS_2_PIN  5   // GPIO 5 (D1) cho Đầu đọc 2
+#define SS_1_PIN  5   // GPIO 4 (D2) cho Đầu đọc 1 (Cổng VÀO - IN)
+#define SS_2_PIN  4   // GPIO 5 (D1) cho Đầu đọc 2 (Cổng RA - OUT)
 #define NR_OF_READERS 2
+
+#define READER_IN  0
+#define READER_OUT 1
 
 byte ssPins[] = {SS_1_PIN, SS_2_PIN};
 MFRC522 mfrc522[NR_OF_READERS];
@@ -34,11 +37,12 @@ float currentTemperatureC = 0.0f;
 // --- BIẾN CHỐNG ĐỌC LẶP THẺ (DEBOUNCE) ---
 String lastUID[NR_OF_READERS] = {"", ""};
 unsigned long lastReadTime[NR_OF_READERS] = {0, 0};
-const unsigned long COOLDOWN_TIME = 1500; // Thời gian chờ (1.5 giây)
+const unsigned long COOLDOWN_TIME = 2000; // Thời gian chờ đọc lại cùng UID (2 giây)
 
 // Khai báo hàm nguyên mẫu
 String getCardUID(byte *buffer, byte bufferSize);
-void sendUDPRfid(String uid);
+bool canReadUID(const String &uid, unsigned long now);
+void sendUDPRfid(String uid, const char *gate);
 void handleDHT11();
 void setupOTA();
 
@@ -117,8 +121,8 @@ void loop() {
       String currentUID = getCardUID(mfrc522[reader].uid.uidByte, mfrc522[reader].uid.size);
       unsigned long now = millis();
 
-      // KIỂM TRA CHỐNG LẶP:
-      if (currentUID != lastUID[reader] || (now - lastReadTime[reader] >= COOLDOWN_TIME)) {
+      // KIỂM TRA CHỐNG LẶP (chỉ đọc lại cùng UID sau 2 giây):
+      if (canReadUID(currentUID, now)) {
         
         lastUID[reader] = currentUID;
         lastReadTime[reader] = now;
@@ -128,14 +132,15 @@ void loop() {
         Serial.print(F("] Nhận thẻ UID: "));
         Serial.println(currentUID);
 
-        // Gửi gói tin UDP RFID tới 192.168.4.255:3333
-        sendUDPRfid(currentUID);
-
-        // --- KHU VỰC XỬ LÝ LỆNH CHO TỪNG ĐẦU ĐỌC ---
-        if (reader == 0) {
-          // Xử lý cổng 1
-        } else if (reader == 1) {
-          // Xử lý cổng 2
+        // --- KHU VỰC XỬ LÝ LỆNH CHO TỪNG ĐẦU ĐỌC (IN / OUT) ---
+        if (reader == READER_IN) {
+          // Đầu đọc 1: Cổng VÀO (IN)
+          Serial.println(F("-> Quét tại cổng VÀO (IN)"));
+          sendUDPRfid(currentUID, "in");
+        } else if (reader == READER_OUT) {
+          // Đầu đọc 2: Cổng RA (OUT)
+          Serial.println(F("-> Quét tại cổng RA (OUT)"));
+          sendUDPRfid(currentUID, "out");
         }
         Serial.println(F("----------------------------------------"));
       }
@@ -149,6 +154,16 @@ void loop() {
     
     yield();
   }
+}
+
+// Chỉ cho phép đọc lại cùng một UID khi đã qua COOLDOWN_TIME (2 giây)
+bool canReadUID(const String &uid, unsigned long now) {
+  for (uint8_t r = 0; r < NR_OF_READERS; r++) {
+    if (lastUID[r].length() > 0 && uid == lastUID[r] && (now - lastReadTime[r] < COOLDOWN_TIME)) {
+      return false;
+    }
+  }
+  return true;
 }
 
 // Read the temperature periodically for the next RFID request.
@@ -172,13 +187,13 @@ void handleDHT11() {
 }
 
 // Send an RFID scan using the server's current request format.
-void sendUDPRfid(String uid) {
+void sendUDPRfid(String uid, const char *gate) {
   if (WiFi.status() == WL_CONNECTED) {
-    // Server format: {"type":"rfid_event","card_id":"A1B2C3D4","temperature_c":28.5}
-    char payload[128];
+    // Server format: {"type":"rfid_event","card_id":"A1B2C3D4","gate":"in","temperature_c":28.5}
+    char payload[144];
     int length = snprintf(payload, sizeof(payload),
-                          "{\"type\":\"rfid_event\",\"card_id\":\"%s\",\"temperature_c\":%.1f}",
-                          uid.c_str(), currentTemperatureC);
+                          "{\"type\":\"rfid_event\",\"card_id\":\"%s\",\"gate\":\"%s\",\"temperature_c\":%.1f}",
+                          uid.c_str(), gate, currentTemperatureC);
     if (length < 0 || length >= sizeof(payload)) {
       Serial.println(F("-> [UDP RFID] Payload formatting failed"));
       return;
