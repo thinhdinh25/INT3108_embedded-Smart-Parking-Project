@@ -145,6 +145,11 @@ esp_err_t http_server_start(void)
 {
     httpd_config_t config = HTTPD_DEFAULT_CONFIG();
     config.max_uri_handlers = 11; /* one per route below */
+    /* Browsers keep several keep-alive connections open and the dashboard polls every
+     * 1-2 s; without purging, idle connections fill every slot and new clients get
+     * "error in accept (23)". Budget: 3 internal + 10 clients + 1 UDP = 14 of 16 sockets. */
+    config.max_open_sockets = 10;
+    config.lru_purge_enable = true;
     httpd_handle_t server = NULL;
 
     esp_err_t err = httpd_start(&server, &config);

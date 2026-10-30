@@ -2,3 +2,5 @@
 CONFIG_COMPILER_OPTIMIZATION_PERF=y
 # 1.5 MB app partition (2 MB flash); the default 1 MB one is almost full.
 CONFIG_PARTITION_TABLE_SINGLE_APP_LARGE=y
+# 16 sockets: HTTP server (3 internal + 10 clients) + UDP receiver, with headroom.
+CONFIG_LWIP_MAX_SOCKETS=16
