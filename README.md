@@ -79,7 +79,7 @@ changed under **Parking TFT display** in `idf.py menuconfig`
 
 | Sensor | Client pin |
 | --- | --- |
-| Parking IR sensors 1–5 | GPIO12, GPIO13, GPIO14, GPIO4, GPIO16 |
+| Parking slots S1–S5 | GPIO16, GPIO4, GPIO14, GPIO13, GPIO12 |
 | Flame sensor digital output | GPIO5 |
 | Water sensor analog output | A0 |
 
