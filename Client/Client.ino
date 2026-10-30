@@ -9,11 +9,11 @@ const char* password = "12345678";
 
 /******************SENSOR SECTION BEGIN**********************/
 
-#define IR1    12
-#define IR2    13
+#define IR1    16
+#define IR2    4
 #define IR3    14
-#define IR4    4
-#define IR5    16
+#define IR4    13
+#define IR5    12
 
 #define WATER  A0
 #define FLAME  5
@@ -42,7 +42,7 @@ const int WATER_DRY_ADC = 20;            // Noise floor when sensor is dry
 const int WATER_MAX_ADC = 700;           // Typical max reading when fully submerged
 const float MAX_SENSOR_DEPTH_MM = 40.0f; // Standard resistive sensor trace length (40mm)
 
-const unsigned long STABLE_TIME = 250;
+const unsigned long STABLE_TIME = 50;
 
 // Standard IR and Flame modules assert LOW (0) when triggered.
 bool read_active_low(int pin) {
