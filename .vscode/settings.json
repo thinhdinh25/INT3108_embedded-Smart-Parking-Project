@@ -25,7 +25,7 @@
     "--query-driver=**",
     "--compile-commands-dir=/Users/chiminhnguyen/Documents/Projects/INT3108_embedded-Smart-Parking-Project/build"
   ],
-  "idf.currentSetup": "C:\\esp\\v6.1\\esp-idf",
+  "idf.currentSetup": "/Users/chiminhnguyen/.espressif/v6.1/esp-idf",
   "idf.openOcdConfigs": [
     "board/esp32c3-builtin.cfg"
   ],
