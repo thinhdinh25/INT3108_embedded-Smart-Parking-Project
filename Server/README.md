@@ -21,7 +21,7 @@ gate on GPIO0 uses 90° for open and 0° for closed. The exit gate on GPIO1 is
 mounted in the opposite orientation and uses 0° for open and 90° for closed.
 The ESP32 saves each commanded state separately in NVS and restores them at
 startup. A first RFID scan opens the entry barrier; a matching scan to exit
-opens the exit barrier. RFID-triggered openings close automatically after five
+opens the exit barrier. RFID-triggered openings close automatically after three
 seconds. When a parking update reports fire, both barriers open and remain open
 until a later update reports fire clear; then both barriers close. This fire
 mode takes priority over RFID auto-close and manual close commands.

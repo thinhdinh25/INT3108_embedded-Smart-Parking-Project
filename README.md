@@ -21,7 +21,7 @@ The full technical report (Vietnamese, LaTeX source and PDF) is in
 - Five parking-space states from debounced digital IR sensors.
 - RFID entry/exit: the first scan of a card opens the entry barrier, the next
   scan of the same card opens the exit barrier. RFID-opened barriers close
-  automatically after 5 seconds.
+  automatically after 3 seconds.
 - Parking fee of 5,000 VND per started hour (minimum one hour). The TFT shows
   card ID, parking time and fee for 60 seconds after exit.
 - Fire alarm: animated "FIRE DETECTED" screen, dashboard banner and an

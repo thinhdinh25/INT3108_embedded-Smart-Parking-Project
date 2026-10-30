@@ -239,7 +239,7 @@ nhanh, chạy liên tục không có người giám sát và giao tiếp không 
 \begin{enumerate}
   \item Phát hiện trạng thái trống/có xe của 5 chỗ đỗ bằng cảm biến hồng ngoại.
   \item Kiểm soát xe ra vào bằng thẻ RFID: quẹt thẻ lần đầu mở thanh chắn cổng vào,
-        quẹt lại cùng thẻ mở thanh chắn cổng ra; thanh chắn tự đóng sau 5 giây.
+        quẹt lại cùng thẻ mở thanh chắn cổng ra; thanh chắn tự đóng sau 3 giây.
   \item Tính phí gửi xe tự động theo thời gian (5.000\,VNĐ cho mỗi giờ bắt đầu, tối
         thiểu 1 giờ) và hiển thị hóa đơn trên màn hình.
   \item Giám sát môi trường: phát hiện lửa (kèm còi và màn hình cảnh báo), đo mực
@@ -276,7 +276,7 @@ bày kiểm thử, Chương~\ref{chap:danhgia} đánh giá và hướng phát tr
 FR1 & Đọc trạng thái 5 chỗ đỗ, loại bỏ nhiễu/rung tín hiệu, cập nhật về trung tâm định kỳ. \\
 FR2 & Hiển thị số chỗ trống và trạng thái từng chỗ trên màn hình tại bãi và trên web. \\
 FR3 & Nhận mã UID thẻ RFID tại cổng; lần quẹt đầu là \emph{vào}, lần quẹt kế tiếp của cùng thẻ là \emph{ra}. \\
-FR4 & Mở thanh chắn tương ứng khi có sự kiện vào/ra; tự đóng sau 5 giây. \\
+FR4 & Mở thanh chắn tương ứng khi có sự kiện vào/ra; tự đóng sau 3 giây. \\
 FR5 & Tính phí khi xe ra: làm tròn lên theo giờ, tối thiểu 1 giờ, 5.000\,VNĐ/giờ; hiển thị UID, thời gian gửi, số tiền trong 60 giây. \\
 FR6 & Khi cảm biến lửa kích hoạt: hiển thị màn hình cảnh báo động, bật còi, hiện băng rôn cảnh báo trên web. \\
 FR7 & Đo và hiển thị mực nước (mm) và nhiệt độ (°C). \\
@@ -398,13 +398,13 @@ trạng thái này để hiển thị.
 \draw[msg] (3,-1.6) -- node[above]{\code{rfid\_event} (UDP)} (6.4,-1.6);
 \draw[msg] (6.4,-2.2) -- node[above]{\code{rfid\_session\_scan()}} (9.4,-2.2);
 \draw[msg,dashed] (9.4,-2.8) -- node[above]{ENTERED} (6.4,-2.8);
-\draw[msg] (6.4,-3.4) -- node[above]{\code{servo\_open\_for(IN,5000)}} (12.2,-3.4);
-\node[draw,fill=boxC,align=center] at (12.2,-4.4) {mở 90°\\hẹn đóng $t+5$\,s};
-\node[align=left,anchor=west] at (9.6,-5.6) {\ldots sau 5\,s: tự đóng};
+\draw[msg] (6.4,-3.4) -- node[above]{\code{servo\_open\_for(IN,3000)}} (12.2,-3.4);
+\node[draw,fill=boxC,align=center] at (12.2,-4.4) {mở 90°\\hẹn đóng $t+3$\,s};
+\node[align=left,anchor=west] at (9.6,-5.6) {\ldots sau 3\,s: tự đóng};
 \draw[msg] (0,-6.4) -- node[above]{quẹt lại cùng thẻ} (3,-6.4);
 \draw[msg] (3,-6.9) -- (6.4,-6.9);
 \draw[msg] (6.4,-7.4) -- node[above]{EXITED + tính phí} (9.4,-7.4);
-\draw[msg] (6.4,-7.9) -- node[above]{\code{servo\_open\_for(OUT,5000)}} (12.2,-7.9);
+\draw[msg] (6.4,-7.9) -- node[above]{\code{servo\_open\_for(OUT,3000)}} (12.2,-7.9);
 \end{tikzpicture}
 \caption{Biểu đồ tuần tự xe vào và ra bằng thẻ RFID}\label{fig:seq}
 \end{figure}
@@ -821,8 +821,8 @@ trong bãi hơn số chỗ, đồng thời dùng mảng tĩnh thay vì danh sác
   arr/.style={-{Stealth[length=2mm]},thick}]
 \node[st] (out) {Thẻ \textbf{không} có\\phiên hoạt động};
 \node[st,right=4.2cm of out] (in) {Thẻ \textbf{có}\\phiên hoạt động};
-\draw[arr] (out.north east) to[bend left=25] node[above,align=center,font=\scriptsize]{quẹt thẻ, còn chỗ trống\\ENTERED: lưu $t_{\text{vào}}$, mở cổng vào 5\,s} (in.north west);
-\draw[arr] (in.south west) to[bend left=25] node[below,align=center,font=\scriptsize]{quẹt thẻ\\EXITED: tính phí, mở cổng ra 5\,s} (out.south east);
+\draw[arr] (out.north east) to[bend left=25] node[above,align=center,font=\scriptsize]{quẹt thẻ, còn chỗ trống\\ENTERED: lưu $t_{\text{vào}}$, mở cổng vào 3\,s} (in.north west);
+\draw[arr] (in.south west) to[bend left=25] node[below,align=center,font=\scriptsize]{quẹt thẻ\\EXITED: tính phí, mở cổng ra 3\,s} (out.south east);
 \draw[arr] (out.west) to[out=200,in=160,looseness=5] node[left,align=center,font=\scriptsize]{bảng đầy\\FULL: không\\mở cổng} (out.west);
 \end{tikzpicture}
 \caption{Máy trạng thái của một thẻ RFID}\label{fig:fsm}
@@ -843,7 +843,7 @@ $\Rightarrow$ 10.000\,VNĐ; gửi 10 giây $\Rightarrow$ 5.000\,VNĐ (tối thi�
 tròn lên theo giờ, tối thiểu 1 giờ} là cách tính phí thông dụng của bãi xe và dễ
 giải thích cho người dùng. Hóa đơn hiển thị \textbf{60 giây} — đủ thời gian để tài
 xế đọc và trả tiền, sau đó màn hình trở về trạng thái bình thường. Barrier mở
-\textbf{5 giây} — đủ để một xe mô hình đi qua, nhưng không quá lâu để xe thứ hai
+\textbf{3 giây} — đủ để một xe mô hình đi qua, nhưng không quá lâu để xe thứ hai
 ``đi ké''.
 \end{lydo}
 
@@ -922,14 +922,14 @@ Một số quyết định thiết kế quan trọng:
 \end{itemize}
 
 \paragraph{Tự động đóng.} \code{servo\_open\_for()} mở barrier và ghi thời điểm
-hết hạn \code{now + 5000\,ms}. Task \code{servo\_auto\_close} thức dậy mỗi 50\,ms,
+hết hạn \code{now + 3000\,ms}. Task \code{servo\_auto\_close} thức dậy mỗi 50\,ms,
 so sánh với \code{esp\_timer\_get\_time()} và đóng khi đến hạn.
 
 \begin{lydo}[Tại sao dùng task kiểm tra 50\,ms thay vì software timer]
 Mỗi lần đóng cần ghi NVS, là thao tác có thể chặn — không nên thực hiện trong
 callback của \code{esp\_timer} hay FreeRTOS timer (chạy trong task timer dùng chung,
 stack nhỏ). Task riêng có stack 3\,KB và có thể lấy mutex an toàn. Sai số đóng tối đa
-50\,ms (5 tick) so với 5\,s là 1\%, người dùng không nhận thấy, mà CPU chỉ thức
+50\,ms (5 tick) so với 3\,s là khoảng 1,7\%, người dùng không nhận thấy, mà CPU chỉ thức
 20 lần/giây. Lệnh điều khiển thủ công từ web đặt lại hạn đóng về 0, tức là
 \textbf{lệnh của người vận hành luôn được ưu tiên} hơn lịch tự động.
 \end{lydo}
@@ -1078,8 +1078,8 @@ for (;;) {
         rfid_event_t e = {0};
         if (!rfid_event_parse_json(buffer, &e)) continue; /* bo qua */
         switch (rfid_session_scan(&e, esp_timer_get_time())) {
-        case RFID_SCAN_ENTERED: servo_open_for(SERVO_GATE_IN, 5000);  break;
-        case RFID_SCAN_EXITED:  servo_open_for(SERVO_GATE_OUT, 5000); break;
+        case RFID_SCAN_ENTERED: servo_open_for(SERVO_GATE_IN, 3000);  break;
+        case RFID_SCAN_EXITED:  servo_open_for(SERVO_GATE_OUT, 3000); break;
         default: /* bai day */ break;
         }
     }
@@ -1239,7 +1239,7 @@ lớp vỏ mô hình. Khi thẻ được giữ yên trên đầu đọc, nó s�
 gian chờ \textbf{1,5\,s} cho cùng một thẻ trên cùng một đầu đọc ngăn gửi nhiều sự
 kiện, vì với logic chuyển trạng thái vào/ra, một lần quẹt bị gửi hai lần sẽ biến
 ``vào'' thành ``ra'' ngay lập tức. 1,5\,s đủ dài để người dùng nhấc thẻ ra, nhưng
-ngắn hơn 5\,s barrier mở. \code{PICC\_HaltA} và \code{PCD\_StopCrypto1} đưa thẻ về
+ngắn hơn 3\,s barrier mở. \code{PICC\_HaltA} và \code{PCD\_StopCrypto1} đưa thẻ về
 trạng thái nghỉ đúng chuẩn ISO 14443A.
 \end{lydo}
 
@@ -1441,7 +1441,7 @@ S1 & Cấp nguồn máy chủ & AP \code{ESP32-Parking} xuất hiện; TFT hiệ
 S2 & Cấp nguồn Client & Sau khi kết nối, TFT/dashboard hiển thị 5/5 FREE, mực nước \\
 S3 & Đặt vật cản trước IR số 2 & Trong $\le 2$\,s, ô S2 chuyển BUSY (đỏ), FREE SPACES giảm 1 \\
 S4 & Rê vật nhanh qua IR ($<$ 250\,ms) & Trạng thái không đổi (chống rung) \\
-S5 & Quẹt thẻ mới ở đầu đọc 1 & Barrier vào mở, tự đóng sau $\approx$5\,s; nhiệt độ cập nhật \\
+S5 & Quẹt thẻ mới ở đầu đọc 1 & Barrier vào mở, tự đóng sau $\approx$3\,s; nhiệt độ cập nhật \\
 S6 & Giữ thẻ trên đầu đọc 1\,s & Chỉ một sự kiện được gửi (cooldown 1,5\,s) \\
 S7 & Quẹt lại cùng thẻ & Barrier ra mở; footer TFT hiện ID, thời gian, phí; hóa đơn biến mất sau 60\,s \\
 S8 & Quẹt thẻ thứ 6 khi đã có 5 phiên & Không mở barrier; log cảnh báo bãi đầy \\
@@ -1512,7 +1512,7 @@ không mất dữ liệu, lập trình socket và xử lý đầu vào không ti
 mô hình với ba vi điều khiển giá rẻ, tự vận hành trên mạng Wi-Fi riêng. Mỗi lựa
 chọn — từ vi điều khiển, giao thức UDP, bộ phân tích JSON không cấp phát động, PWM
 14 bit 50\,Hz, SPI 40\,MHz với DMA, đến các thông số thời gian 250\,ms, 1\,s, 1,5\,s,
-5\,s — đều được cân nhắc dựa trên giới hạn tài nguyên của hệ thống nhúng và trải
+3\,s — đều được cân nhắc dựa trên giới hạn tài nguyên của hệ thống nhúng và trải
 nghiệm của người dùng. Qua đề tài, nhóm đã hiểu sâu hơn về thiết kế phần mềm nhúng
 thời gian thực, giao tiếp ngoại vi và mạng, cũng như cách cân bằng giữa tính năng,
 độ tin cậy và tài nguyên.

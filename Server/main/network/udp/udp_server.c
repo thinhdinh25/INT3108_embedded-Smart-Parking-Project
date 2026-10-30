@@ -97,14 +97,14 @@ static void udp_server_task(void *arg)
             if (result == RFID_SCAN_ENTERED)
             {
                 ESP_LOGI(TAG, "RFID %s entered via IN reader", event.card_id);
-                esp_err_t err = servo_open_for(SERVO_GATE_IN, 5000);
+                esp_err_t err = servo_open_for(SERVO_GATE_IN, 3000);
                 if (err != ESP_OK)
                     ESP_LOGE(TAG, "Failed to open entry barrier: %s", esp_err_to_name(err));
             }
             else if (result == RFID_SCAN_EXITED)
             {
                 ESP_LOGI(TAG, "RFID %s exited via OUT reader", event.card_id);
-                esp_err_t err = servo_open_for(SERVO_GATE_OUT, 5000);
+                esp_err_t err = servo_open_for(SERVO_GATE_OUT, 3000);
                 if (err != ESP_OK)
                     ESP_LOGE(TAG, "Failed to open exit barrier: %s", esp_err_to_name(err));
             }
