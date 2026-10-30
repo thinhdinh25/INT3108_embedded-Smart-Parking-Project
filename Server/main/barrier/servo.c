@@ -23,6 +23,7 @@
 static const char *TAG = "SERVO";
 static bool in_open;
 static bool out_open;
+static bool fire_alarm_active;
 static SemaphoreHandle_t servo_mutex;
 static int64_t in_auto_close_at_us;
 static int64_t out_auto_close_at_us;
@@ -40,7 +41,7 @@ static esp_err_t servo_set_angle(ledc_channel_t channel, int angle)
 
 static int servo_angle_for_state(bool is_out_gate, bool open)
 {
-    /* The exit barrier is mounted in the opposite orientation. */
+    /* The two gates are mounted in opposite orientations. */
     if (is_out_gate)
         return open ? 0 : 90;
     return open ? 90 : 0;
@@ -101,17 +102,6 @@ static void servo_auto_close_task(void *arg)
     }
 }
 
-static esp_err_t load_state(nvs_handle_t nvs, const char *key, bool *state)
-{
-    uint8_t saved = 0;
-    esp_err_t err = nvs_get_u8(nvs, key, &saved);
-    if (err == ESP_ERR_NVS_NOT_FOUND)
-        err = ESP_OK;
-    if (err == ESP_OK)
-        *state = saved != 0;
-    return err;
-}
-
 esp_err_t servo_start(void)
 {
     servo_mutex = xSemaphoreCreateMutex();
@@ -142,16 +132,12 @@ esp_err_t servo_start(void)
             return err;
     }
 
-    nvs_handle_t nvs;
-    err = nvs_open("barrier", NVS_READWRITE, &nvs);
-    if (err != ESP_OK)
-        return err;
-    err = load_state(nvs, "in_open", &in_open);
-    if (err == ESP_OK)
-        err = load_state(nvs, "out_open", &out_open);
-    nvs_close(nvs);
-    if (err != ESP_OK)
-        return err;
+    /* Default both gates to closed on startup. */
+    in_open = false;
+    out_open = false;
+    fire_alarm_active = false;
+    in_auto_close_at_us = 0;
+    out_auto_close_at_us = 0;
 
     err = servo_set_angle(SERVO_IN_CHANNEL, servo_angle_for_state(false, in_open));
     if (err != ESP_OK)
@@ -159,6 +145,20 @@ esp_err_t servo_start(void)
     err = servo_set_angle(SERVO_OUT_CHANNEL, servo_angle_for_state(true, out_open));
     if (err != ESP_OK)
         return err;
+
+    nvs_handle_t nvs;
+    err = nvs_open("barrier", NVS_READWRITE, &nvs);
+    if (err == ESP_OK)
+    {
+        err = nvs_set_u8(nvs, "in_open", 0);
+        if (err == ESP_OK)
+            err = nvs_set_u8(nvs, "out_open", 0);
+        if (err == ESP_OK)
+            err = nvs_commit(nvs);
+        nvs_close(nvs);
+    }
+    if (err != ESP_OK)
+        ESP_LOGE(TAG, "Failed to save default closed state to NVS: %s", esp_err_to_name(err));
 
     if (xTaskCreate(servo_auto_close_task, "servo_auto_close", 3072, NULL, 5, NULL) != pdPASS)
         return ESP_ERR_NO_MEM;
@@ -170,6 +170,11 @@ esp_err_t servo_set_in_open(bool open)
     if (servo_mutex == NULL)
         return ESP_ERR_INVALID_STATE;
     xSemaphoreTake(servo_mutex, portMAX_DELAY);
+    if (fire_alarm_active && !open)
+    {
+        xSemaphoreGive(servo_mutex);
+        return ESP_ERR_INVALID_STATE;
+    }
     in_auto_close_at_us = 0;
     esp_err_t err = servo_set_state(SERVO_IN_CHANNEL, "in_open", &in_open, false, open);
     xSemaphoreGive(servo_mutex);
@@ -181,6 +186,11 @@ esp_err_t servo_set_out_open(bool open)
     if (servo_mutex == NULL)
         return ESP_ERR_INVALID_STATE;
     xSemaphoreTake(servo_mutex, portMAX_DELAY);
+    if (fire_alarm_active && !open)
+    {
+        xSemaphoreGive(servo_mutex);
+        return ESP_ERR_INVALID_STATE;
+    }
     out_auto_close_at_us = 0;
     esp_err_t err = servo_set_state(SERVO_OUT_CHANNEL, "out_open", &out_open, true, open);
     xSemaphoreGive(servo_mutex);
@@ -200,6 +210,11 @@ esp_err_t servo_open_for(servo_gate_t gate, uint32_t duration_ms)
         return ESP_ERR_INVALID_ARG;
 
     xSemaphoreTake(servo_mutex, portMAX_DELAY);
+    if (fire_alarm_active)
+    {
+        xSemaphoreGive(servo_mutex);
+        return ESP_OK;
+    }
     int64_t deadline_us = esp_timer_get_time() + (int64_t)duration_ms * 1000;
     esp_err_t err;
     if (gate == SERVO_GATE_IN)
@@ -219,6 +234,29 @@ esp_err_t servo_open_for(servo_gate_t gate, uint32_t duration_ms)
 
     xSemaphoreGive(servo_mutex);
     return err;
+}
+
+esp_err_t servo_set_fire_alarm(bool active)
+{
+    if (servo_mutex == NULL)
+        return ESP_ERR_INVALID_STATE;
+
+    xSemaphoreTake(servo_mutex, portMAX_DELAY);
+    if (fire_alarm_active == active && !active)
+    {
+        xSemaphoreGive(servo_mutex);
+        return ESP_OK;
+    }
+
+    fire_alarm_active = active;
+    in_auto_close_at_us = 0;
+    out_auto_close_at_us = 0;
+    esp_err_t in_err = servo_set_state(SERVO_IN_CHANNEL, "in_open", &in_open,
+                                       false, active);
+    esp_err_t out_err = servo_set_state(SERVO_OUT_CHANNEL, "out_open", &out_open,
+                                        true, active);
+    xSemaphoreGive(servo_mutex);
+    return in_err != ESP_OK ? in_err : out_err;
 }
 
 bool servo_is_in_open(void)
