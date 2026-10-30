@@ -1,0 +1,2 @@
+# Build the app with -O2 (CONFIG_COMPILER_OPTIMIZATION_PERF) instead of the -Og debug default.
+CONFIG_COMPILER_OPTIMIZATION_PERF=y

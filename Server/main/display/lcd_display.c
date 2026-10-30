@@ -88,17 +88,22 @@ static const uint8_t glyphs[36][5] = {
     {0x36,0x49,0x49,0x49,0x36},{0x06,0x49,0x49,0x29,0x1E},
 };
 
-static void pixel(int x, int y, uint16_t color)
-{
-    if (x >= 0 && x < width && y >= 0 && y < height)
-        framebuffer[y * width + x] = rgb565_byte_swap(color);
-}
-
 static void fill_rect(int x, int y, int w, int h, uint16_t color)
 {
-    for (int row = y; row < y + h; ++row)
-        for (int col = x; col < x + w; ++col)
-            pixel(col, row, color);
+    /* Clip once and swap once instead of per pixel. */
+    int x0 = x < 0 ? 0 : x, y0 = y < 0 ? 0 : y;
+    int x1 = x + w > width ? width : x + w;
+    int y1 = y + h > height ? height : y + h;
+    if (x0 >= x1 || y0 >= y1)
+        return;
+
+    const uint16_t swapped = rgb565_byte_swap(color);
+    for (int row = y0; row < y1; ++row)
+    {
+        uint16_t *dst = &framebuffer[row * width + x0];
+        for (int n = x1 - x0; n > 0; --n)
+            *dst++ = swapped;
+    }
 }
 
 static void draw_char(int x, int y, char c, int scale, uint16_t color)
@@ -199,15 +204,20 @@ static void remove_kaoruko_white_background(uint16_t *pixels)
         if (is_near_white(pixels[right])) mark_background_pixel(right);
     }
 
-    /* Propagate edge-connected white pixels using a small bitset, not a large queue. */
+    /* Propagate edge-connected white pixels using a small bitset, not a large queue.
+     * Alternating forward/backward scans spread marks in all directions per pass,
+     * so this converges in a few passes instead of one pass per pixel of distance. */
     bool changed;
+    bool forward = true;
     do
     {
         changed = false;
-        for (int y = 1; y < GIF_HEIGHT - 1; ++y)
+        for (int row = 1; row < GIF_HEIGHT - 1; ++row)
         {
-            for (int x = 1; x < GIF_WIDTH - 1; ++x)
+            const int y = forward ? row : GIF_HEIGHT - 1 - row;
+            for (int col = 1; col < GIF_WIDTH - 1; ++col)
             {
+                const int x = forward ? col : GIF_WIDTH - 1 - col;
                 const size_t index = (size_t)y * GIF_WIDTH + x;
                 if (!is_background_pixel_marked(index) && is_near_white(pixels[index]) &&
                     (is_background_pixel_marked(index - 1) ||
@@ -220,6 +230,7 @@ static void remove_kaoruko_white_background(uint16_t *pixels)
                 }
             }
         }
+        forward = !forward;
     } while (changed);
 
     for (size_t index = 0; index < GIF_PIXEL_COUNT; ++index)
@@ -248,8 +259,8 @@ static void draw_parking_screen(const parking_state_t *state, int free_count,
     draw_text(12, 93, "TEMP C", 1, COLOR_MUTED);
     draw_text(78, 93, "WATER MM", 1, COLOR_MUTED);
 
-    char temperature[12] = "--.-";
-    char water[12] = "--.-";
+    char temperature[16] = "--.-";
+    char water[16] = "--.-";
     if (state->temperature_received)
         format_tenths(temperature, sizeof(temperature), state->temperature_c);
     if (state->received)
