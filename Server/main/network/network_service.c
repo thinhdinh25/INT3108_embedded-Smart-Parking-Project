@@ -12,7 +12,7 @@ esp_err_t network_service_start(void)
     esp_err_t err = wifi_ap_start();
     if (err != ESP_OK)
     {
-        ESP_LOGE(TAG, "Failed to initialize Wi-Fi AP: %s", esp_err_to_name(err));
+        ESP_LOGE(TAG, "Failed to initialize Wi-Fi station: %s", esp_err_to_name(err));
         return err;
     }
 
@@ -31,8 +31,7 @@ esp_err_t network_service_start(void)
     }
 
     ESP_LOGI(TAG, "Smart Parking Server is ready");
-    ESP_LOGI(TAG, "Wi-Fi: ESP32-Parking");
-    ESP_LOGI(TAG, "Web interface: http://192.168.4.1");
+    ESP_LOGI(TAG, "Connecting to Wi-Fi hotspot: ESP32-Parking");
 
     return ESP_OK;
 }

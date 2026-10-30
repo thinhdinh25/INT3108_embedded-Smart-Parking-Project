@@ -57,17 +57,21 @@ void setup() {
   // 1. Khởi tạo DHT11
   dht.begin();
 
-  // 2. Kết nối WiFi
-  WiFi.mode(WIFI_STA);
-  WiFi.begin(ssid, password);
-  Serial.print(F("Đang kết nối WiFi"));
-  while (WiFi.status() != WL_CONNECTED) {
+  // 2. Phát WiFi Hotspot (Access Point)
+  WiFi.mode(WIFI_AP);
+  WiFi.softAPConfig(IPAddress(192, 168, 4, 1),
+                    IPAddress(192, 168, 4, 1),
+                    IPAddress(255, 255, 255, 0));
+  Serial.print(F("Đang khởi tạo WiFi Hotspot"));
+  while (!WiFi.softAP(ssid, password, 1, false, 4)) {
     delay(500);
     Serial.print(F("."));
   }
-  Serial.println(F("\nĐã kết nối WiFi!"));
-  Serial.print(F("Địa chỉ IP của mạch: "));
-  Serial.println(WiFi.localIP());
+  Serial.println(F("\nĐã phát WiFi Hotspot!"));
+  Serial.print(F("SSID: "));
+  Serial.println(ssid);
+  Serial.print(F("Địa chỉ IP của Hotspot: "));
+  Serial.println(WiFi.softAPIP());
 
   // 3. Khởi tạo cổng UDP & OTA
   udp.begin(udpPort);
@@ -188,7 +192,7 @@ void handleDHT11() {
 
 // Send an RFID scan using the server's current request format.
 void sendUDPRfid(String uid, const char *gate) {
-  if (WiFi.status() == WL_CONNECTED) {
+  if (WiFi.getMode() & WIFI_AP) {
     // Server format: {"type":"rfid_event","card_id":"A1B2C3D4","gate":"in","temperature_c":28.5}
     char payload[144];
     int length = snprintf(payload, sizeof(payload),
@@ -206,7 +210,7 @@ void sendUDPRfid(String uid, const char *gate) {
     Serial.print(F("-> [UDP RFID] Đã gửi: "));
     Serial.println(payload);
   } else {
-    Serial.println(F("-> [Lỗi UDP] Mất kết nối WiFi!"));
+    Serial.println(F("-> [Lỗi UDP] WiFi Hotspot chưa sẵn sàng!"));
   }
 }
 

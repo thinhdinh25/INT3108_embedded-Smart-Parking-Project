@@ -7,49 +7,48 @@
 
 #include "wifi_ap.h"
 
-#define WIFI_AP_SSID       "ESP32-Parking"
-#define WIFI_AP_PASSWORD   "12345678"
-#define WIFI_AP_CHANNEL    1
-#define WIFI_AP_MAX_CONN   4
+#define WIFI_STA_SSID     "ESP32-Parking"
+#define WIFI_STA_PASSWORD "12345678"
 
-static const char *TAG = "WIFI_AP";
+static const char *TAG = "WIFI_STA";
 
 static void wifi_event_handler(void *arg, esp_event_base_t event_base,
                                int32_t event_id, void *event_data)
 {
     (void)arg;
-    if (event_base != WIFI_EVENT)
+
+    if (event_base == WIFI_EVENT)
     {
-        return;
+        switch (event_id)
+        {
+            case WIFI_EVENT_STA_START:
+                ESP_LOGI(TAG, "Wi-Fi station started, connecting to SSID=%s...",
+                         WIFI_STA_SSID);
+                esp_wifi_connect();
+                break;
+
+            case WIFI_EVENT_STA_CONNECTED:
+                ESP_LOGI(TAG, "Connected to hotspot SSID=%s", WIFI_STA_SSID);
+                break;
+
+            case WIFI_EVENT_STA_DISCONNECTED:
+            {
+                const wifi_event_sta_disconnected_t *event = event_data;
+                ESP_LOGW(TAG, "Disconnected from SSID=%s (reason=%d), retrying...",
+                         WIFI_STA_SSID, event->reason);
+                esp_wifi_connect();
+                break;
+            }
+
+            default:
+                break;
+        }
     }
-
-    switch (event_id)
+    else if (event_base == IP_EVENT && event_id == IP_EVENT_STA_GOT_IP)
     {
-        case WIFI_EVENT_AP_START:
-            ESP_LOGI(TAG, "Access point started: SSID=%s, IP=192.168.4.1",
-                     WIFI_AP_SSID);
-            break;
-
-        case WIFI_EVENT_AP_STACONNECTED:
-        {
-            const wifi_event_ap_staconnected_t *event = event_data;
-            ESP_LOGI(TAG, "Device connected: %02X:%02X:%02X:%02X:%02X:%02X",
-                     event->mac[0], event->mac[1], event->mac[2],
-                     event->mac[3], event->mac[4], event->mac[5]);
-            break;
-        }
-
-        case WIFI_EVENT_AP_STADISCONNECTED:
-        {
-            const wifi_event_ap_stadisconnected_t *event = event_data;
-            ESP_LOGI(TAG, "Device disconnected: %02X:%02X:%02X:%02X:%02X:%02X",
-                     event->mac[0], event->mac[1], event->mac[2],
-                     event->mac[3], event->mac[4], event->mac[5]);
-            break;
-        }
-
-        default:
-            break;
+        const ip_event_got_ip_t *event = event_data;
+        ESP_LOGI(TAG, "Got IP: " IPSTR, IP2STR(&event->ip_info.ip));
+        ESP_LOGI(TAG, "Web interface: http://" IPSTR, IP2STR(&event->ip_info.ip));
     }
 }
 
@@ -67,9 +66,9 @@ esp_err_t wifi_ap_start(void)
         return err;
     }
 
-    if (esp_netif_create_default_wifi_ap() == NULL)
+    if (esp_netif_create_default_wifi_sta() == NULL)
     {
-        ESP_LOGE(TAG, "Failed to create Wi-Fi AP interface");
+        ESP_LOGE(TAG, "Failed to create Wi-Fi STA interface");
         return ESP_FAIL;
     }
 
@@ -87,25 +86,32 @@ esp_err_t wifi_ap_start(void)
         return err;
     }
 
-    wifi_config_t wifi_config = {
-        .ap = {
-            .ssid = WIFI_AP_SSID,
-            .ssid_len = strlen(WIFI_AP_SSID),
-            .channel = WIFI_AP_CHANNEL,
-            .password = WIFI_AP_PASSWORD,
-            .max_connection = WIFI_AP_MAX_CONN,
-            .authmode = WIFI_AUTH_WPA2_PSK,
-            .pmf_cfg = {.required = false},
-        },
-    };
-
-    err = esp_wifi_set_mode(WIFI_MODE_AP);
+    err = esp_event_handler_register(IP_EVENT, IP_EVENT_STA_GOT_IP,
+                                     wifi_event_handler, NULL);
     if (err != ESP_OK)
     {
         return err;
     }
 
-    err = esp_wifi_set_config(WIFI_IF_AP, &wifi_config);
+    wifi_config_t wifi_config = {
+        .sta = {
+            .ssid = WIFI_STA_SSID,
+            .password = WIFI_STA_PASSWORD,
+            .threshold.authmode = WIFI_AUTH_WPA2_PSK,
+            .pmf_cfg = {
+                .capable = true,
+                .required = false,
+            },
+        },
+    };
+
+    err = esp_wifi_set_mode(WIFI_MODE_STA);
+    if (err != ESP_OK)
+    {
+        return err;
+    }
+
+    err = esp_wifi_set_config(WIFI_IF_STA, &wifi_config);
     if (err != ESP_OK)
     {
         return err;
@@ -117,6 +123,12 @@ esp_err_t wifi_ap_start(void)
         return err;
     }
 
-    ESP_LOGI(TAG, "SoftAP initialized");
+    err = esp_wifi_set_ps(WIFI_PS_NONE);
+    if (err != ESP_OK)
+    {
+        ESP_LOGW(TAG, "Failed to disable Wi-Fi power save: %s", esp_err_to_name(err));
+    }
+
+    ESP_LOGI(TAG, "Wi-Fi station initialized");
     return ESP_OK;
 }
