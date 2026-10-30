@@ -67,7 +67,8 @@ static void udp_server_task(void *arg)
             }
 
             buffer[received] = '\0';
-            ESP_LOGI(TAG, "UDP request from %s:%u (%d bytes): %s",
+            /* Parking updates arrive every second; keep the UART quiet at INFO level. */
+            ESP_LOGD(TAG, "UDP request from %s:%u (%d bytes): %s",
                      inet_ntoa(source_addr.sin_addr),
                      ntohs(source_addr.sin_port), received, buffer);
 
@@ -79,7 +80,7 @@ static void udp_server_task(void *arg)
                 esp_err_t fire_err = servo_set_fire_alarm(new_state.fire);
                 if (fire_err != ESP_OK)
                     ESP_LOGE(TAG, "Failed to update fire barrier mode: %s", esp_err_to_name(fire_err));
-                ESP_LOGI(TAG, "Parking update accepted (%d/5 free)",
+                ESP_LOGD(TAG, "Parking update accepted (%d/5 free)",
                          (new_state.slots[0] == 0) + (new_state.slots[1] == 0) +
                          (new_state.slots[2] == 0) + (new_state.slots[3] == 0) +
                          (new_state.slots[4] == 0));

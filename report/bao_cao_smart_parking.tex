@@ -328,8 +328,8 @@ cùng kết nối vào một mạng Wi-Fi cục bộ do máy chủ phát (Hình~
 \draw[arr] (srv) -- (buz);
 \draw[arr,<->] (srv) -- (nvs);
 
-\node[board,fill=boxB,below left=2.0cm and -0.6cm of srv] (c1) {\textbf{CLIENT}\\ESP8266 (Arduino)\\Cảm biến bãi xe};
-\node[board,fill=boxC,below right=2.0cm and -0.6cm of srv] (c2) {\textbf{CLIENT2}\\ESP8266 (Arduino)\\RFID + nhiệt độ};
+\node[board,fill=boxB,below left=2.0cm and -0.6cm of srv] (c1) {\textbf{SENSOR CLIENT}\\ESP8266 (Arduino)\\Cảm biến bãi xe};
+\node[board,fill=boxC,below right=2.0cm and -0.6cm of srv] (c2) {\textbf{RFID CLIENT}\\ESP8266 (Arduino)\\RFID + nhiệt độ};
 \node[dev,below=0.6cm of c1] (s1) {5 $\times$ IR, cảm biến lửa,\\cảm biến mực nước (A0)};
 \node[dev,below=0.6cm of c2] (s2) {2 $\times$ MFRC522 (SPI),\\DHT11};
 \draw[arr] (s1) -- (c1);
@@ -357,8 +357,8 @@ cùng kết nối vào một mạng Wi-Fi cục bộ do máy chủ phát (Hình~
 \toprule
 \textbf{Nút} & \textbf{Nhiệm vụ} & \textbf{Mã nguồn} \\ \midrule
 Server & Phát Wi-Fi, nhận UDP, quản lý phiên RFID + tính phí, điều khiển barrier, còi, màn hình, web server & \file{Server/main/} \\
-Client & Đọc 5 IR + lửa + nước, chống rung, gửi trạng thái đầy đủ mỗi 1\,s & \file{Client/Client.ino} \\
-Client2 & Quét luân phiên 2 đầu đọc RFID, đọc DHT11, gửi sự kiện mỗi lần quẹt thẻ & \file{Client2/Client2.ino} \\
+Sensor Client & Đọc 5 IR + lửa + nước, chống rung, gửi trạng thái đầy đủ mỗi 1\,s & \file{SensorClient/SensorClient.ino} \\
+RFID Client & Quét luân phiên 2 đầu đọc RFID, đọc DHT11, gửi sự kiện mỗi lần quẹt thẻ & \file{RFIDClient/RFIDClient.ino} \\
 Trình duyệt & Hiển thị dashboard, gọi API điều khiển barrier & \file{Server/main/network/http/} \\
 \bottomrule
 \end{tabularx}
@@ -376,7 +376,7 @@ tâm đặt ở phòng bảo vệ; kết nối không dây giúp không phải k
 \end{lydo}
 
 \section{Luồng hoạt động chính}
-\paragraph{Luồng cập nhật chỗ đỗ.} Client đọc cảm biến liên tục trong \code{loop()},
+\paragraph{Luồng cập nhật chỗ đỗ.} Sensor Client đọc cảm biến liên tục trong \code{loop()},
 lọc nhiễu 250\,ms, cứ mỗi 1\,s đóng gói \emph{toàn bộ trạng thái} thành JSON và gửi
 broadcast UDP. Server nhận, kiểm tra cú pháp, ghi vào biến trạng thái dùng chung
 (bảo vệ bởi critical section), bật/tắt còi. Tác vụ màn hình và trang web đọc lại
@@ -389,7 +389,7 @@ trạng thái này để hiển thị.
   msg/.style={-{Stealth[length=1.8mm]},thick},
   act/.style={draw,fill=boxA,rounded corners=2pt,minimum width=2.2cm,minimum height=0.6cm,align=center}]
 \node[act] (u) at (0,0) {Người lái};
-\node[act] (c) at (3,0) {Client2\\(RC522)};
+\node[act] (c) at (3,0) {RFID Client\\(RC522)};
 \node[act] (s) at (6.4,0) {Server\\UDP task};
 \node[act] (r) at (9.4,0) {rfid\_session};
 \node[act] (b) at (12.2,0) {Servo task};
@@ -523,10 +523,10 @@ thấp}: mức cao = im lặng, nên trạng thái mặc định của chân tr�
 ngay khi khởi tạo. Cần đảm bảo module còi không kéo chân xuống thấp lúc cấp nguồn,
 nếu không bo sẽ vào chế độ nạp.
 
-\subsection{Nút cảm biến ESP8266 (Client)}
+\subsection{Nút cảm biến ESP8266 (Sensor Client)}
 \begin{table}[H]
 \centering\small
-\caption{Phân chân Client}\label{tab:pin-c1}
+\caption{Phân chân Sensor Client}\label{tab:pin-c1}
 \begin{tabularx}{\linewidth}{@{}llX@{}}
 \toprule
 \textbf{Cảm biến} & \textbf{GPIO} & \textbf{Ghi chú} \\ \midrule
@@ -537,10 +537,10 @@ Nước & A0 & Chân ADC duy nhất của ESP8266 (10 bit) \\
 \end{tabularx}
 \end{table}
 
-\subsection{Nút RFID ESP8266 (Client2)}
+\subsection{Nút RFID ESP8266 (RFID Client)}
 \begin{table}[H]
 \centering\small
-\caption{Phân chân Client2}\label{tab:pin-c2}
+\caption{Phân chân RFID Client}\label{tab:pin-c2}
 \begin{tabularx}{\linewidth}{@{}llX@{}}
 \toprule
 \textbf{Tín hiệu} & \textbf{GPIO} & \textbf{Ghi chú} \\ \midrule
@@ -1105,7 +1105,7 @@ không phụ thuộc hỗ trợ \code{\%f} của thư viện C trên vi điều 
 \chapter{Thiết kế firmware nút cảm biến (ESP8266)}\label{chap:client}
 % =====================================================================
 
-\section{Client: cảm biến chỗ đỗ, lửa và nước}
+\section{Sensor Client: cảm biến chỗ đỗ, lửa và nước}
 \subsection{Vòng lặp không chặn}
 Toàn bộ chương trình dựa trên \code{millis()} thay vì \code{delay()}: mỗi vòng
 \code{loop()} gọi \code{ArduinoOTA.handle()}, đọc cảm biến, và chỉ gửi UDP khi đã
@@ -1115,7 +1115,7 @@ thường xuyên) không bị bỏ đói. Phép so sánh dạng \code{now - last
 với số không dấu vẫn đúng khi \code{millis()} tràn sau khoảng 49,7 ngày.
 
 \subsection{Chống rung (debounce) 250\,ms}
-\begin{lstlisting}[language=C++,caption={Thuật toán chống rung cho cảm biến IR (\file{Client.ino})}]
+\begin{lstlisting}[language=C++,caption={Thuật toán chống rung cho cảm biến IR (\file{SensorClient.ino})}]
 int current = read_active_low(sensorPins[i]);
 if (current != pendingState[i]) {      // tin hieu vua thay doi
     pendingState[i] = current;
@@ -1202,14 +1202,14 @@ $\le 2$\,s kể cả khi mất một gói. Gửi nhanh hơn (ví dụ 100\,ms) k
 Wi-Fi truyền ở tốc độ cơ sở thấp nên tốn thời gian kênh) và tăng tải cho máy chủ.
 \end{lydo}
 
-\section{Client2: hai đầu đọc RFID và DHT11}
+\section{RFID Client: hai đầu đọc RFID và DHT11}
 \subsection{Ghép hai MFRC522 trên một bus SPI}
 Hai đầu đọc dùng chung SCK/MOSI/MISO và chân RST, mỗi đầu có chân SS riêng. Khi
 khởi tạo, cả hai SS được kéo lên cao (không chọn), sau đó lần lượt
 \code{PCD\_Init}, đặt \textbf{độ khuếch đại ăng-ten tối đa 48\,dB} để tăng tầm đọc
 và \textbf{tắt ăng-ten}.
 
-\begin{lstlisting}[language=C++,caption={Quét luân phiên hai đầu đọc (\file{Client2.ino})}]
+\begin{lstlisting}[language=C++,caption={Quét luân phiên hai đầu đọc (\file{RFIDClient.ino})}]
 for (uint8_t reader = 0; reader < NR_OF_READERS; reader++) {
     mfrc522[reader].PCD_AntennaOn();
     delay(4);  // cho tu truong nap nang luong cho the
@@ -1282,10 +1282,10 @@ Web & \code{http://192.168.4.1} (cổng 80) \\
 \end{table}
 
 \section{Bản tin UDP}
-\begin{lstlisting}[language=json,caption={Bản tin \code{parking\_update} (Client $\to$ Server, mỗi 1\,s)}]
+\begin{lstlisting}[language=json,caption={Bản tin \code{parking\_update} (Sensor Client $\to$ Server, mỗi 1\,s)}]
 {"type":"parking_update","slots":[1,0,0,1,0],"water_mm":0.2,"fire":false}
 \end{lstlisting}
-\begin{lstlisting}[language=json,caption={Bản tin \code{rfid\_event} (Client2 $\to$ Server, mỗi lần quẹt thẻ)}]
+\begin{lstlisting}[language=json,caption={Bản tin \code{rfid\_event} (RFID Client $\to$ Server, mỗi lần quẹt thẻ)}]
 {"type":"rfid_event","card_id":"A1B2C3D4","temperature_c":28.0}
 \end{lstlisting}
 
@@ -1376,7 +1376,7 @@ thêm tính năng lớn sẽ vượt phân vùng. Giải pháp là dùng bảng 
 \begin{itemize}
 \item Truyền một khung màn hình đầy đủ: $\approx$23\,ms ở 40\,MHz.
 \item Khung GIF $96\times96$: $147\,456$ bit $\Rightarrow \approx$3,7\,ms.
-\item Lưu lượng UDP từ Client: $\approx$75 byte/s — không đáng kể.
+\item Lưu lượng UDP từ Sensor Client: $\approx$75 byte/s — không đáng kể.
 \item Độ trễ cảm nhận chỗ đỗ: 250\,ms (debounce) + tối đa 1\,s (chu kỳ gửi) + tối đa
   500\,ms (chu kỳ vẽ) $\approx$ \textbf{tối đa 1,75\,s}, đạt NFR1.
 \item Độ trễ RFID $\to$ barrier: thời gian quét ($<$ 50\,ms) + truyền UDP (vài ms) +
@@ -1399,7 +1399,7 @@ không có cảnh báo; \textbf{kết quả: 26/26 đạt}.
 \caption{Các trường hợp kiểm thử đơn vị}\label{tab:unittest}\\
 \toprule \textbf{\#} & \textbf{Đầu vào} & \textbf{Kỳ vọng / Kết quả} \\ \midrule \endfirsthead
 \toprule \textbf{\#} & \textbf{Đầu vào} & \textbf{Kỳ vọng / Kết quả} \\ \midrule \endhead
-1 & \code{parking\_update} chuẩn của Client & Chấp nhận, đúng slot — Đạt \\
+1 & \code{parking\_update} chuẩn của Sensor Client & Chấp nhận, đúng slot — Đạt \\
 2 & Thứ tự trường đảo, có khoảng trắng, \code{fire:true} & Chấp nhận — Đạt \\
 3 & Thiếu trường \code{fire} (client cũ) & Chấp nhận — Đạt \\
 4 & \code{slots} chỉ có 4 phần tử & Từ chối — Đạt \\
@@ -1438,7 +1438,7 @@ Máy tính kết nối vào AP \code{ESP32-Parking}, chạy các script và quan
 \toprule \textbf{\#} & \textbf{Thao tác} & \textbf{Hành vi mong đợi} \\ \midrule \endfirsthead
 \toprule \textbf{\#} & \textbf{Thao tác} & \textbf{Hành vi mong đợi} \\ \midrule \endhead
 S1 & Cấp nguồn máy chủ & AP \code{ESP32-Parking} xuất hiện; TFT hiện giao diện, các giá trị \code{--.-}; barrier về vị trí đã lưu \\
-S2 & Cấp nguồn Client & Sau khi kết nối, TFT/dashboard hiển thị 5/5 FREE, mực nước \\
+S2 & Cấp nguồn Sensor Client & Sau khi kết nối, TFT/dashboard hiển thị 5/5 FREE, mực nước \\
 S3 & Đặt vật cản trước IR số 2 & Trong $\le 2$\,s, ô S2 chuyển BUSY (đỏ), FREE SPACES giảm 1 \\
 S4 & Rê vật nhanh qua IR ($<$ 250\,ms) & Trạng thái không đổi (chống rung) \\
 S5 & Quẹt thẻ mới ở đầu đọc 1 & Barrier vào mở, tự đóng sau $\approx$3\,s; nhiệt độ cập nhật \\
@@ -1450,7 +1450,7 @@ S10 & Tắt lửa & Sau debounce và gói kế tiếp, còi tắt, màn hình tr
 S11 & Nhúng cảm biến nước & Giá trị mực nước tăng, tối đa 40\,mm \\
 S12 & Bấm OPEN/CLOSE trên web & Barrier tương ứng chuyển động; trạng thái hiển thị đúng \\
 S13 & Mở barrier từ web rồi rút nguồn, cấp lại & Barrier khôi phục trạng thái mở (NVS) \\
-S14 & Tắt máy chủ khi đang mở web & Dashboard báo ESP32 / OFFLINE; Client tự kết nối lại khi máy chủ bật \\
+S14 & Tắt máy chủ khi đang mở web & Dashboard báo ESP32 / OFFLINE; Sensor Client tự kết nối lại khi máy chủ bật \\
 S15 & Gửi gói UDP rác từ máy tính & Máy chủ ghi log ``Ignoring invalid'' và tiếp tục hoạt động \\
 \bottomrule
 \end{longtable}
@@ -1556,8 +1556,9 @@ idf.py -p <CONG_SERIAL> flash monitor
 
 \section*{Nút cảm biến ESP8266}
 Trong Arduino IDE: cài ESP8266 core, cài thư viện \code{MFRC522} và
-\code{DHT sensor library} (cho Client2), mở \file{Client/Client.ino} hoặc
-\file{Client2/Client2.ino}, chọn bo ESP8266 và cổng, bấm Upload. Các lần sau có thể
+\code{DHT sensor library} (cho RFID Client), mở sketch
+\file{SensorClient.ino} (thư mục \file{SensorClient/}) hoặc \file{RFIDClient.ino}
+(thư mục \file{RFIDClient/}), chọn bo ESP8266 và cổng, bấm Upload. Các lần sau có thể
 nạp qua mạng (cổng mạng OTA xuất hiện trong menu Port khi máy tính kết nối
 \code{ESP32-Parking}).
 
@@ -1575,8 +1576,8 @@ python examples/udp_rfid_sender.py A1B2C3D4   # chay 2 lan: vao roi ra
 \toprule
 \textbf{Thành viên} & \textbf{Công việc} \\ \midrule
 {[Thành viên 1]} & Firmware máy chủ: Wi-Fi AP, UDP/HTTP server, màn hình ST7789, dashboard \\
-{[Thành viên 2]} & Firmware Client: cảm biến IR, lửa, nước; hiệu chỉnh debounce \\
-{[Thành viên 3]} & Firmware Client2: RFID MFRC522, DHT11, OTA \\
+{[Thành viên 2]} & Firmware Sensor Client: cảm biến IR, lửa, nước; hiệu chỉnh debounce \\
+{[Thành viên 3]} & Firmware RFID Client: RFID MFRC522, DHT11, OTA \\
 {[Thành viên 4]} & Barrier servo, còi báo cháy, phiên RFID và tính phí, tài liệu \\
 \bottomrule
 \end{tabularx}

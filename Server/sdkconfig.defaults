@@ -1,2 +1,4 @@
 # Build the app with -O2 (CONFIG_COMPILER_OPTIMIZATION_PERF) instead of the -Og debug default.
 CONFIG_COMPILER_OPTIMIZATION_PERF=y
+# 1.5 MB app partition (2 MB flash); the default 1 MB one is almost full.
+CONFIG_PARTITION_TABLE_SINGLE_APP_LARGE=y

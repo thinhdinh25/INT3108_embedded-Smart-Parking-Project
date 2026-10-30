@@ -19,8 +19,7 @@ const char* password = "12345678";
 #define FLAME  5
 
 // The server expects exactly five binary parking-slot values.
-// Reversed so the physical IR5 sensor is reported as slot S1 (and IR1 as S5).
-const int sensorPins[5] = {IR5, IR4, IR3, IR2, IR1};
+const int sensorPins[5] = {IR1, IR2, IR3, IR4, IR5};
 
 bool state[5] = {0};
 int pendingState[5] = {0};

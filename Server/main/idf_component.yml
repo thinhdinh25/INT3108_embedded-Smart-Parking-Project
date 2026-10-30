@@ -1,0 +1,3 @@
+dependencies:
+  # mDNS responder so the dashboard is reachable as http://parking.local
+  espressif/mdns: "^1.8.0"
