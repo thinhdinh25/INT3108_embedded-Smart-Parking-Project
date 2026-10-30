@@ -35,14 +35,17 @@ const unsigned long DHT_INTERVAL = 5000; // Read DHT11 every 5 seconds
 float currentTemperatureC = 0.0f;
 
 // --- BIẾN CHỐNG ĐỌC LẶP THẺ (DEBOUNCE) ---
-String lastUID[NR_OF_READERS] = {"", ""};
+// Fixed buffers instead of String: no heap allocation per scan, so no fragmentation
+// over long uptime. A 10-byte UID is 20 hex characters.
+#define UID_HEX_MAX 21
+char lastUID[NR_OF_READERS][UID_HEX_MAX] = {"", ""};
 unsigned long lastReadTime[NR_OF_READERS] = {0, 0};
 const unsigned long COOLDOWN_TIME = 2000; // Thời gian chờ đọc lại cùng UID (2 giây)
 
 // Khai báo hàm nguyên mẫu
-String getCardUID(byte *buffer, byte bufferSize);
-bool canReadUID(const String &uid, unsigned long now);
-void sendUDPRfid(String uid, const char *gate);
+void formatCardUID(const byte *buffer, byte bufferSize, char *out);
+bool canReadUID(const char *uid, unsigned long now);
+void sendUDPRfid(const char *uid, const char *gate);
 void handleDHT11();
 void setupOTA();
 
@@ -122,13 +125,14 @@ void loop() {
     // Kiểm tra có thẻ đặt vào không
     if (mfrc522[reader].PICC_IsNewCardPresent() && mfrc522[reader].PICC_ReadCardSerial()) {
       
-      String currentUID = getCardUID(mfrc522[reader].uid.uidByte, mfrc522[reader].uid.size);
+      char currentUID[UID_HEX_MAX];
+      formatCardUID(mfrc522[reader].uid.uidByte, mfrc522[reader].uid.size, currentUID);
       unsigned long now = millis();
 
       // KIỂM TRA CHỐNG LẶP (chỉ đọc lại cùng UID sau 2 giây):
       if (canReadUID(currentUID, now)) {
         
-        lastUID[reader] = currentUID;
+        strcpy(lastUID[reader], currentUID);
         lastReadTime[reader] = now;
 
         Serial.print(F("=> [ĐẦU ĐỌC "));
@@ -161,9 +165,9 @@ void loop() {
 }
 
 // Chỉ cho phép đọc lại cùng một UID khi đã qua COOLDOWN_TIME (2 giây)
-bool canReadUID(const String &uid, unsigned long now) {
+bool canReadUID(const char *uid, unsigned long now) {
   for (uint8_t r = 0; r < NR_OF_READERS; r++) {
-    if (lastUID[r].length() > 0 && uid == lastUID[r] && (now - lastReadTime[r] < COOLDOWN_TIME)) {
+    if (lastUID[r][0] != '\0' && strcmp(uid, lastUID[r]) == 0 && (now - lastReadTime[r] < COOLDOWN_TIME)) {
       return false;
     }
   }
@@ -191,13 +195,13 @@ void handleDHT11() {
 }
 
 // Send an RFID scan using the server's current request format.
-void sendUDPRfid(String uid, const char *gate) {
+void sendUDPRfid(const char *uid, const char *gate) {
   if (WiFi.getMode() & WIFI_AP) {
     // Server format: {"type":"rfid_event","card_id":"A1B2C3D4","gate":"in","temperature_c":28.5}
     char payload[144];
     int length = snprintf(payload, sizeof(payload),
                           "{\"type\":\"rfid_event\",\"card_id\":\"%s\",\"gate\":\"%s\",\"temperature_c\":%.1f}",
-                          uid.c_str(), gate, currentTemperatureC);
+                          uid, gate, currentTemperatureC);
     if (length < 0 || length >= sizeof(payload)) {
       Serial.println(F("-> [UDP RFID] Payload formatting failed"));
       return;
@@ -246,15 +250,15 @@ void setupOTA() {
   Serial.println(F("ArduinoOTA đã sẵn sàng (Hostname: ESP8266-RC522-DHT11)"));
 }
 
-// Chuyển UID sang chuỗi HEX viết hoa
-String getCardUID(byte *buffer, byte bufferSize) {
-  String uid = "";
-  for (byte i = 0; i < bufferSize; i++) {
-    if (buffer[i] < 0x10) {
-      uid += "0";
-    }
-    uid += String(buffer[i], HEX);
+// Chuyển UID sang chuỗi HEX viết hoa, mỗi byte đúng 2 ký tự (out cần UID_HEX_MAX byte)
+void formatCardUID(const byte *buffer, byte bufferSize, char *out) {
+  static const char HEX_DIGITS[] = "0123456789ABCDEF";
+  if (bufferSize > (UID_HEX_MAX - 1) / 2) {
+    bufferSize = (UID_HEX_MAX - 1) / 2;
   }
-  uid.toUpperCase();
-  return uid;
+  for (byte i = 0; i < bufferSize; i++) {
+    out[2 * i] = HEX_DIGITS[buffer[i] >> 4];
+    out[2 * i + 1] = HEX_DIGITS[buffer[i] & 0x0F];
+  }
+  out[2 * bufferSize] = '\0';
 }

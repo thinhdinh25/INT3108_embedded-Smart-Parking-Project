@@ -1,0 +1,13 @@
+stateDiagram-v2
+  direction LR
+  [*] --> Ngoai
+  Ngoai: Thẻ ngoài bãi
+  Trong: Thẻ trong bãi
+  TC1: Bị từ chối · WRONG GATE / FULL
+  TC2: Bị từ chối · WRONG GATE
+  Ngoai --> Trong: quẹt cổng vào, còn chỗ<br/>ENTERED, mở cổng vào 3 s
+  Trong --> Ngoai: quẹt cổng ra<br/>EXITED, tính phí, mở cổng ra 3 s
+  Ngoai --> TC1: quẹt cổng ra, hoặc bãi đầy
+  TC1 --> Ngoai: thông báo 5 s
+  Trong --> TC2: quẹt cổng vào
+  TC2 --> Trong: thông báo 5 s

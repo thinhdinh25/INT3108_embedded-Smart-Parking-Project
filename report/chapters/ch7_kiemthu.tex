@@ -1,0 +1,84 @@
+% =====================================================================
+\chapter{Kiểm thử}\label{chap:kiemthu}
+% =====================================================================
+
+\section{Chiến lược kiểm thử}
+\begin{figure}[H]
+\centering
+\mmd[0.92][0.6]{testpyramid}
+\caption{Ba tầng kiểm thử: càng xuống dưới càng nhanh, tự động và chạy thường xuyên}\label{fig:testpyramid}
+\end{figure}
+
+\section{Kiểm thử tự động}
+Bộ kiểm thử nằm trong \file{tests/} và chạy bằng \code{make -C tests}. Các module
+nghiệp vụ của máy chủ được biên dịch với hai header giả (critical section và đồng hồ
+điều khiển được). Hai sketch Arduino được biên dịch \emph{nguyên vẹn} cùng lớp giả lập
+thư viện (\file{tests/arduino/}): đồng hồ \code{millis()}, mức logic từng chân, ADC,
+Wi-Fi, UDP, đầu đọc MFRC522 và DHT11.
+
+\begin{table}[H]
+\centering\small
+\caption{Các bộ kiểm thử tự động và kết quả}\label{tab:unittests}
+\begin{tabularx}{\linewidth}{@{}lXr@{}}
+\toprule
+\textbf{Bộ} & \textbf{Nội dung kiểm tra} & \textbf{Kết quả} \\ \midrule
+\file{json\_parsers} & Bản tin hợp lệ (mọi thứ tự khóa, khoảng trắng, giới hạn dải); 22 bản tin \code{parking\_update} sai và 16 bản tin \code{rfid\_event} sai đều bị từ chối (thiếu/thừa khóa, khóa lặp, sai kiểu, ngoài dải, ký tự lạ, dữ liệu thừa, chuỗi có ký tự thoát) & 57/57 \\
+\file{rfid\_session} & Phí theo giờ (biên 0, 3600, 3601\,s, bão hòa); vào/ra, sai cổng; hóa đơn hết hạn đúng 60\,s; bãi đầy, tái sử dụng chỗ; nhiệt độ; nhật ký vòng (thứ tự, chỉ giữ 10); thông báo từ chối 5\,s & 74/74 \\
+\file{gif\_frames} & 28 khung ảnh động giải nén đủ; nền đã xóa và byte đã đảo đúng; từ chối yêu cầu sai kích thước & 89/89 \\
+\file{sensor\_client} & Chạy \file{SensorClient.ino}: nhắc lại đúng 1 gói/giây; gửi ngay sau 50\,ms khi có xe; lọc nhiễu 30\,ms; thứ tự S1–S5; báo cháy và hết cháy; quy đổi mực nước; mất/có lại Wi-Fi; mọi gói được bộ đọc của máy chủ chấp nhận & 15/15 \\
+\file{rfid\_client} & Chạy \file{RFIDClient.ino}: UID hex in hoa; cổng vào/ra; chống lặp 2\,s trên cả hai đầu đọc; UID 10 byte; DHT11 lỗi giữ giá trị cũ; mọi gói được bộ đọc của máy chủ chấp nhận & 15/15 \\ \midrule
+\textbf{Tổng} & & \textbf{250/250} \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\begin{lstlisting}[language=C,caption={[Ví dụ kiểm thử chống rung của Sensor Client]Ví dụ kiểm thử chống rung của Sensor Client (\file{tests/test\_sensor\_client.cpp})}]
+/* A car on S1 is reported as soon as the 50 ms debounce passes. */
+fake::pin_level[SLOT_PINS[0]] = LOW;
+run_for(40);
+CHECK(fake::udp_sent.empty());            /* still inside the debounce window */
+run_for(30);
+CHECK(fake::udp_sent.size() == 1);
+CHECK(last_packet(&s) && s.slots[0] == 1); /* parsed by the real server parser */
+\end{lstlisting}
+
+\begin{lydo}[Tại sao kiểm thử trên máy tính]
+Lỗi trong bộ đọc bản tin, cách tính phí hay logic chống rung rất khó tái hiện trên
+phần cứng (phải đúng thời điểm, đúng chuỗi byte). Trên máy tính, đồng hồ giả cho phép
+kiểm tra chính xác đến từng mili giây, cả bộ chạy trong vài giây và chạy lại sau mỗi
+lần sửa mã. Việc đưa gói tin của client vào bộ đọc thật của máy chủ bảo đảm hai bên
+luôn khớp định dạng — lỗi kiểu ``client gửi \code{temperature\_c} trong
+\code{parking\_update} bị máy chủ từ chối'' được phát hiện ngay.
+\end{lydo}
+
+Bộ kiểm thử cũng đã giúp phát hiện một lỗi \emph{trong chính bài kiểm thử}: khi kiểm
+tra ``bãi đầy'', một thẻ từ bài kiểm thử trước vẫn còn trong bãi khiến chỉ còn 4 chỗ
+trống. Bài kiểm thử được sửa để tự dọn trạng thái — đúng như mục đích của việc chạy
+kiểm thử thường xuyên.
+
+\section{Kiểm thử tích hợp bằng công cụ giả lập}
+Các lệnh ở Bước~10 (Chương~\ref{chap:huongdanchay}) gửi bản tin thật tới máy chủ thật;
+dùng để kiểm tra màn hình, thanh chắn, còi, trang web và nhật ký khi chưa có đủ client.
+
+\section{Kịch bản kiểm thử hệ thống trên phần cứng}
+\begin{longtable}{@{}p{0.9cm}>{\raggedright\arraybackslash}p{5.6cm}>{\raggedright\arraybackslash}p{7.9cm}@{}}
+\caption{Kịch bản kiểm thử trên phần cứng và hành vi mong đợi}\label{tab:systest}\\
+\toprule \textbf{\#} & \textbf{Thao tác} & \textbf{Hành vi mong đợi} \\ \midrule \endfirsthead
+\toprule \textbf{\#} & \textbf{Thao tác} & \textbf{Hành vi mong đợi} \\ \midrule \endhead
+S1 & Cấp nguồn RFID Client, rồi máy chủ & Có Wi-Fi \code{ESP32-Parking}; máy chủ báo \code{Got IP} và \code{mDNS: parking.local -> ...}; TFT hiện giao diện; hai thanh chắn đóng \\
+S2 & Cấp nguồn Sensor Client, mở \code{parking.local} & Web hiện sơ đồ 5 ô, \code{LIVE / SENSOR} \\
+S3 & Đặt xe vào ô S2 & TFT đổi ô S2 sang đỏ gần như tức thì; web hiện hình xe ở S2 trong $\le$ 1\,s \\
+S4 & Rê vật nhanh qua cảm biến ($<$ 50\,ms) & Trạng thái không đổi \\
+S5 & Quẹt thẻ mới ở cổng vào & Thanh chắn vào mở, tự đóng sau 3\,s; web có dòng \code{IN}; nhiệt độ cập nhật \\
+S6 & Giữ thẻ trên đầu đọc 1\,s & Chỉ một sự kiện được gửi \\
+S7 & Quẹt lại thẻ đó ở cổng vào & Không mở; TFT \code{WRONG GATE – ALREADY INSIDE - USE EXIT GATE} 5\,s; web \code{REJECTED · WRONG GATE} \\
+S8 & Quẹt thẻ đó ở cổng ra & Thanh chắn ra mở; TFT hiện hóa đơn 60\,s; web \code{OUT} kèm thời lượng và phí \\
+S9 & Đưa lửa gần cảm biến lửa & Còi kêu; TFT \code{DANGER}; hai thanh chắn mở; băng rôn đỏ trên web \\
+S10 & Bấm \code{CLOSE} trên web khi đang cháy & Bị từ chối, thanh chắn vẫn mở \\
+S11 & Tắt lửa & Còi tắt, hai thanh chắn đóng, TFT trở lại bình thường \\
+S12 & Bấm \code{OPEN}/\code{CLOSE}/\code{EMERGENCY} trên web & Thanh chắn tương ứng chuyển động, trạng thái trên web đúng \\
+S13 & Quẹt thẻ thứ 6 khi đã có 5 xe & Không mở; TFT \code{PARKING FULL} \\
+S14 & Tắt RFID Client rồi bật lại & Máy chủ và Sensor Client tự kết nối lại; \code{parking.local} trỏ đúng IP mới \\
+S15 & Gửi gói UDP rác từ máy tính & Máy chủ ghi cảnh báo và tiếp tục hoạt động \\
+\bottomrule
+\end{longtable}

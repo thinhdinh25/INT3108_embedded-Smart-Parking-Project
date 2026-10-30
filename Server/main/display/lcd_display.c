@@ -35,7 +35,6 @@
 #define GIF_Y 40
 #define GIF_WIDTH KAORUKO_WIDTH
 #define GIF_HEIGHT KAORUKO_HEIGHT
-#define GIF_PIXEL_COUNT (GIF_WIDTH * GIF_HEIGHT)
 #define GIF_BUFFERS 2
 #define CLAUDE_Y 194
 
@@ -43,9 +42,9 @@ static const char *TAG = "LCD_DISPLAY";
 static esp_lcd_panel_handle_t panel;
 static uint16_t *framebuffer;
 static uint16_t *gif_framebuffer[GIF_BUFFERS];
-static uint8_t gif_background_mask[(GIF_PIXEL_COUNT + 7) / 8];
 static int gif_buffer_index = 0;
 static SemaphoreHandle_t lcd_mutex;
+static TaskHandle_t display_task_handle;
 static const int width = LCD_WIDTH;
 static const int height = LCD_HEIGHT;
 
@@ -167,79 +166,28 @@ static esp_err_t lcd_draw_bitmap_locked(int x_start, int y_start,
     return err;
 }
 
-static bool is_near_white(uint16_t color)
+static void draw_notice(const rfid_notice_t *notice)
 {
-    return ((color >> 11) & 0x1f) >= 29 &&
-           ((color >> 5) & 0x3f) >= 60 &&
-           (color & 0x1f) >= 29;
-}
-
-static bool is_background_pixel_marked(size_t index)
-{
-    return (gif_background_mask[index / 8] & (1U << (index % 8))) != 0;
-}
-
-static void mark_background_pixel(size_t index)
-{
-    gif_background_mask[index / 8] |= (uint8_t)(1U << (index % 8));
-}
-
-/* Remove the white matte around Kaoruko while preserving enclosed white details. */
-static void remove_kaoruko_white_background(uint16_t *pixels)
-{
-    memset(gif_background_mask, 0, sizeof(gif_background_mask));
-
-    for (int x = 0; x < GIF_WIDTH; ++x)
+    char line[RFID_CARD_ID_MAX + 5];
+    snprintf(line, sizeof(line), "ID %s", notice->card_id);
+    draw_text(8, 198, line, 1, COLOR_WHITE);
+    if (notice->result == RFID_SCAN_FULL)
     {
-        const size_t top = (size_t)x;
-        const size_t bottom = (GIF_HEIGHT - 1) * GIF_WIDTH + x;
-        if (is_near_white(pixels[top])) mark_background_pixel(top);
-        if (is_near_white(pixels[bottom])) mark_background_pixel(bottom);
+        draw_text(8, 209, "PARKING FULL", 2, COLOR_RED);
+        draw_text(8, 229, "NO FREE SPACE - PLEASE WAIT", 1, COLOR_MUTED);
     }
-    for (int y = 1; y < GIF_HEIGHT - 1; ++y)
+    else
     {
-        const size_t left = (size_t)y * GIF_WIDTH;
-        const size_t right = left + GIF_WIDTH - 1;
-        if (is_near_white(pixels[left])) mark_background_pixel(left);
-        if (is_near_white(pixels[right])) mark_background_pixel(right);
+        draw_text(8, 209, "WRONG GATE", 2, COLOR_RED);
+        /* Entry reader while already inside, or exit reader without having entered. */
+        draw_text(8, 229, notice->gate == RFID_GATE_IN ? "ALREADY INSIDE - USE EXIT GATE"
+                                                       : "NOT CHECKED IN - USE ENTRY GATE",
+                  1, COLOR_MUTED);
     }
-
-    /* Propagate edge-connected white pixels using a small bitset, not a large queue.
-     * Alternating forward/backward scans spread marks in all directions per pass,
-     * so this converges in a few passes instead of one pass per pixel of distance. */
-    bool changed;
-    bool forward = true;
-    do
-    {
-        changed = false;
-        for (int row = 1; row < GIF_HEIGHT - 1; ++row)
-        {
-            const int y = forward ? row : GIF_HEIGHT - 1 - row;
-            for (int col = 1; col < GIF_WIDTH - 1; ++col)
-            {
-                const int x = forward ? col : GIF_WIDTH - 1 - col;
-                const size_t index = (size_t)y * GIF_WIDTH + x;
-                if (!is_background_pixel_marked(index) && is_near_white(pixels[index]) &&
-                    (is_background_pixel_marked(index - 1) ||
-                     is_background_pixel_marked(index + 1) ||
-                     is_background_pixel_marked(index - GIF_WIDTH) ||
-                     is_background_pixel_marked(index + GIF_WIDTH)))
-                {
-                    mark_background_pixel(index);
-                    changed = true;
-                }
-            }
-        }
-        forward = !forward;
-    } while (changed);
-
-    for (size_t index = 0; index < GIF_PIXEL_COUNT; ++index)
-        if (is_background_pixel_marked(index))
-            pixels[index] = COLOR_BG;
 }
 
 static void draw_parking_screen(const parking_state_t *state, int free_count,
-                                const rfid_receipt_t *receipt)
+                                const rfid_receipt_t *receipt, const rfid_notice_t *notice)
 {
     fill_rect(0, 0, width, height, COLOR_BG);
     fill_rect(0, 0, width, 4, COLOR_TEAL);
@@ -285,7 +233,10 @@ static void draw_parking_screen(const parking_state_t *state, int free_count,
     }
 
     fill_rect(0, 194, width, 46, COLOR_PANEL);
-    if (receipt->valid)
+    /* A rejection notice (5 s) takes the footer first; the exit receipt shows again after it. */
+    if (notice->valid)
+        draw_notice(notice);
+    else if (receipt->valid)
     {
         char line[RFID_CARD_ID_MAX + 5];
         char duration[16], fee[16];
@@ -363,10 +314,7 @@ static void draw_kaoruko_frame(int frame_index)
         ESP_LOGE(TAG, "Kaoruko frame %d decode failed", frame_index);
         return;
     }
-    remove_kaoruko_white_background(dst);
-    for (size_t i = 0; i < (size_t)GIF_WIDTH * GIF_HEIGHT; ++i)
-        dst[i] = rgb565_byte_swap(dst[i]);
-
+    /* Frames are stored pre-matted and pre-byte-swapped, so they go straight to the panel. */
     esp_err_t err = lcd_draw_bitmap_locked(
         GIF_X,
         GIF_Y,
@@ -404,7 +352,7 @@ static void draw_claude_frame(int frame_index, int x, int previous_x,
         gif_buffer_index ^= 1;
     }
 
-    /* The decoder pre-fills the frame with the footer panel color. */
+    /* Frames are stored panel-matted and pre-byte-swapped. */
     uint16_t *dst = gif_framebuffer[gif_buffer_index];
     if (!claude_decode_frame(frame_index, dst,
                              (size_t)CLAUDE_WIDTH * CLAUDE_HEIGHT))
@@ -412,8 +360,6 @@ static void draw_claude_frame(int frame_index, int x, int previous_x,
         ESP_LOGE(TAG, "Claude frame %d decode failed", frame_index);
         return;
     }
-    for (size_t i = 0; i < (size_t)CLAUDE_WIDTH * CLAUDE_HEIGHT; ++i)
-        dst[i] = rgb565_byte_swap(dst[i]);
 
     esp_err_t err = lcd_draw_bitmap_locked(
         x,
@@ -434,6 +380,7 @@ static void animation_task(void *arg)
     parking_state_t state = {0};
     int free_count = 0;
     rfid_receipt_t receipt = {0};
+    rfid_notice_t notice = {0};
     const int min_claude_x = 8;
     const int max_claude_x = LCD_WIDTH - CLAUDE_WIDTH - 8;
     int claude_x = min_claude_x;
@@ -446,10 +393,12 @@ static void animation_task(void *arg)
     {
         parking_state_get(&state, &free_count);
         rfid_session_get_receipt(&receipt);
+        rfid_session_get_notice(&notice);
+        const bool footer_busy = receipt.valid || notice.valid;
         if (!state.fire)
         {
             draw_kaoruko_frame(frame);
-            if (!receipt.valid)
+            if (!footer_busy)
             {
                 if (!claude_visible)
                 {
@@ -486,7 +435,7 @@ static void animation_task(void *arg)
             claude_visible = false;
             claude_frame_drawn = false;
         }
-        uint16_t frame_delay = (state.fire || receipt.valid)
+        uint16_t frame_delay = (state.fire || footer_busy)
                                    ? kaoruko_frame_delay_ms[frame]
                                    : claude_frame_delay_ms[claude_frame] / 2U;
         vTaskDelay(pdMS_TO_TICKS(frame_delay));
@@ -506,6 +455,8 @@ static void display_task(void *arg)
     int fire_frame = 0;
     rfid_receipt_t receipt = {0};
     rfid_receipt_t last_receipt = {0};
+    rfid_notice_t notice = {0};
+    rfid_notice_t last_notice = {0};
     int last_slots[PARKING_SLOT_COUNT] = {-1, -1, -1, -1, -1};
     float last_temperature = -1000.0f;
     float last_water = -1000.0f;
@@ -514,6 +465,7 @@ static void display_task(void *arg)
     {
         parking_state_get(&state, &free_count);
         rfid_session_get_receipt(&receipt);
+        rfid_session_get_notice(&notice);
 
         if (state.fire || first_draw ||
             state.received != last_received ||
@@ -521,7 +473,8 @@ static void display_task(void *arg)
             memcmp(state.slots, last_slots, sizeof(last_slots)) != 0 ||
             state.temperature_c != last_temperature ||
             state.water_mm != last_water ||
-            memcmp(&receipt, &last_receipt, sizeof(receipt)) != 0)
+            memcmp(&receipt, &last_receipt, sizeof(receipt)) != 0 ||
+            memcmp(&notice, &last_notice, sizeof(notice)) != 0)
         {
             if (state.received && state.fire)
             {
@@ -529,7 +482,7 @@ static void display_task(void *arg)
                 fire_frame = (fire_frame + 1) % 15;
             }
             else
-                draw_parking_screen(&state, free_count, &receipt);
+                draw_parking_screen(&state, free_count, &receipt, &notice);
 
             memcpy(last_slots, state.slots, sizeof(last_slots));
             last_received = state.received;
@@ -537,11 +490,20 @@ static void display_task(void *arg)
             last_temperature = state.temperature_c;
             last_water = state.water_mm;
             memcpy(&last_receipt, &receipt, sizeof(receipt));
+            memcpy(&last_notice, &notice, sizeof(notice));
             first_draw = false;
         }
 
-        vTaskDelay(pdMS_TO_TICKS(state.fire ? 120 : 500));
+        /* Wake at once when new data arrives (lcd_display_notify). Otherwise wake every
+         * second to expire the receipt, or every 120 ms to animate the fire screen. */
+        ulTaskNotifyTake(pdTRUE, pdMS_TO_TICKS(state.fire ? 120 : 1000));
     }
+}
+
+void lcd_display_notify(void)
+{
+    if (display_task_handle != NULL)
+        xTaskNotifyGive(display_task_handle);
 }
 
 esp_err_t lcd_display_start(void)
@@ -643,7 +605,7 @@ esp_err_t lcd_display_start(void)
     if (CONFIG_PARKING_LCD_BL_GPIO >= 0)
         gpio_set_level(CONFIG_PARKING_LCD_BL_GPIO, 1);
 
-    if (xTaskCreate(display_task, "lcd_display", 4096, NULL, 4, NULL) != pdPASS)
+    if (xTaskCreate(display_task, "lcd_display", 4096, NULL, 4, &display_task_handle) != pdPASS)
     {
         ESP_LOGE(TAG, "Unable to create display task");
         return ESP_ERR_NO_MEM;

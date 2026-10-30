@@ -1,0 +1,193 @@
+% =====================================================================
+\chapter{Hướng dẫn chạy mã nguồn từng bước}\label{chap:huongdanchay}
+% =====================================================================
+
+Chương này hướng dẫn từ lúc lấy mã nguồn đến lúc hệ thống chạy hoàn chỉnh, kèm kết
+quả mong đợi ở mỗi bước để kiểm tra. Môi trường cần cài trước theo
+Chương~\ref{chap:caidat}. Có hai cách chạy:
+\begin{itemize}
+  \item \textbf{Đầy đủ phần cứng}: Bước~1 đến Bước~9.
+  \item \textbf{Không cần client} (chỉ có bo máy chủ, dùng máy tính giả lập hai client):
+        Bước~1, 2, 4 rồi Bước~10.
+\end{itemize}
+Bộ kiểm thử tự động (không cần phần cứng nào) ở Bước~11.
+
+\begin{table}[H]
+\centering\small
+\caption{Tên cổng nối tiếp theo hệ điều hành}\label{tab:ports}
+\begin{tabularx}{\linewidth}{@{}lXX@{}}
+\toprule
+\textbf{Hệ điều hành} & \textbf{ESP32-C3 SuperMini (USB tích hợp)} & \textbf{ESP8266 NodeMCU (CH340/CP2102)} \\ \midrule
+Windows & \code{COM3}, \code{COM4}, \ldots{} (xem Device Manager) & \code{COM5}, \ldots \\
+macOS & \code{/dev/cu.usbmodem*} & \code{/dev/cu.usbserial-*} hoặc \code{/dev/cu.wchusbserial*} \\
+Linux & \code{/dev/ttyACM0} & \code{/dev/ttyUSB0} \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+% ---------------------------------------------------------------------
+\buoc{Lấy mã nguồn}
+\begin{lstlisting}[style=shell]
+git clone https://github.com/thinhdinh25/INT3108_embedded-Smart-Parking-Project.git
+cd INT3108_embedded-Smart-Parking-Project
+\end{lstlisting}
+Hoặc tải tệp ZIP từ trang GitHub của dự án và giải nén.
+
+\buoc{Làm quen cấu trúc thư mục}
+\begin{lstlisting}[language={},numbers=none,caption={Cấu trúc kho mã nguồn}]
+Server/              Firmware may chu ESP32-C3 (ESP-IDF)
+  main/              Ma nguon: barrier, buzzer, display, network, parking
+  sdkconfig.defaults Cau hinh mac dinh: -O2, phan vung ung dung 1,5 MB
+SensorClient/        Sketch Arduino cho Sensor Client (ESP8266)
+RFIDClient/          Sketch Arduino cho RFID Client (ESP8266)
+examples/            Cong cu gia lap client bang Python
+tests/               Bo kiem thu tu dong tren may tinh
+docs/                Ghi chu dau day
+report/              Bao cao nay (LaTeX + PDF)
+\end{lstlisting}
+
+\buoc{Lắp mạch}
+Đấu dây theo Bảng~\ref{tab:pin-srv} (máy chủ) và Bảng~\ref{tab:pin-clients} (hai client).
+Kiểm tra trước khi cấp nguồn:
+\begin{itemize}
+  \item Servo dùng nguồn 5\,V riêng, \textbf{GND nối chung} với ESP32-C3; không cấp
+        servo từ chân 3V3.
+  \item Màn hình ST7789 dùng 3V3; RC522 dùng 3V3 (không dùng 5\,V).
+  \item Module còi không được kéo GPIO9 xuống mức thấp khi cấp nguồn (nếu không, bo
+        sẽ vào chế độ nạp firmware).
+\end{itemize}
+
+\buoc{Biên dịch và nạp máy chủ ESP32-C3}
+Mở terminal ESP-IDF (Chương~\ref{chap:caidat}), cắm ESP32-C3 qua USB:
+\begin{lstlisting}[style=shell]
+cd Server
+idf.py set-target esp32c3        # chi lan dau; tao sdkconfig tu sdkconfig.defaults
+idf.py build                     # lan dau tai them thanh phan espressif/mdns
+idf.py -p <CONG> flash monitor   # vi du: -p COM4 hoac -p /dev/cu.usbmodem101
+\end{lstlisting}
+\textbf{Kết quả mong đợi} sau \code{idf.py build}:
+\begin{lstlisting}[language={},numbers=none]
+INT3108_Smart_Parking_Project.bin binary size 0x108890 bytes. Smallest app
+partition is 0x177000 bytes. 0x6e770 bytes (29%) free.
+Project build complete.
+\end{lstlisting}
+\textbf{Kết quả mong đợi} trên cửa sổ monitor (thoát bằng \code{Ctrl+]}):
+\begin{lstlisting}[language={},numbers=none]
+I (...) LCD_DISPLAY: ST7789 display started at 240x240 with 10-frame Kaoruko animation
+I (...) WIFI_STA: Wi-Fi station started, connecting to SSID=ESP32-Parking...
+I (...) HTTP_SERVER: HTTP server listening on port 80
+I (...) UDP_SERVER: UDP server listening on port 3333
+I (...) SERVER: Web interface: http://parking.local
+\end{lstlisting}
+Màn hình TFT hiện giao diện \code{PARKSENSE} với các giá trị \code{--.-}; hai thanh
+chắn về vị trí đóng. Máy chủ sẽ báo \code{Got IP} khi RFID Client (điểm truy cập) đã
+bật ở Bước~5.
+
+\begin{lydo}[Lưu ý khi đã có cấu hình cũ]
+\file{sdkconfig.defaults} chỉ được áp dụng khi chưa có tệp \file{Server/sdkconfig}.
+Nếu máy đã từng build bản cũ, hãy chạy lại \code{idf.py set-target esp32c3} (tạo lại
+cấu hình) hoặc chọn trong \code{idf.py menuconfig}: \emph{Compiler options → Optimize for
+performance} và \emph{Partition Table → Single factory app (large), no OTA}. Lần nạp
+đầu sau khi đổi bảng phân vùng phải dùng \code{idf.py flash} (nạp cả bảng phân vùng).
+\end{lydo}
+
+\buoc{Nạp RFID Client (điểm truy cập Wi-Fi)}
+\begin{enumerate}
+  \item Mở Arduino IDE, \emph{File → Open} tệp \file{RFIDClient/RFIDClient.ino}.
+  \item \emph{Tools → Board}: \textbf{NodeMCU 1.0 (ESP-12E Module)}; \emph{Port}: cổng
+        của bo (Bảng~\ref{tab:ports}); \emph{Upload Speed}: 115200.
+  \item Bấm \textbf{Upload} (mũi tên). Chờ \code{Done uploading}.
+  \item Mở \emph{Serial Monitor}, tốc độ \textbf{115200}.
+\end{enumerate}
+\textbf{Kết quả mong đợi}: dòng \code{Đã phát WiFi Hotspot!}, \code{SSID: ESP32-Parking},
+\code{Địa chỉ IP của Hotspot: 192.168.4.1}, phiên bản firmware của hai đầu đọc và
+\code{Hệ thống đã sẵn sàng!}. Trên monitor của máy chủ xuất hiện:
+\begin{lstlisting}[language={},numbers=none]
+I (...) WIFI_STA: Got IP: 192.168.4.2
+I (...) SERVER: mDNS: parking.local -> 192.168.4.2
+\end{lstlisting}
+
+\buoc{Nạp Sensor Client}
+Làm như Bước~5 với tệp \file{SensorClient/SensorClient.ino}. \textbf{Kết quả mong đợi}
+trên Serial Monitor: \code{Connected, client IP: 192.168.4.x}, sau đó mỗi giây một dòng
+\code{Sent: \{"type":"parking\_update",...\}}. Màn hình TFT hiện số chỗ trống thật.
+
+\begin{lydo}[Nạp lại qua Wi-Fi (OTA)]
+Từ lần thứ hai, khi máy tính kết nối Wi-Fi \code{ESP32-Parking}, hai client xuất hiện
+trong \emph{Tools → Port} dưới dạng cổng mạng (ví dụ \code{ESP8266-RC522-DHT11}); chọn
+cổng đó để nạp firmware mà không cần tháo bo khỏi mô hình.
+\end{lydo}
+
+\buoc{Bật hệ thống theo thứ tự}
+Thứ tự khuyến nghị: \textbf{RFID Client} (phát Wi-Fi) → \textbf{máy chủ} → \textbf{Sensor
+Client}. Thứ tự khác vẫn chạy được vì máy chủ và Sensor Client tự kết nối lại, chỉ
+chậm hơn vài giây.
+
+\buoc{Mở trang web giám sát}
+\begin{enumerate}
+  \item Trên điện thoại/máy tính, kết nối Wi-Fi \code{ESP32-Parking}, mật khẩu \code{12345678}.
+  \item Mở trình duyệt, vào \code{http://parking.local}.
+  \item Nếu thiết bị không mở được tên \code{.local} (một số máy Android cũ), dùng địa chỉ
+        IP trong dòng \code{Web interface: http://192.168.4.x} trên monitor của máy chủ.
+\end{enumerate}
+\textbf{Kết quả mong đợi}: trang như Hình~\ref{fig:dashboard}, góc trên phải hiện
+\code{ESP32 / ONLINE} và nhãn \code{LIVE / SENSOR}.
+
+\buoc{Chạy các kịch bản demo}
+Thực hiện kịch bản ở mục~\ref{sec:demo} và đối chiếu với Bảng~\ref{tab:systest}
+(Chương~\ref{chap:kiemthu}).
+
+\buoc{Chạy khi không có hai client (giả lập bằng máy tính)}
+\begin{enumerate}
+  \item Tạo điểm phát Wi-Fi trên điện thoại với tên \code{ESP32-Parking}, mật khẩu
+        \code{12345678} (máy chủ sẽ tự kết nối vào), \emph{hoặc} dùng RFID Client nếu có.
+  \item Cho máy tính kết nối cùng Wi-Fi; mở monitor máy chủ để xem IP
+        (\code{Got IP: \ldots}).
+  \item Giả lập Sensor Client và RFID Client (thay \code{<IP>} bằng IP máy chủ; nếu dùng
+        RFID Client làm điểm phát thì có thể bỏ \code{--host}):
+\end{enumerate}
+\begin{lstlisting}[style=shell]
+python3 examples/udp_sender.py --host <IP> --slots 1,0,0,1,0
+python3 examples/udp_rfid_sender.py A1B2C3D4 --gate in  --host <IP>
+python3 examples/udp_rfid_sender.py A1B2C3D4 --gate in  --host <IP>  # quet lai: WRONG GATE
+python3 examples/udp_rfid_sender.py A1B2C3D4 --gate out --host <IP>  # ra: hoa don
+python3 examples/udp_sender.py --host <IP> --slots 1,0,0,1,0 --fire  # bao chay
+python3 examples/udp_sender.py --host <IP> --slots 1,0,0,1,0         # het chay
+\end{lstlisting}
+\textbf{Kết quả mong đợi}: TFT và trang web thay đổi đúng như khi dùng client thật;
+thanh chắn mở/đóng; nhật ký trên web có các dòng \code{IN}, \code{REJECTED · WRONG GATE},
+\code{OUT}. Trên Windows dùng \code{python} thay cho \code{python3}.
+
+\buoc{Chạy bộ kiểm thử tự động}
+Không cần ESP-IDF hay Arduino, chỉ cần trình biên dịch C/C++:
+\begin{lstlisting}[style=shell]
+make -C tests
+\end{lstlisting}
+\textbf{Kết quả mong đợi}:
+\begin{lstlisting}[language={},numbers=none]
+json_parsers             57/57 checks passed
+rfid_session             74/74 checks passed
+gif_frames               89/89 checks passed
+sensor_client            15/15 checks passed
+rfid_client              15/15 checks passed
+ALL TESTS PASSED
+\end{lstlisting}
+
+\section{Xử lý sự cố thường gặp}
+\begin{longtable}{@{}p{4.6cm}p{9.8cm}@{}}
+\caption{Lỗi thường gặp và cách khắc phục}\label{tab:troubleshoot}\\
+\toprule \textbf{Hiện tượng} & \textbf{Nguyên nhân và cách khắc phục} \\ \midrule \endfirsthead
+\toprule \textbf{Hiện tượng} & \textbf{Nguyên nhân và cách khắc phục} \\ \midrule \endhead
+\code{idf.py: command not found} & Chưa mở terminal ESP-IDF; mở shortcut/script kích hoạt do EIM tạo. \\
+\code{Failed to connect to ESP32-C3} & Sai cổng; hoặc giữ nút BOOT, bấm RESET, thả BOOT rồi nạp lại. \\
+Build báo phân vùng đầy & Đang dùng \file{sdkconfig} cũ (1\,MB): làm theo hộp ``Lưu ý khi đã có cấu hình cũ'' ở Bước~4. \\
+Monitor lặp \code{Disconnected ... retrying} & RFID Client chưa bật hoặc sai SSID/mật khẩu; kiểm tra Bước~5. \\
+Arduino không thấy cổng ESP8266 & Cài driver CH340/CP2102; thử cáp USB khác (cáp chỉ sạc không truyền dữ liệu). \\
+Thiếu \code{MFRC522.h} hoặc \code{DHT.h} & Cài thư viện như Chương~\ref{chap:caidat}. \\
+\code{parking.local} không mở & Thiết bị không hỗ trợ mDNS: dùng IP trong log máy chủ; kiểm tra điện thoại đang ở đúng Wi-Fi \code{ESP32-Parking}. \\
+Trang web báo \code{OFFLINE} & Máy chủ mất điện hoặc mất Wi-Fi; xem monitor máy chủ. \\
+Servo rung, bo tự khởi động lại & Cấp servo từ 3V3 hoặc thiếu GND chung; dùng nguồn 5\,V riêng. \\
+Màn hình trắng hoặc lệch hình & Kiểm tra dây SPI; chỉnh chân/độ lệch trong \code{idf.py menuconfig → Parking TFT display}. \\
+Ô đỗ báo ngược (trống thành có xe) & Chỉnh biến trở trên module IR; kiểm tra thứ tự chân S1–S5. \\
+\bottomrule
+\end{longtable}

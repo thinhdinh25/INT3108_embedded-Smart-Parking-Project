@@ -1,0 +1,12 @@
+stateDiagram-v2
+  direction LR
+  [*] --> Anh
+  Anh: Ảnh động (mặc định)
+  HoaDon: Hóa đơn 60 s
+  ThongBao: Thông báo từ chối 5 s
+  Anh --> HoaDon: EXITED
+  HoaDon --> Anh: hết 60 s
+  Anh --> ThongBao: WRONG GATE / FULL
+  HoaDon --> ThongBao: WRONG GATE / FULL
+  ThongBao --> HoaDon: hết 5 s, hóa đơn còn hạn
+  ThongBao --> Anh: hết 5 s hoặc quẹt hợp lệ

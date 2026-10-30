@@ -7,10 +7,11 @@ idf_component_register(
         "display/kaoruko_gif.c"
         "display/claude_gif.c"
         "parking/parking_state.c"
+        "parking/json_scan.c"
         "parking/parking_update.c"
         "parking/rfid_session.c"
         "network/network_service.c"
-        "network/wifi_ap.c"
+        "network/wifi_sta.c"
         "network/http/http_server.c"
         "network/udp/udp_server.c"
 

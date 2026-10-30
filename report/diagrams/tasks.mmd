@@ -1,0 +1,37 @@
+flowchart LR
+  subgraph T1["Tác vụ ưu tiên cao"]
+    direction TB
+    udp(["udp_server · 5"])
+    http(["httpd · 5"])
+    tmr(["esp_timer"])
+  end
+  subgraph RES["Tài nguyên dùng chung"]
+    direction TB
+    ps[("parking_state<br/>critical section")]
+    rs[("rfid_session<br/>critical section")]
+    sv[("servo<br/>mutex")]
+  end
+  subgraph T2["Tác vụ hiển thị"]
+    direction TB
+    disp(["lcd_display · 4"])
+    anim(["lcd_animation · 3"])
+  end
+  lcdm[("panel LCD<br/>mutex")] --> spi["SPI2 + DMA"]
+  udp -->|ghi| ps
+  udp -->|ghi| rs
+  udp -->|mở · chế độ cháy| sv
+  http -->|đọc| ps
+  http -->|đọc| rs
+  http -->|lệnh tay| sv
+  tmr -->|đóng khi hết 3 s| sv
+  disp -->|đọc| ps
+  disp -->|đọc| rs
+  anim -->|đọc| rs
+  disp --> lcdm
+  anim --> lcdm
+  udp -.->|xTaskNotifyGive| disp
+  classDef task fill:#E1ECFA,stroke:#003E7E;
+  classDef res fill:#E8F5E9,stroke:#2E7D32;
+  classDef hw fill:#FFF3E0,stroke:#C77700;
+  class udp,http,tmr,disp,anim task; class ps,rs,sv,lcdm res; class spi hw;
+  linkStyle 13 stroke:#C62828,stroke-width:2px;

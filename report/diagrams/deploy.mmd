@@ -1,0 +1,22 @@
+flowchart TB
+    RC["<b>RFID CLIENT</b> · ESP8266<br/>Điểm truy cập Wi-Fi · 192.168.4.1 · DHCP"]
+    SRV["<b>MÁY CHỦ</b> · ESP32-C3<br/>Wi-Fi STA · IP do DHCP cấp<br/>parking.local"]
+    SC["<b>SENSOR CLIENT</b> · ESP8266<br/>Wi-Fi STA"]
+    PH["Điện thoại / máy tính<br/>Wi-Fi STA · trình duyệt"]
+  R1["MFRC522 cổng vào"] --> RC
+  R2["MFRC522 cổng ra"] --> RC
+  DHT["DHT11"] --> RC
+  IR["5 × cảm biến IR"] --> SC
+  FW["Cảm biến lửa · nước"] --> SC
+  RC == "UDP rfid_event → :3333" ==> SRV
+  SC == "UDP parking_update → :3333" ==> SRV
+  PH <== "HTTP :80 · mDNS :5353" ==> SRV
+  SRV --> TFT["TFT ST7789"]
+  SRV --> SV["2 × servo SG90"]
+  SRV --> BZ["Còi GPIO9"]
+  classDef srv fill:#E1ECFA,stroke:#003E7E,stroke-width:2px;
+  classDef rc fill:#FFF3E0,stroke:#C77700,stroke-width:2px;
+  classDef sc fill:#E8F5E9,stroke:#2E7D32,stroke-width:2px;
+  classDef ph fill:#FCE4EC,stroke:#AD1457,stroke-width:2px;
+  classDef dev fill:#ffffff,stroke:#666;
+  class SRV srv; class RC rc; class SC sc; class PH ph; class R1,R2,DHT,IR,FW,TFT,SV,BZ dev;

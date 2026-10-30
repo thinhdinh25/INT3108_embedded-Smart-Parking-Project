@@ -1,0 +1,126 @@
+% =====================================================================
+\chapter{Cài đặt môi trường, hệ điều hành và phần mềm mô phỏng}\label{chap:caidat}
+% =====================================================================
+
+\section{Hệ điều hành đã chọn}
+\subsection{Trên thiết bị: FreeRTOS cho máy chủ, vòng lặp Arduino cho client}
+\begin{table}[H]
+\centering\small
+\caption{Hệ điều hành trên từng bo mạch}\label{tab:os}
+\begin{tabularx}{\linewidth}{@{}lXX@{}}
+\toprule
+\textbf{Bo mạch} & \textbf{Hệ điều hành / mô hình chạy} & \textbf{Tính năng được dùng} \\ \midrule
+ESP32-C3 (máy chủ) & FreeRTOS (bản Espressif, đi kèm ESP-IDF 6.1), tick 100\,Hz & Tác vụ có ưu tiên, mutex, critical section, thông báo tác vụ, hẹn giờ \code{esp\_timer} \\
+ESP8266 (client) & Không dùng RTOS: một vòng lặp \code{loop()} không chặn trên Arduino core & Đếm thời gian bằng \code{millis()}, mọi việc chia nhỏ để Wi-Fi luôn được phục vụ \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\begin{lydo}[Tại sao máy chủ cần RTOS còn client thì không]
+Máy chủ có nhiều việc chạy song song với chu kỳ khác nhau: nhận UDP bất kỳ lúc nào,
+phục vụ HTTP, vẽ màn hình, chạy ảnh động 10 khung/giây, đóng thanh chắn đúng giờ.
+Viết tất cả trong một vòng lặp buộc phải chia nhỏ mọi việc bằng tay, và chỉ một thao
+tác chậm (vẽ màn hình $\approx$ 23\,ms) cũng làm trễ việc khác. FreeRTOS cho phép mỗi
+việc là một tác vụ có ưu tiên riêng: việc quan trọng (thanh chắn, nhận bản tin)
+luôn chạy trước việc trang trí (ảnh động). Client chỉ làm tuần tự vài việc ngắn
+(đọc cảm biến, gửi gói tin), một vòng lặp không chặn là đủ và đơn giản hơn.
+\end{lydo}
+
+\subsection{Trên máy phát triển}
+Toàn bộ công cụ chạy trên \textbf{Windows 10/11, macOS hoặc Linux}. Nhóm đã phát
+triển trên macOS và Windows. Các lệnh trong báo cáo dùng được trên cả ba hệ điều
+hành, khác biệt duy nhất là tên cổng nối tiếp (Bảng~\ref{tab:ports}).
+
+\section{Bản quyền phần mềm}
+Mọi phần mềm dùng trong đề tài đều \textbf{miễn phí và mã nguồn mở}, nên không cần
+bản dùng thử (trial) hay giấy phép trả phí:
+\begin{table}[H]
+\centering\small
+\caption{Phần mềm cần cài và giấy phép}\label{tab:licenses}
+\begin{tabularx}{\linewidth}{@{}lXl@{}}
+\toprule
+\textbf{Phần mềm} & \textbf{Dùng để} & \textbf{Giấy phép} \\ \midrule
+ESP-IDF 6.1 (qua ESP-IDF Installation Manager) & Biên dịch, nạp firmware máy chủ & Apache 2.0 \\
+Visual Studio Code + ESP-IDF extension (tùy chọn) & Soạn thảo, build/flash bằng giao diện & MIT / Apache 2.0 \\
+Arduino IDE 2.x & Biên dịch, nạp hai client & AGPL-3.0 \\
+Arduino core ESP8266 & Hỗ trợ bo ESP8266 & LGPL-2.1 \\
+MFRC522, DHT sensor library & Thư viện thiết bị & Unlicense / MIT \\
+Python 3 & Chạy công cụ giả lập client & PSF \\
+Trình biên dịch C/C++ (clang hoặc gcc) & Chạy bộ kiểm thử trên máy tính & Apache 2.0 / GPL \\
+Git & Lấy mã nguồn & GPL-2.0 \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\section{Cài đặt từng phần mềm}
+\subsection{ESP-IDF 6.1 (cho máy chủ)}
+\begin{enumerate}
+  \item Tải \textbf{ESP-IDF Installation Manager (EIM)} tại
+        \url{https://dl.espressif.com/dl/eim/} và cài như ứng dụng thông thường.
+  \item Mở EIM, chọn \textbf{ESP-IDF v6.1}, mục tiêu \textbf{esp32c3}, bấm cài đặt.
+        EIM tự tải trình biên dịch RISC-V, Python và các công cụ.
+  \item Mở terminal ESP-IDF. Windows: shortcut ``ESP-IDF 6.1 PowerShell'' do EIM tạo.
+        macOS/Linux: nạp script kích hoạt do EIM tạo, ví dụ:
+\begin{lstlisting}[style=shell]
+source ~/.espressif/tools/activate_idf_v6.1.sh
+\end{lstlisting}
+  \item Kiểm tra: \code{idf.py --version} phải in \code{ESP-IDF v6.1}.
+\end{enumerate}
+ESP32-C3 SuperMini dùng USB Serial/JTAG tích hợp nên \textbf{không cần cài driver}.
+
+\subsection{Arduino IDE và ESP8266 (cho hai client)}
+\begin{enumerate}
+  \item Cài Arduino IDE 2.x từ \url{https://www.arduino.cc/en/software}.
+  \item \emph{File → Preferences → Additional boards manager URLs}, thêm:\\
+        \url{https://arduino.esp8266.com/stable/package_esp8266com_index.json}
+  \item \emph{Tools → Board → Boards Manager}, tìm \textbf{esp8266}, cài.
+  \item \emph{Tools → Manage Libraries}, cài \textbf{MFRC522} (GithubCommunity) và
+        \textbf{DHT sensor library} (Adafruit, chấp nhận cài kèm Adafruit Unified Sensor).
+  \item Bo NodeMCU dùng chip USB-UART CH340 hoặc CP2102: nếu máy không nhận cổng,
+        cài driver tương ứng của nhà sản xuất chip.
+\end{enumerate}
+
+\subsection{Công cụ cho giả lập và kiểm thử}
+\begin{itemize}
+  \item \textbf{Python 3.8+}: có sẵn trên macOS/Linux; Windows tải tại python.org. Không cần thư viện ngoài.
+  \item \textbf{Trình biên dịch C/C++}: macOS \code{xcode-select --install}; Ubuntu
+        \code{sudo apt install build-essential}; Windows dùng MSYS2/MinGW hoặc WSL.
+\end{itemize}
+
+\section{Phần mềm mô phỏng và các tính năng chính}
+Đề tài dùng hai công cụ mô phỏng do nhóm tự viết, giúp phát triển và kiểm tra hệ
+thống khi chưa có (hoặc không mang theo) đủ phần cứng.
+
+\subsection{Bộ giả lập client bằng Python (\file{examples/})}
+\begin{table}[H]
+\centering\small
+\caption{Công cụ giả lập client}\label{tab:simulators}
+\begin{tabularx}{\linewidth}{@{}lX@{}}
+\toprule
+\textbf{Công cụ} & \textbf{Tính năng} \\ \midrule
+\file{udp\_sender.py} & Giả lập Sensor Client: gửi một bản tin \code{parking\_update} (5 ô đỗ, mực nước, cháy) tới máy chủ thật qua UDP broadcast \\
+\file{udp\_rfid\_sender.py} & Giả lập RFID Client: gửi \code{rfid\_event} với UID bất kỳ và cổng \code{--gate in|out}; chạy hai lần để giả lập vào rồi ra \\
+\file{udp\_sender\_espidf.c} & Ví dụ gửi bản tin từ một bo ESP-IDF khác \\
+\bottomrule
+\end{tabularx}
+\end{table}
+Máy tính chỉ cần kết nối Wi-Fi \code{ESP32-Parking}; máy chủ không phân biệt bản tin
+đến từ ESP8266 thật hay từ script, nên toàn bộ màn hình, thanh chắn, còi, trang web và
+nhật ký đều được kiểm tra như thật.
+
+\subsection{Mô phỏng phần cứng Arduino trên máy tính (\file{tests/arduino/})}
+Đây là lớp giả lập các thư viện Arduino/ESP8266: đồng hồ \code{millis()} điều khiển
+được, mức logic của từng chân, giá trị ADC, Wi-Fi bật/tắt, gói UDP được ghi lại,
+đầu đọc RFID có thể ``đặt thẻ'' và DHT11 trả nhiệt độ tùy ý. Nhờ vậy \emph{chính mã
+nguồn} \file{SensorClient.ino} và \file{RFIDClient.ino} được biên dịch và chạy trên
+máy tính, mỗi bản tin chúng gửi được đưa thẳng vào bộ đọc JSON thật của máy chủ để
+kiểm tra hai bên ``nói cùng một ngôn ngữ''. Chi tiết ở Chương~\ref{chap:kiemthu}.
+
+\begin{lydo}[Tại sao tự viết công cụ mô phỏng thay vì dùng trình mô phỏng có sẵn]
+Các trình mô phỏng vi điều khiển trực tuyến hỗ trợ ESP32-C3 nhưng không mô phỏng
+được việc ba bo mạch nói chuyện với nhau qua Wi-Fi, và không có mô hình cho cả
+MFRC522 lẫn module lửa/nước cụ thể của nhóm. Giả lập ở mức \emph{giao thức} (script
+Python gửi bản tin thật) và ở mức \emph{thư viện} (đồng hồ, chân, UDP giả) kiểm tra
+đúng phần logic nhóm tự viết, chạy trong vài giây, lặp lại được và không phụ thuộc
+dịch vụ bên ngoài.
+\end{lydo}

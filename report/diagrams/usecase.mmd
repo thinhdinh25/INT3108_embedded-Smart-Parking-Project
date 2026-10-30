@@ -1,0 +1,31 @@
+flowchart LR
+  driver(["Người lái xe"])
+  operator(["Người vận hành"])
+  subgraph SYS["Hệ thống bãi đỗ xe thông minh"]
+    direction TB
+    UC01(["UC01 Theo dõi chỗ trống tại bãi"])
+    UC02(["UC02 Giám sát bãi qua web"])
+    UC03(["UC03 Gửi xe bằng thẻ RFID"])
+    UC04(["UC04 Lấy xe và thanh toán phí"])
+    UC05(["UC05 Từ chối quẹt sai cổng / bãi đầy"])
+    UC06(["UC06 Cảnh báo cháy và sơ tán"])
+    UC07(["UC07 Giám sát mực nước"])
+    UC08(["UC08 Giám sát nhiệt độ"])
+    UC09(["UC09 Điều khiển thanh chắn thủ công"])
+    UC10(["UC10 Xem nhật ký vào/ra và giá"])
+  end
+  sensor["«thiết bị»<br/>Sensor Client"]
+  rfid["«thiết bị»<br/>RFID Client"]
+  clock["«thời gian»<br/>Đồng hồ hệ thống"]
+  driver --- UC01 & UC03 & UC04 & UC05 & UC06
+  operator --- UC02 & UC06 & UC07 & UC08 & UC09 & UC10
+  UC01 & UC02 & UC06 & UC07 --- sensor
+  UC03 & UC04 & UC05 & UC08 --- rfid
+  UC03 & UC04 & UC05 -.- clock
+  classDef uc fill:#E1ECFA,stroke:#003E7E;
+  classDef dev fill:#E8F5E9,stroke:#2E7D32;
+  classDef rf fill:#FFF3E0,stroke:#C77700;
+  classDef tm fill:#EDE7F6,stroke:#5E35B1;
+  classDef person fill:#ffffff,stroke:#333;
+  class UC01,UC02,UC03,UC04,UC05,UC06,UC07,UC08,UC09,UC10 uc;
+  class sensor dev; class rfid rf; class clock tm; class driver,operator person;

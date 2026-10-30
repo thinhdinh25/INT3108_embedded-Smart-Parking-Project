@@ -1,0 +1,18 @@
+sequenceDiagram
+  autonumber
+  participant F as Cảm biến lửa
+  participant SC as Sensor Client
+  participant S as udp_server
+  participant Z as Còi
+  participant B as servo
+  participant L as TFT / Web
+  F->>SC: DO mức cao ổn định ≥ 50 ms
+  SC->>S: Gửi ngay parking_update "fire":true
+  S->>Z: GPIO9 = 0 (kêu)
+  S->>B: set_fire_alarm(true): mở và giữ cả 2 cổng
+  S-)L: Màn hình DANGER, băng rôn đỏ trên web
+  Note over B: Lệnh đóng từ web bị từ chối
+  SC->>S: "fire":false
+  S->>Z: GPIO9 = 1 (im lặng)
+  S->>B: set_fire_alarm(false): đóng 2 cổng
+  S-)L: Màn hình trở lại bình thường

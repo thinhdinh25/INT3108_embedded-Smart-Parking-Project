@@ -12,6 +12,7 @@
 #include "../parking/rfid_session.h"
 #include "../../barrier/servo.h"
 #include "../../buzzer/buzzer.h"
+#include "../../display/lcd_display.h"
 #include "esp_timer.h"
 #include "udp_server.h"
 
@@ -76,6 +77,7 @@ static void udp_server_task(void *arg)
             if (parking_update_parse_json(buffer, &new_state))
             {
                 parking_state_update(&new_state);
+                lcd_display_notify();
                 buzzer_set_fire(new_state.fire);
                 esp_err_t fire_err = servo_set_fire_alarm(new_state.fire);
                 if (fire_err != ESP_OK)
@@ -95,6 +97,7 @@ static void udp_server_task(void *arg)
             }
 
             rfid_scan_result_t result = rfid_session_scan(&event, (uint64_t)esp_timer_get_time());
+            lcd_display_notify(); /* temperature or receipt may have changed */
             if (result == RFID_SCAN_ENTERED)
             {
                 ESP_LOGI(TAG, "RFID %s entered via IN reader", event.card_id);

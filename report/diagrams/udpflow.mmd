@@ -1,0 +1,13 @@
+flowchart TD
+  r(["recvfrom(): chờ gói UDP, tối đa 255 byte"]) --> d1{"parking_update<br/>hợp lệ?"}
+  d1 -- có --> p1["Cập nhật trạng thái bãi<br/>đánh thức màn hình<br/>còi và chế độ cháy theo fire"]
+  d1 -- không --> d2{"rfid_event<br/>hợp lệ?"}
+  d2 -- không --> ig["Bỏ qua<br/>ghi cảnh báo"]
+  d2 -- có --> sc["rfid_session_scan()<br/>đánh thức màn hình"]
+  sc --> ok["ENTERED / EXITED<br/>mở cổng tương ứng 3 s<br/>(khi ra: hóa đơn 60 s)"]
+  sc --> rej["INVALID_GATE / FULL<br/>không mở cổng<br/>thông báo 5 s"]
+  p1 & ig & ok & rej --> nx(["Chờ gói tiếp theo"])
+  classDef dec fill:#FFF3E0,stroke:#C77700;
+  classDef bad fill:#FCE4EC,stroke:#AD1457;
+  classDef good fill:#E8F5E9,stroke:#2E7D32;
+  class d1,d2 dec; class rej,ig bad; class ok good;

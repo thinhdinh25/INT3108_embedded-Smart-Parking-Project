@@ -1,12 +1,13 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 
 #include "esp_http_server.h"
 #include "esp_log.h"
 
 #include "http_server.h"
+#include "esp_timer.h"
 #include "../parking/parking_state.h"
+#include "../parking/rfid_session.h"
 #include "../../barrier/servo.h"
 
 extern const unsigned char index_html_start[] asm("_binary_index_html_start");
@@ -52,63 +53,98 @@ static esp_err_t parking_state_get_handler(httpd_req_t *req)
     return httpd_resp_send(req, response, length);
 }
 
-static esp_err_t barrier_in_open_handler(httpd_req_t *req)
+static const char *rfid_result_name(rfid_scan_result_t result)
 {
-    esp_err_t err = servo_set_in_open(true);
-    if (err != ESP_OK)
+    switch (result)
     {
-        return httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Servo command failed");
+        case RFID_SCAN_ENTERED: return "in";
+        case RFID_SCAN_EXITED: return "out";
+        case RFID_SCAN_FULL: return "full";
+        default: return "wrong_gate";
     }
-    return httpd_resp_sendstr(req, "OPEN");
 }
 
-static esp_err_t barrier_in_close_handler(httpd_req_t *req)
+/* Streams cars inside, the recent in/out log and the price in small chunks (no large buffer). */
+static esp_err_t rfid_log_get_handler(httpd_req_t *req)
 {
-    esp_err_t err = servo_set_in_open(false);
-    if (err != ESP_OK)
+    rfid_active_t active[RFID_MAX_ACTIVE];
+    rfid_log_entry_t log[RFID_LOG_SIZE];
+    const size_t active_count = rfid_session_get_active(active, RFID_MAX_ACTIVE);
+    const size_t log_count = rfid_session_get_log(log, RFID_LOG_SIZE);
+    const uint32_t now_s = (uint32_t)(esp_timer_get_time() / 1000000LL);
+    char line[160];
+
+    httpd_resp_set_type(req, "application/json");
+    snprintf(line, sizeof(line), "{\"now_s\":%lu,\"fee_per_hour\":%d,\"parked\":[",
+             (unsigned long)now_s, PARKING_FEE_PER_HOUR_VND);
+    esp_err_t err = httpd_resp_sendstr_chunk(req, line);
+
+    /* card_id is restricted to [A-Z0-9_-] by the parser, so it needs no JSON escaping. */
+    for (size_t i = 0; i < active_count && err == ESP_OK; ++i)
     {
-        return httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Servo command failed");
+        snprintf(line, sizeof(line), "%s{\"card\":\"%.31s\",\"in_s\":%lu,\"fee\":%lu}",
+                 i ? "," : "", active[i].card_id, (unsigned long)active[i].entered_s,
+                 (unsigned long)rfid_fee_for_seconds(now_s - active[i].entered_s));
+        err = httpd_resp_sendstr_chunk(req, line);
     }
-    return httpd_resp_sendstr(req, "CLOSED");
+    if (err == ESP_OK)
+        err = httpd_resp_sendstr_chunk(req, "],\"log\":[");
+    for (size_t i = 0; i < log_count && err == ESP_OK; ++i)
+    {
+        snprintf(line, sizeof(line),
+                 "%s{\"card\":\"%.31s\",\"event\":\"%s\",\"gate\":\"%s\",\"at_s\":%lu,\"duration_s\":%lu,\"fee\":%lu}",
+                 i ? "," : "", log[i].card_id, rfid_result_name(log[i].result),
+                 log[i].gate == RFID_GATE_OUT ? "out" : "in", (unsigned long)log[i].at_s,
+                 (unsigned long)log[i].duration_s, (unsigned long)log[i].fee_vnd);
+        err = httpd_resp_sendstr_chunk(req, line);
+    }
+    if (err == ESP_OK)
+        err = httpd_resp_sendstr_chunk(req, "]}");
+    if (err == ESP_OK)
+        err = httpd_resp_sendstr_chunk(req, NULL);
+    return err;
 }
 
-static esp_err_t barrier_out_open_handler(httpd_req_t *req)
+typedef enum
 {
-    esp_err_t err = servo_set_out_open(true);
-    if (err != ESP_OK)
-        return httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Servo command failed");
-    return httpd_resp_sendstr(req, "OPEN");
-}
+    BARRIER_IN,
+    BARRIER_OUT,
+    BARRIER_ALL,
+} barrier_target_t;
 
-static esp_err_t barrier_out_close_handler(httpd_req_t *req)
+typedef struct
 {
-    esp_err_t err = servo_set_out_open(false);
-    if (err != ESP_OK)
-        return httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Servo command failed");
-    return httpd_resp_sendstr(req, "CLOSED");
-}
+    barrier_target_t target;
+    bool open;
+} barrier_command_t;
 
-static esp_err_t barrier_all_handler(httpd_req_t *req)
+/* One handler for every POST /api/barrier/{in,out,all}/{open,close}; the route carries the command. */
+static esp_err_t barrier_command_handler(httpd_req_t *req)
 {
-    bool open = strstr(req->uri, "/open") != NULL;
-    esp_err_t err = servo_set_all_open(open);
+    const barrier_command_t *cmd = req->user_ctx;
+    esp_err_t err = cmd->target == BARRIER_IN    ? servo_set_in_open(cmd->open)
+                    : cmd->target == BARRIER_OUT ? servo_set_out_open(cmd->open)
+                                                 : servo_set_all_open(cmd->open);
     if (err != ESP_OK)
         return httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Servo command failed");
-    return httpd_resp_sendstr(req, open ? "ALL OPEN" : "ALL CLOSED");
+    if (cmd->target == BARRIER_ALL)
+        return httpd_resp_sendstr(req, cmd->open ? "ALL OPEN" : "ALL CLOSED");
+    return httpd_resp_sendstr(req, cmd->open ? "OPEN" : "CLOSED");
 }
 
 static esp_err_t barrier_state_handler(httpd_req_t *req)
 {
+    char response[40];
+    snprintf(response, sizeof(response), "{\"in_open\":%s,\"out_open\":%s}",
+             servo_is_in_open() ? "true" : "false", servo_is_out_open() ? "true" : "false");
     httpd_resp_set_type(req, "application/json");
-    return httpd_resp_sendstr(req, servo_is_in_open()
-        ? (servo_is_out_open() ? "{\"in_open\":true,\"out_open\":true}" : "{\"in_open\":true,\"out_open\":false}")
-        : (servo_is_out_open() ? "{\"in_open\":false,\"out_open\":true}" : "{\"in_open\":false,\"out_open\":false}"));
+    return httpd_resp_sendstr(req, response);
 }
 
 esp_err_t http_server_start(void)
 {
     httpd_config_t config = HTTPD_DEFAULT_CONFIG();
-    config.max_uri_handlers = 10;
+    config.max_uri_handlers = 11; /* one per route below */
     httpd_handle_t server = NULL;
 
     esp_err_t err = httpd_start(&server, &config);
@@ -118,67 +154,29 @@ esp_err_t http_server_start(void)
         return err;
     }
 
+    static const barrier_command_t barrier_commands[] = {
+        {BARRIER_IN, true}, {BARRIER_IN, false},
+        {BARRIER_OUT, true}, {BARRIER_OUT, false},
+        {BARRIER_ALL, true}, {BARRIER_ALL, false},
+    };
     const httpd_uri_t routes[] = {
-        {
-            .uri = "/api/barrier",
-            .method = HTTP_GET,
-            .handler = barrier_state_handler,
-            .user_ctx = NULL,
-        },
-        {
-            .uri = "/api/barrier/in/open",
-            .method = HTTP_POST,
-            .handler = barrier_in_open_handler,
-            .user_ctx = NULL,
-        },
-        {
-            .uri = "/api/barrier/in/close",
-            .method = HTTP_POST,
-            .handler = barrier_in_close_handler,
-            .user_ctx = NULL,
-        },
-        {
-            .uri = "/api/barrier/out/open",
-            .method = HTTP_POST,
-            .handler = barrier_out_open_handler,
-            .user_ctx = NULL,
-        },
-        {
-            .uri = "/api/barrier/out/close",
-            .method = HTTP_POST,
-            .handler = barrier_out_close_handler,
-            .user_ctx = NULL,
-        },
-        {
-            .uri = "/api/barrier/all/open",
-            .method = HTTP_POST,
-            .handler = barrier_all_handler,
-            .user_ctx = NULL,
-        },
-        {
-            .uri = "/api/barrier/all/close",
-            .method = HTTP_POST,
-            .handler = barrier_all_handler,
-            .user_ctx = NULL,
-        },
-        {
-            .uri = "/api/parking",
-            .method = HTTP_GET,
-            .handler = parking_state_get_handler,
-            .user_ctx = NULL,
-        },
-        {
-            .uri = "/style.css",
-            .method = HTTP_GET,
-            .handler = style_get_handler,
-            .user_ctx = NULL,
-        },
-        {
-            .uri = "/",
-            .method = HTTP_GET,
-            .handler = root_get_handler,
-            .user_ctx = NULL,
-        },
+        {.uri = "/api/barrier", .method = HTTP_GET, .handler = barrier_state_handler},
+        {.uri = "/api/barrier/in/open", .method = HTTP_POST, .handler = barrier_command_handler,
+         .user_ctx = (void *)&barrier_commands[0]},
+        {.uri = "/api/barrier/in/close", .method = HTTP_POST, .handler = barrier_command_handler,
+         .user_ctx = (void *)&barrier_commands[1]},
+        {.uri = "/api/barrier/out/open", .method = HTTP_POST, .handler = barrier_command_handler,
+         .user_ctx = (void *)&barrier_commands[2]},
+        {.uri = "/api/barrier/out/close", .method = HTTP_POST, .handler = barrier_command_handler,
+         .user_ctx = (void *)&barrier_commands[3]},
+        {.uri = "/api/barrier/all/open", .method = HTTP_POST, .handler = barrier_command_handler,
+         .user_ctx = (void *)&barrier_commands[4]},
+        {.uri = "/api/barrier/all/close", .method = HTTP_POST, .handler = barrier_command_handler,
+         .user_ctx = (void *)&barrier_commands[5]},
+        {.uri = "/api/rfid", .method = HTTP_GET, .handler = rfid_log_get_handler},
+        {.uri = "/api/parking", .method = HTTP_GET, .handler = parking_state_get_handler},
+        {.uri = "/style.css", .method = HTTP_GET, .handler = style_get_handler},
+        {.uri = "/", .method = HTTP_GET, .handler = root_get_handler},
     };
 
     for (size_t i = 0; i < sizeof(routes) / sizeof(routes[0]); ++i)

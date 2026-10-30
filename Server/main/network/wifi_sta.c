@@ -5,7 +5,7 @@
 #include "esp_netif.h"
 #include "esp_wifi.h"
 
-#include "wifi_ap.h"
+#include "wifi_sta.h"
 
 #define WIFI_STA_SSID     "ESP32-Parking"
 #define WIFI_STA_PASSWORD "12345678"
@@ -52,7 +52,7 @@ static void wifi_event_handler(void *arg, esp_event_base_t event_base,
     }
 }
 
-esp_err_t wifi_ap_start(void)
+esp_err_t wifi_sta_start(void)
 {
     esp_err_t err = esp_netif_init();
     if (err != ESP_OK)

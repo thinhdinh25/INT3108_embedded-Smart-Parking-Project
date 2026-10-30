@@ -1,0 +1,209 @@
+% =====================================================================
+\chapter{Use case của hệ thống}\label{chap:usecase}
+% =====================================================================
+
+\section{Tác nhân}
+\begin{table}[H]
+\centering\small
+\caption{Các tác nhân của hệ thống}\label{tab:actors}
+\begin{tabularx}{\linewidth}{@{}lX@{}}
+\toprule
+\textbf{Tác nhân} & \textbf{Mô tả} \\ \midrule
+Người lái xe & Người gửi/lấy xe; dùng thẻ RFID và nhìn màn hình TFT tại bãi. \\
+Người vận hành & Bảo vệ hoặc quản lý bãi; dùng trang web trên điện thoại/máy tính để giám sát và điều khiển thanh chắn. \\
+Sensor Client & Tác nhân thiết bị: bo ESP8266 đọc cảm biến chỗ đỗ, lửa, nước và gửi dữ liệu lên máy chủ. \\
+RFID Client & Tác nhân thiết bị: bo ESP8266 đọc thẻ ở hai cổng và cảm biến nhiệt độ; đồng thời phát mạng Wi-Fi. \\
+Đồng hồ hệ thống & Tác nhân thời gian: kích hoạt việc tự đóng thanh chắn, hết hạn hóa đơn/thông báo. \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\section{Sơ đồ use case}
+Hình~\ref{fig:usecase} tổng hợp 10 use case và quan hệ với các tác nhân. Hai tác nhân
+thiết bị (bên phải) là nguồn dữ liệu; hai tác nhân con người (bên trái) là người
+hưởng lợi.
+
+\begin{figure}[H]
+\centering
+\mmd[1][0.62]{usecase}
+\caption{Sơ đồ use case tổng quát (đường nét đứt: sự kiện theo thời gian — tự đóng thanh chắn, hết hạn thông báo)}\label{fig:usecase}
+\end{figure}
+
+\section{Bảng tổng hợp use case}
+\begin{table}[H]
+\centering\small
+\caption{Tổng hợp 10 use case, nơi hiện thực và bộ kiểm thử tương ứng}\label{tab:uc-summary}
+\begin{tabularx}{\linewidth}{@{}l>{\raggedright\arraybackslash}p{4.2cm}>{\raggedright\arraybackslash}X>{\raggedright\arraybackslash}p{3.1cm}@{}}
+\toprule
+\textbf{Mã} & \textbf{Tên use case} & \textbf{Module chính} & \textbf{Kiểm thử} \\ \midrule
+UC01 & Theo dõi chỗ trống tại bãi & \file{lcd\_display.c} & \file{sensor\_client} \\
+UC02 & Giám sát bãi qua web & \file{http\_server.c}, \file{index.html} & S2, S12 \\
+UC03 & Gửi xe bằng thẻ RFID & \file{rfid\_session.c}, \file{servo.c} & \file{rfid\_session}, \file{rfid\_client} \\
+UC04 & Lấy xe và thanh toán phí & \file{rfid\_session.c} & \file{rfid\_session} \\
+UC05 & Từ chối quẹt sai cổng / bãi đầy & \file{rfid\_session.c}, \file{lcd\_display.c} & \file{rfid\_session} \\
+UC06 & Cảnh báo cháy và sơ tán & \file{udp\_server.c}, \file{servo.c}, \file{buzzer.c} & \file{sensor\_client}, S9 \\
+UC07 & Giám sát mực nước & \file{SensorClient.ino} & \file{sensor\_client} \\
+UC08 & Giám sát nhiệt độ & \file{RFIDClient.ino}, \file{parking\_state.c} & \file{rfid\_client}, \file{rfid\_session} \\
+UC09 & Điều khiển thanh chắn thủ công & \file{http\_server.c}, \file{servo.c} & S12, S13 \\
+UC10 & Xem nhật ký vào/ra và giá & \file{rfid\_session.c}, \file{http\_server.c} & \file{rfid\_session} \\
+\bottomrule
+\end{tabularx}
+\end{table}
+\noindent Tên tệp kiểm thử như \file{rfid\_session} chỉ bộ kiểm thử tự động
+(Chương~\ref{chap:kiemthu}); S2, S9,\ldots{} là kịch bản kiểm thử trên phần cứng
+(Bảng~\ref{tab:systest}).
+
+\section{Đặc tả chi tiết}
+
+\begin{usecase}{UC01}{Theo dõi chỗ trống tại bãi}
+\item[Tác nhân] Người lái xe (chính); Sensor Client (nguồn dữ liệu).
+\item[Mô tả] Người lái nhìn màn hình TFT ở lối vào để biết số chỗ trống và vị trí từng chỗ trống.
+\item[Tiền điều kiện] Sensor Client và máy chủ đã kết nối Wi-Fi \code{ESP32-Parking}.
+\item[Luồng chính] \begin{enumerate}[nosep,leftmargin=1.3em]
+  \item Xe đi vào/ra một ô đỗ, cảm biến IR của ô đó đổi mức logic.
+  \item Sensor Client lọc nhiễu: chỉ chấp nhận mức mới khi giữ ổn định 50\,ms.
+  \item Ngay khi trạng thái đổi, Sensor Client gửi bản tin \code{parking\_update} (UDP).
+  \item Máy chủ kiểm tra bản tin, cập nhật trạng thái chung và đánh thức tác vụ màn hình.
+  \item Màn hình vẽ lại: số chỗ trống \code{FREE SPACES x/5} và 5 ô S1–S5 (xanh = trống, đỏ = có xe).
+\end{enumerate}
+\item[Ngoại lệ] 3a. Mất gói UDP: bản tin nhắc lại sau tối đa 1\,s sửa lại trạng thái.
+  4a. Bản tin sai định dạng: bị bỏ qua, trạng thái cũ được giữ.
+\item[Hậu điều kiện] Màn hình phản ánh đúng trạng thái 5 chỗ đỗ.
+\item[Thông số] Debounce 50\,ms; nhắc lại 1\,s; độ trễ hiển thị $\approx$ 0,1\,s.
+\end{usecase}
+
+\begin{usecase}{UC02}{Giám sát bãi qua trang web}
+\item[Tác nhân] Người vận hành.
+\item[Mô tả] Xem trực quan sơ đồ bãi, số chỗ trống, cảm biến và trạng thái thanh chắn trên điện thoại.
+\item[Tiền điều kiện] Thiết bị của người vận hành kết nối Wi-Fi \code{ESP32-Parking}.
+\item[Luồng chính] \begin{enumerate}[nosep,leftmargin=1.3em]
+  \item Người vận hành mở \code{http://parking.local}.
+  \item Thiết bị phân giải tên bằng mDNS và nhận địa chỉ IP hiện tại của máy chủ.
+  \item Máy chủ trả trang web nhúng trong firmware.
+  \item Trang web gọi \code{GET /api/parking} mỗi 1\,s và vẽ sơ đồ 5 ô đỗ (xe màu đỏ, ô trống chữ P màu xanh).
+\end{enumerate}
+\item[Ngoại lệ] 2a. Thiết bị không hỗ trợ \code{.local}: dùng địa chỉ IP in trên log máy chủ.
+  4a. Máy chủ mất kết nối: trang hiển thị \code{ESP32 / OFFLINE}.
+\item[Hậu điều kiện] Người vận hành thấy trạng thái bãi với độ trễ $\le$ 1\,s.
+\end{usecase}
+
+\begin{usecase}{UC03}{Gửi xe bằng thẻ RFID}
+\item[Tác nhân] Người lái xe; RFID Client; Đồng hồ hệ thống.
+\item[Mô tả] Người lái quẹt thẻ ở cổng vào để được mở thanh chắn và bắt đầu tính giờ.
+\item[Tiền điều kiện] Thẻ chưa có phiên gửi xe; bãi còn phiên trống (tối đa 5).
+\item[Luồng chính] \begin{enumerate}[nosep,leftmargin=1.3em]
+  \item Người lái đưa thẻ vào đầu đọc cổng vào.
+  \item RFID Client đọc UID, chuyển thành chuỗi hex in hoa, gửi \code{rfid\_event} với \code{"gate":"in"}.
+  \item Máy chủ tạo phiên mới, lưu thời điểm vào, ghi nhật ký \code{IN}.
+  \item Máy chủ mở thanh chắn cổng vào (90°) và hẹn giờ đóng sau 3\,s.
+  \item Đồng hồ hết 3\,s, thanh chắn tự đóng.
+\end{enumerate}
+\item[Ngoại lệ] 1a. Thẻ để yên trên đầu đọc: chỉ gửi một lần trong 2\,s.
+  3a. Bãi đầy hoặc thẻ đã ở trong bãi: chuyển sang UC05.
+  5a. Người vận hành bấm đóng/mở trên web trước khi hết giờ: lệnh tay thắng, hủy hẹn giờ.
+\item[Hậu điều kiện] Thẻ có phiên hoạt động; thanh chắn đóng lại.
+\item[Thông số] Thời gian mở 3\,s; chống đọc lặp 2\,s; tối đa 5 phiên.
+\end{usecase}
+
+\begin{usecase}{UC04}{Lấy xe và thanh toán phí}
+\item[Tác nhân] Người lái xe; RFID Client; Đồng hồ hệ thống.
+\item[Mô tả] Người lái quẹt cùng thẻ ở cổng ra; hệ thống tính phí, hiển thị hóa đơn và mở cổng ra.
+\item[Tiền điều kiện] Thẻ đang có phiên gửi xe.
+\item[Luồng chính] \begin{enumerate}[nosep,leftmargin=1.3em]
+  \item Người lái quẹt thẻ ở đầu đọc cổng ra (\code{"gate":"out"}).
+  \item Máy chủ tính thời gian gửi $t$ và phí $\max(1,\lceil t/3600\rceil)\times5000$\,VNĐ.
+  \item Máy chủ đóng phiên, ghi nhật ký \code{OUT} kèm thời gian và phí.
+  \item Màn hình hiển thị hóa đơn: UID, \code{PARK TIME}, \code{FEE VND} trong 60\,s.
+  \item Thanh chắn cổng ra mở và tự đóng sau 3\,s.
+\end{enumerate}
+\item[Ngoại lệ] 1a. Thẻ chưa vào bãi: chuyển sang UC05.
+\item[Hậu điều kiện] Phiên được giải phóng; nhật ký có bản ghi \code{OUT}.
+\item[Thông số] 5.000\,VNĐ/giờ, làm tròn lên, tối thiểu 1 giờ; hóa đơn hiển thị 60\,s.
+\end{usecase}
+
+\begin{usecase}{UC05}{Từ chối quẹt sai cổng / bãi đầy}
+\item[Tác nhân] Người lái xe; RFID Client; Đồng hồ hệ thống.
+\item[Mô tả] Hệ thống từ chối các lần quẹt không hợp lệ và hướng dẫn người lái.
+\item[Tiền điều kiện] Một trong ba trường hợp: (a) thẻ đã trong bãi nhưng quẹt ở cổng vào;
+  (b) thẻ chưa vào nhưng quẹt ở cổng ra; (c) đã đủ 5 phiên mà có thẻ mới ở cổng vào.
+\item[Luồng chính] \begin{enumerate}[nosep,leftmargin=1.3em]
+  \item Máy chủ nhận \code{rfid\_event} và xác định kết quả \code{INVALID\_GATE} hoặc \code{FULL}.
+  \item Thanh chắn \emph{không} mở.
+  \item Màn hình hiển thị thông báo đỏ trong 5\,s: \code{WRONG GATE} kèm gợi ý
+        \code{ALREADY INSIDE - USE EXIT GATE} / \code{NOT CHECKED IN - USE ENTRY GATE},
+        hoặc \code{PARKING FULL}.
+  \item Nhật ký ghi \code{REJECTED · WRONG GATE} hoặc \code{REJECTED · FULL}.
+\end{enumerate}
+\item[Ngoại lệ] 3a. Đang hiển thị hóa đơn: thông báo hiện trước, hết 5\,s hóa đơn hiện lại.
+  3b. Ngay sau đó có lần quẹt hợp lệ: thông báo cũ bị xóa ngay.
+\item[Hậu điều kiện] Trạng thái phiên không đổi.
+\end{usecase}
+
+\begin{usecase}{UC06}{Cảnh báo cháy và sơ tán}
+\item[Tác nhân] Sensor Client (cảm biến lửa); Người lái xe; Người vận hành.
+\item[Mô tả] Khi phát hiện lửa: báo động tại chỗ, trên web và mở thanh chắn để sơ tán.
+\item[Tiền điều kiện] Sensor Client đang gửi dữ liệu.
+\item[Luồng chính] \begin{enumerate}[nosep,leftmargin=1.3em]
+  \item Cảm biến lửa phát hiện ngọn lửa ổn định quá 50\,ms; Sensor Client gửi ngay \code{"fire":true}.
+  \item Máy chủ bật còi (GPIO9 mức thấp).
+  \item Máy chủ chuyển \emph{chế độ cháy}: mở cả hai thanh chắn và giữ mở.
+  \item Màn hình chuyển sang màn hình \code{DANGER / FIRE DETECTED / EVACUATE NOW} có ngọn lửa động.
+  \item Trang web hiện băng rôn đỏ \code{FIRE DETECTED}.
+\end{enumerate}
+\item[Ngoại lệ] 3a. Người vận hành bấm đóng thanh chắn: bị từ chối (HTTP 500) trong chế độ cháy.
+  6a. Hết lửa (\code{"fire":false}): tắt còi, đóng cả hai thanh chắn, màn hình trở lại bình thường.
+\item[Hậu điều kiện] Lối ra vào thông thoáng trong suốt thời gian có lửa.
+\end{usecase}
+
+\begin{usecase}{UC07}{Giám sát mực nước}
+\item[Tác nhân] Sensor Client; Người vận hành.
+\item[Mô tả] Theo dõi mực nước ngập tại bãi (mô hình tầng hầm).
+\item[Luồng chính] \begin{enumerate}[nosep,leftmargin=1.3em]
+  \item Sensor Client đọc ADC chân A0 mỗi 250\,ms.
+  \item Quy đổi tuyến tính ADC 20–700 thành 0–40\,mm (giới hạn trên 40\,mm).
+  \item Giá trị được gửi trong \code{parking\_update}; máy chủ kiểm tra dải 0–10.000\,mm.
+  \item Màn hình (\code{WATER MM}) và web (\code{WATER LEVEL}) hiển thị giá trị.
+\end{enumerate}
+\item[Ngoại lệ] 3a. Giá trị âm hoặc vượt dải: bản tin bị từ chối.
+\item[Hậu điều kiện] Mực nước hiển thị với độ phân giải 0,1\,mm.
+\end{usecase}
+
+\begin{usecase}{UC08}{Giám sát nhiệt độ}
+\item[Tác nhân] RFID Client (DHT11); Người vận hành.
+\item[Mô tả] Theo dõi nhiệt độ môi trường tại cổng.
+\item[Luồng chính] \begin{enumerate}[nosep,leftmargin=1.3em]
+  \item RFID Client đọc DHT11 mỗi 5\,s, giữ giá trị hợp lệ gần nhất.
+  \item Giá trị được gửi kèm mỗi \code{rfid\_event} (\code{temperature\_c}).
+  \item Máy chủ kiểm tra dải $-40$ đến $125$\,°C, cập nhật trạng thái chung.
+  \item Màn hình (\code{TEMP C}) và web (\code{TEMPERATURE}) hiển thị.
+\end{enumerate}
+\item[Ngoại lệ] 1a. DHT11 đọc lỗi (NaN): giữ giá trị cũ, không gửi số sai.
+\item[Hậu điều kiện] Nhiệt độ cập nhật mỗi lần có xe quẹt thẻ.
+\end{usecase}
+
+\begin{usecase}{UC09}{Điều khiển thanh chắn thủ công}
+\item[Tác nhân] Người vận hành.
+\item[Mô tả] Mở/đóng từng thanh chắn hoặc cả hai (khẩn cấp) từ trang web.
+\item[Luồng chính] \begin{enumerate}[nosep,leftmargin=1.3em]
+  \item Người vận hành bấm \code{OPEN}/\code{CLOSE} của cổng vào, cổng ra, hoặc
+        \code{EMERGENCY OPEN/CLOSE ALL}.
+  \item Trang web gửi yêu cầu \code{POST} tới \code{/api/barrier/<cổng>/<lệnh>} (cổng: \code{in}, \code{out}, \code{all}; lệnh: \code{open}, \code{close}); nút bị khóa đến khi có phản hồi.
+  \item Máy chủ hủy hẹn giờ tự đóng (nếu có) rồi đặt góc servo.
+  \item Trang web cập nhật trạng thái \code{OPEN}/\code{CLOSED}.
+\end{enumerate}
+\item[Ngoại lệ] 3a. Đang có cháy mà yêu cầu đóng: từ chối, hiển thị lỗi.
+\item[Hậu điều kiện] Thanh chắn ở đúng trạng thái người vận hành chọn.
+\end{usecase}
+
+\begin{usecase}{UC10}{Xem nhật ký vào/ra và giá gửi xe}
+\item[Tác nhân] Người vận hành.
+\item[Mô tả] Biết ai đang trong bãi, đã gửi bao lâu, phí tạm tính, và 10 sự kiện gần nhất.
+\item[Luồng chính] \begin{enumerate}[nosep,leftmargin=1.3em]
+  \item Trang web gọi \code{GET /api/rfid} mỗi 2\,s.
+  \item Máy chủ trả giá mỗi giờ, danh sách xe trong bãi (UID, giờ vào, phí tạm tính) và
+        10 sự kiện mới nhất (vào, ra kèm thời lượng và phí, bị từ chối).
+  \item Trình duyệt đổi thời gian ``giây kể từ khi khởi động'' thành giờ thực theo đồng hồ điện thoại.
+\end{enumerate}
+\item[Ngoại lệ] 2a. Máy chủ khởi động lại: nhật ký và phiên được làm mới (lưu trong RAM).
+\item[Hậu điều kiện] Người vận hành đối soát được tiền thu và xe trong bãi.
+\end{usecase}

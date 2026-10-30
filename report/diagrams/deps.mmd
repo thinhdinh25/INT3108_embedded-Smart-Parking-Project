@@ -1,0 +1,14 @@
+flowchart TB
+  main --> net[network_service] & lcd[lcd_display] & servo & buzzer
+  net --> wifi[wifi_sta] & udp[udp_server] & http[http_server]
+  udp --> lcd & servo & buzzer
+  udp --> ps[parking_state] & pu[parking_update] & rs[rfid_session]
+  http --> servo & ps & rs
+  lcd --> ps & rs & gif[kaoruko_gif · claude_gif]
+  rs --> ps & js[json_scan]
+  pu --> js
+  classDef app fill:#EDE7F6,stroke:#5E35B1;
+  classDef svc fill:#E1ECFA,stroke:#003E7E;
+  classDef dom fill:#E8F5E9,stroke:#2E7D32;
+  classDef data fill:#FFF3E0,stroke:#C77700;
+  class main app; class net,wifi,udp,http,lcd,servo,buzzer svc; class ps,pu,rs,js dom; class gif data;

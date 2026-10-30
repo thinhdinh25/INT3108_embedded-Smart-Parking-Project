@@ -1,0 +1,257 @@
+% =====================================================================
+\chapter{Thiết kế và phân tích kiến trúc}\label{chap:thietke}
+% =====================================================================
+
+Chương này đi từ tổng thể đến chi tiết: kiến trúc triển khai và mạng
+(\S\ref{sec:trienkhai}), kiến trúc phần mềm máy chủ (\S\ref{sec:phanlop}), mô hình
+tác vụ và đồng bộ (\S\ref{sec:tacvu}), các luồng hoạt động (\S\ref{sec:luong}), máy
+trạng thái (\S\ref{sec:fsm}), giao thức (\S\ref{sec:giaothuc}), thiết kế chi tiết
+từng module (\S\ref{sec:chitiet}), phân tích chất lượng kiến trúc (\S\ref{sec:phantich})
+và demo (\S\ref{sec:demo}).
+
+% ---------------------------------------------------------------------
+\section{Kiến trúc triển khai và mạng}\label{sec:trienkhai}
+\begin{figure}[H]
+\centering
+\mmd[1][0.6]{deploy}
+\caption{Kiến trúc triển khai: RFID Client làm điểm truy cập; máy chủ, Sensor Client và điện thoại là trạm Wi-Fi}\label{fig:deploy}
+\end{figure}
+
+Hình~\ref{fig:deploy} cho thấy cấu trúc mạng hình sao quanh RFID Client. Bảng~\ref{tab:netparams}
+liệt kê thông số mạng. Hai client gửi tới địa chỉ \emph{broadcast} \code{192.168.4.255}
+nên không cần biết IP máy chủ; người dùng truy cập bằng tên \code{parking.local}
+nên cũng không cần biết IP.
+
+\begin{table}[H]
+\centering\small
+\caption{Thông số mạng}\label{tab:netparams}
+\begin{tabularx}{\linewidth}{@{}lX@{}}
+\toprule
+SSID / mật khẩu & \code{ESP32-Parking} / \code{12345678}, WPA2-PSK, kênh 1, tối đa 4 trạm \\
+Điểm truy cập & RFID Client, \code{192.168.4.1/24}, cấp IP bằng DHCP \\
+Máy chủ & Trạm Wi-Fi, IP do DHCP cấp, tên \code{parking.local}, dịch vụ \code{\_http.\_tcp} cổng 80 \\
+UDP & Máy chủ nghe cổng 3333; client gửi tới \code{192.168.4.255:3333} \\
+HTTP & Cổng 80: trang web, \code{/api/parking}, \code{/api/barrier}, \code{/api/rfid} \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\begin{lydo}[Tại sao RFID Client làm điểm truy cập và máy chủ dùng mDNS]
+Đặt điểm truy cập trên một bo ESP8266 giải phóng ESP32-C3 khỏi việc quản lý trạm
+(bộ đệm cho từng trạm, DHCP server), dành RAM cho màn hình. Hệ thống vẫn hoạt động
+độc lập, không cần router hay Internet. Đổi lại, IP máy chủ do DHCP cấp và có thể
+thay đổi; mDNS giải quyết bằng một tên cố định \code{parking.local}. Máy chủ còn
+\emph{chủ động thông báo lại} tên này mỗi khi nhận địa chỉ mới (sự kiện
+\code{IP\_EVENT\_STA\_GOT\_IP}), kể cả khi DHCP đổi địa chỉ mà không mất kết nối, nên
+các thiết bị khác không bao giờ giữ một IP cũ.
+\end{lydo}
+
+\subsection{Giao thức truyền: UDP broadcast}
+\begin{table}[H]
+\centering\small
+\caption{So sánh giao thức truyền dữ liệu cảm biến}\label{tab:proto}
+\begin{tabularx}{\linewidth}{@{}lXXX@{}}
+\toprule
+& \textbf{UDP} & \textbf{HTTP/TCP} & \textbf{MQTT} \\ \midrule
+Thiết lập kết nối & Không & Bắt tay 3 bước & Cần broker \\
+Overhead/bản tin & 8 byte & Vài trăm byte & 2+ byte trên TCP \\
+Bộ nhớ máy chủ & 1 socket, đệm 256\,B & Socket + đệm mỗi kết nối & Thêm broker \\
+Khi mất gói & Mất, bản tin sau bù lại & Tự truyền lại & Có QoS \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\begin{lydo}
+Sensor Client gửi \textbf{toàn bộ trạng thái} (không phải ``sự kiện thay đổi''), và
+nhắc lại mỗi giây. Mất một gói chỉ làm trễ tối đa 1\,s, không làm sai trạng thái lâu
+dài, nên độ tin cậy của TCP là không cần thiết, trong khi chi phí của nó (bắt tay,
+socket, bộ đệm) đáng kể trên vi điều khiển. Gửi broadcast giúp client không cần biết
+IP máy chủ và cho phép máy tính trong mạng ``nghe'' để gỡ lỗi. JSON được chọn vì đọc
+được trong log và dễ sinh từ \code{snprintf}/Python; bản tin dài 70–110 byte, nằm
+gọn trong một gói UDP.
+\end{lydo}
+
+% ---------------------------------------------------------------------
+\section{Kiến trúc phần mềm máy chủ}\label{sec:phanlop}
+Firmware máy chủ được tổ chức theo \textbf{kiến trúc phân lớp} (Hình~\ref{fig:layers}):
+mỗi lớp chỉ gọi lớp dưới nó. Lớp \emph{nghiệp vụ} (\file{parking/}) không phụ thuộc
+phần cứng nên chạy được cả trên máy tính để kiểm thử.
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[
+  lay/.style={draw,thick,rounded corners=2pt,minimum height=1.05cm,align=center,font=\small},
+  mod/.style={draw,rounded corners=2pt,fill=white,font=\scriptsize,align=center,minimum height=0.62cm,inner sep=2pt}]
+\def\W{14.6}
+\node[lay,fill=boxE,minimum width=\W cm] (app) at (0,4.2) {};
+\node[anchor=west,font=\small\bfseries] at (-7.2,4.2) {Ứng dụng};
+\node[mod] at (0.9,4.2) {\texttt{main.c}: khởi động theo thứ tự, fail-fast};
+\node[lay,fill=boxA,minimum width=\W cm,minimum height=1.35cm] (svc) at (0,2.75) {};
+\node[anchor=west,font=\small\bfseries,align=left] at (-7.2,2.75) {Dịch vụ};
+\node[mod,minimum width=2.1cm] at (-3.4,2.75) {\texttt{udp\_server}\\điều phối bản tin};
+\node[mod,minimum width=2.1cm] at (-1.05,2.75) {\texttt{http\_server}\\web + API};
+\node[mod,minimum width=2.1cm] at (1.3,2.75) {\texttt{lcd\_display}\\giao diện TFT};
+\node[mod,minimum width=1.6cm] at (3.35,2.75) {\texttt{servo}\\thanh chắn};
+\node[mod,minimum width=1.4cm] at (5.05,2.75) {\texttt{buzzer}};
+\node[mod,minimum width=1.4cm] at (6.45,2.75) {\texttt{network}\\Wi-Fi, mDNS};
+\node[lay,fill=boxB,minimum width=\W cm] (dom) at (0,1.2) {};
+\node[anchor=west,font=\small\bfseries,align=left] at (-7.2,1.2) {Nghiệp vụ};
+\node[mod] at (-2.6,1.2) {\texttt{parking\_state}\\trạng thái bãi};
+\node[mod] at (0.2,1.2) {\texttt{json\_scan}, \texttt{parking\_update}\\kiểm tra bản tin};
+\node[mod] at (3.6,1.2) {\texttt{rfid\_session}\\phiên, phí, nhật ký, thông báo};
+\node[lay,fill=boxC,minimum width=\W cm] (drv) at (0,-0.3) {};
+\node[anchor=west,font=\small\bfseries,align=left] at (-7.2,-0.3) {ESP-IDF};
+\node[mod] at (-3.5,-0.3) {\code{esp\_lcd} · SPI DMA};
+\node[mod] at (-1.0,-0.3) {LEDC · GPIO};
+\node[mod] at (1.2,-0.3) {\code{esp\_timer}};
+\node[mod] at (3.2,-0.3) {lwIP · HTTPD};
+\node[mod] at (5.6,-0.3) {Wi-Fi · mDNS · NVS};
+\node[lay,fill=boxD,minimum width=\W cm] (os) at (0,-1.6) {};
+\node[anchor=west,font=\small\bfseries,align=left] at (-7.2,-1.6) {RTOS};
+\node[mod] at (0.9,-1.6) {FreeRTOS: tác vụ, mutex, critical section, thông báo tác vụ};
+\node[lay,fill=gray!15,minimum width=\W cm,minimum height=0.8cm] (hw) at (0,-2.8) {\textbf{Phần cứng}: ESP32-C3 — SPI2, LEDC, GPIO, Wi-Fi};
+\end{tikzpicture}
+\caption{Kiến trúc phân lớp của firmware máy chủ}\label{fig:layers}
+\end{figure}
+
+\subsection{Phụ thuộc giữa các module}
+Hình~\ref{fig:deps} là đồ thị phụ thuộc: mũi tên từ A đến B nghĩa là A gọi B. Mọi
+mũi tên đều đi xuống lớp thấp hơn, hoặc từ \file{udp\_server} sang các thiết bị cùng
+lớp dịch vụ, nên không có vòng phụ thuộc.
+
+\begin{figure}[H]
+\centering
+\mmd[0.95][0.6]{deps}
+\caption{Đồ thị phụ thuộc giữa các module (tím: ứng dụng, xanh dương: dịch vụ, xanh lá: nghiệp vụ, cam: dữ liệu)}\label{fig:deps}
+\end{figure}
+
+\begin{lydo}[Tại sao phân lớp như vậy]
+(1) \emph{Kiểm thử được}: \file{parking\_state}, \file{json\_scan}, \file{parking\_update},
+\file{rfid\_session} chỉ cần hai macro critical section và hàm đọc đồng hồ — thay bằng
+hai tệp header giả là chạy được trên máy tính. (2) \emph{Thay đổi cục bộ}: đổi màn hình
+khác chỉ sửa \file{lcd\_display}; đổi giao thức mạng chỉ sửa \file{udp\_server}.
+(3) \emph{Không vòng phụ thuộc} (Hình~\ref{fig:deps}): \file{udp\_server} là nơi duy
+nhất ``điều phối'' — nhận bản tin, gọi nghiệp vụ, rồi ra lệnh cho servo, còi và đánh
+thức màn hình.
+\end{lydo}
+
+% ---------------------------------------------------------------------
+\section{Mô hình tác vụ và đồng bộ}\label{sec:tacvu}
+\begin{table}[H]
+\centering\small
+\caption{Các tác vụ đang chạy trên máy chủ}\label{tab:tasks}
+\begin{tabularx}{\linewidth}{@{}lccp{3.0cm}X@{}}
+\toprule
+\textbf{Tác vụ} & \textbf{Ưu tiên} & \textbf{Stack} & \textbf{Đánh thức bởi} & \textbf{Nhiệm vụ} \\ \midrule
+\code{udp\_server} & 5 & 4096 B & gói UDP đến & Kiểm tra bản tin, cập nhật trạng thái, ra lệnh servo/còi/màn hình \\
+\code{httpd} & 5 & 4096 B & request HTTP & Trang web, API \\
+\code{esp\_timer} (hệ thống) & cao & 3584 B & hẹn giờ & Gọi hàm đóng thanh chắn khi hết 3\,s \\
+\code{lcd\_display} & 4 & 4096 B & thông báo tác vụ / 1\,s / 120\,ms & Vẽ lại màn hình khi dữ liệu đổi \\
+\code{lcd\_animation} & 3 & 3072 B & mỗi khung (100\,ms) & Ảnh động trang trí \\
+\code{mdns} & 1 & 4096 B & gói mDNS & Trả lời \code{parking.local} \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\begin{figure}[H]
+\centering
+\mmd[0.95][0.6]{tasks}
+\caption{Tác vụ (xanh dương, kèm mức ưu tiên), tài nguyên dùng chung (xanh lá) và cơ chế bảo vệ; nét đứt đỏ: đánh thức tác vụ}\label{fig:tasks}
+\end{figure}
+
+Hệ thống dùng \textbf{ba cơ chế đồng bộ} cho ba loại tình huống khác nhau:
+\begin{itemize}
+\item \textbf{Critical section} (\code{portENTER\_CRITICAL}) cho \file{parking\_state} và
+  \file{rfid\_session}: vùng bảo vệ chỉ là vài lệnh sao chép cấu trúc nhỏ (vài micro
+  giây). Rẻ hơn mutex; người đọc luôn nhận một bản sao nhất quán.
+\item \textbf{Mutex} cho servo và panel LCD: vùng bảo vệ dài hơn (gửi dữ liệu SPI,
+  ghi thanh ghi LEDC) và có thể chờ; mutex không tắt ngắt, cho phép tác vụ khác chạy
+  và có kế thừa ưu tiên chống đảo ưu tiên.
+\item \textbf{Thông báo tác vụ} (\code{xTaskNotifyGive}/\code{ulTaskNotifyTake}) để
+  \file{udp\_server} đánh thức \file{lcd\_display} ngay khi có dữ liệu mới — nhẹ hơn
+  semaphore (không cấp phát đối tượng) và thay cho việc hỏi vòng 500\,ms trước đây.
+\end{itemize}
+
+\begin{lydo}[Tại sao đặt ưu tiên như vậy]
+Ưu tiên phản ánh mức độ quan trọng với người dùng: nhận bản tin và điều khiển thanh
+chắn (5) liên quan trực tiếp đến xe đang chờ ở cổng; màn hình thông tin (4) quan
+trọng hơn ảnh động trang trí (3); mDNS (1) chỉ trả lời truy vấn tên, chậm vài mili
+giây không ảnh hưởng. Khi CPU bận, ảnh động chậm đi chứ thông tin không bị trễ.
+\end{lydo}
+
+% ---------------------------------------------------------------------
+\section{Luồng hoạt động}\label{sec:luong}
+\subsection{Khởi động máy chủ}
+\begin{figure}[H]
+\centering
+\mmd[1][0.72]{boot}
+\caption{Trình tự khởi động máy chủ (\file{main.c})}\label{fig:boot}
+\end{figure}
+
+\begin{lydo}[Tại sao thứ tự khởi động như vậy]
+\textbf{NVS trước tiên} vì Wi-Fi đọc dữ liệu hiệu chuẩn từ NVS. \textbf{Màn hình
+trước Wi-Fi}: framebuffer cần một khối bộ nhớ \emph{liền mạch} 115\,KB có khả năng
+DMA; Wi-Fi cấp phát nhiều khối nhỏ làm phân mảnh heap, nên phải lấy khối lớn trước.
+\textbf{Còi và servo trước mạng}: đưa còi về im lặng và thanh chắn về vị trí đóng
+trước khi có bất kỳ lệnh nào từ mạng. \textbf{Mạng sau cùng}: chỉ nhận lệnh khi mọi
+thiết bị đã sẵn sàng. \code{ESP\_ERROR\_CHECK} áp dụng nguyên tắc \emph{fail-fast}:
+lỗi khởi tạo dẫn tới khởi động lại thay vì chạy ở trạng thái nửa vời.
+\end{lydo}
+
+\subsection{Xử lý bản tin UDP trên máy chủ}
+\begin{figure}[H]
+\centering
+\mmd[1][0.6]{udpflow}
+\caption{Lưu đồ điều phối bản tin trong tác vụ \code{udp\_server}}\label{fig:udpflow}
+\end{figure}
+Nếu socket lỗi, tác vụ đóng socket, chờ 1\,s rồi tạo lại — tự phục hồi mà không cần
+khởi động lại máy chủ. Khi không có gói, tác vụ ngủ trong \code{recvfrom()} và
+\textbf{không tốn CPU}.
+
+\subsection{Vòng lặp của hai client}
+\begin{figure}[H]
+\centering
+\mmd[1][0.62]{clientloops}
+\caption{Vòng lặp không chặn của Sensor Client và RFID Client}\label{fig:clientloops}
+\end{figure}
+
+\subsection{Xe vào và ra bằng thẻ RFID}
+\begin{figure}[H]
+\centering
+\mmd[1][0.62]{seq_rfid}
+\caption{Biểu đồ tuần tự gửi xe (trên) và lấy xe (dưới)}\label{fig:seq-rfid}
+\end{figure}
+
+\subsection{Phát hiện cháy}
+\begin{figure}[H]
+\centering
+\mmd[1][0.6]{seq_fire}
+\caption{Biểu đồ tuần tự cảnh báo cháy}\label{fig:seq-fire}
+\end{figure}
+
+\subsection{Trang web giám sát}
+Trình duyệt tải trang một lần, sau đó gọi \code{GET /api/parking} mỗi 1\,s,
+\code{GET /api/rfid} mỗi 2\,s và \code{GET /api/barrier} khi mở trang. Lệnh điều
+khiển dùng \code{POST}; các nút bị khóa đến khi có phản hồi để tránh gửi trùng.
+
+% ---------------------------------------------------------------------
+\section{Máy trạng thái}\label{sec:fsm}
+\begin{figure}[H]
+\centering
+\mmd[1][0.6]{fsm_card}
+\caption{Máy trạng thái của một thẻ RFID}\label{fig:fsm-card}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\mmd[1][0.6]{fsm_gate}
+\caption{Máy trạng thái của một thanh chắn}\label{fig:fsm-gate}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\mmd[1][0.6]{fsm_footer}
+\caption{Trạng thái vùng chân màn hình (footer) TFT; khi có cháy, toàn màn hình chuyển sang màn hình cảnh báo}\label{fig:fsm-footer}
+\end{figure}
+
+\input{chapters/ch5b_chitiet}

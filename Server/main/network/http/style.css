@@ -1,5 +1,7 @@
 :root {
     color-scheme: dark;
+    --free: #34d399;
+    --busy: #f87171;
     font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', monospace;
     background: #000000;
     color: #f1f1f1;
@@ -31,14 +33,10 @@ h1 { margin-bottom: 5px; font-size: clamp(22px, 4vw, 30px); }
 .subtitle { margin-bottom: 0; color: var(--muted); font-size: 11px; }
 .sample-badge { display: inline-flex; gap: 7px; align-items: center; padding: 8px 10px; border: 1px solid #475569; color: #c8c8c8; font-size: 9px; font-weight: 700; letter-spacing: .5px; }
 .sample-badge span { color: var(--terminal); font-size: 8px; }
-.summary { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 14px; }
 .fire-alert { display: flex; flex-direction: column; gap: 5px; margin-bottom: 14px; padding: 13px 16px; border: 1px solid #ff4d4d; background: #260707; color: #fff; }
 .fire-alert[hidden] { display: none; }
 .fire-alert strong { color: #ff6b6b; font-size: 14px; letter-spacing: 1px; }
 .fire-alert span { font-size: 10px; }
-.summary-card { display: flex; align-items: center; min-height: 72px; padding: 13px 16px; border: 1px solid var(--line); background: var(--panel); }
-.summary-card p { margin: 0 0 5px; color: var(--muted); font-size: 9px; text-transform: uppercase; letter-spacing: .7px; }
-.summary-card strong { font-size: 20px; font-weight: 500; }
 .barrier-control { display: flex; align-items: center; justify-content: space-between; gap: 18px; margin-bottom: 14px; padding: 15px 18px; border: 1px solid var(--line); background: var(--panel); }
 .barrier-copy h2 { margin: 0 0 5px; font-size: 14px; font-weight: 600; }
 .barrier-copy .eyebrow { margin-bottom: 5px; font-size: 8px; }
@@ -60,30 +58,17 @@ h1 { margin-bottom: 5px; font-size: clamp(22px, 4vw, 30px); }
 .barrier-emergency button:disabled { cursor: wait; opacity: .6; }
 .barrier-emergency button:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
 #emergency-state { color: #ffaaaa; font-size: 9px; }
-.content-grid { display: grid; grid-template-columns: 1.2fr 1fr; gap: 14px; align-items: stretch; }
 .panel { padding: 18px; border: 1px solid var(--line); background: var(--panel); }
 .panel-heading { display: flex; align-items: center; justify-content: space-between; margin-bottom: 15px; }
 .panel-heading h2 { margin: 0; font-size: 14px; }
 .panel-heading .eyebrow { margin-bottom: 5px; font-size: 8px; }
 .capacity { padding: 6px 8px; border: 1px solid #475569; color: var(--terminal); font-size: 9px; }
-.parking-lot { display: grid; grid-template-columns: 42px 1fr; gap: 10px; padding: 10px; border: 1px solid #263246; background: #000000; }
-.lane-label { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 7px; border-right: 1px dashed #475569; color: #a0aec0; font-size: 8px; font-weight: 700; letter-spacing: .5px; writing-mode: vertical-rl; transform: rotate(180deg); }
-.lane-arrow { color: #c6d4e8; font-size: 18px; }
-.space-list { display: grid; gap: 6px; }
-.space { display: flex; min-height: 43px; align-items: center; gap: 10px; padding: 6px 10px; border: 1px solid #303030; background: #080808; }
-.space::before { width: 3px; height: 22px; background: var(--terminal); content: ''; }
-.space.occupied::before { background: #c6d4e8; }
-.space-number { color: #91a4bb; font-size: 9px; }
-.space-info { display: flex; flex: 1; align-items: center; justify-content: space-between; gap: 10px; }
-.space-info strong { font-size: 10px; font-weight: 500; }
-.status { display: flex; align-items: center; gap: 6px; color: #dbe5f2; font-size: 9px; }
-.status i { width: 6px; height: 6px; background: var(--terminal); }
 .occupied .status i { background: #c6d4e8; }
-.legend { display: flex; justify-content: flex-end; gap: 15px; padding-top: 11px; color: #b7c5da; font-size: 8px; }
+.legend { display: flex; align-items: center; gap: 15px; padding-top: 11px; color: #b7c5da; font-size: 9px; }
 .legend span { display: flex; align-items: center; gap: 6px; }
 .legend-dot { width: 6px; height: 6px; }
-.free-dot { background: var(--terminal); }
-.busy-dot { background: #c6d4e8; }
+.free-dot { background: var(--free); }
+.busy-dot { background: var(--busy); }
 .metric { position: relative; display: flex; align-items: center; min-height: 75px; margin-bottom: 8px; padding: 13px; border: 1px solid #263246; background: #000000; }
 .metric-copy { display: grid; gap: 5px; }
 .metric-copy p { margin: 0; color: #b7c5da; font-size: 9px; letter-spacing: .5px; }
@@ -98,26 +83,74 @@ footer { display: flex; align-items: center; justify-content: center; gap: 8px; 
 .footer-dot { width: 6px; height: 6px; }
 .footer-separator { color: #64748b; }
 
+/* Parking lot: the main element of the page. */
+.lot-panel { margin-bottom: 14px; }
+.lot-heading { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; margin-bottom: 16px; }
+.lot-heading h2 { margin: 0; font-size: 20px; }
+.lot-stats { display: flex; gap: 8px; }
+.lot-stat { display: grid; min-width: 86px; padding: 8px 12px; border: 1px solid var(--line); background: #000; text-align: center; }
+.lot-stat strong { font-size: 30px; font-weight: 600; line-height: 1.1; }
+.lot-stat span { color: var(--muted); font-size: 9px; letter-spacing: .8px; }
+.stat-free strong { color: var(--free); }
+.stat-busy strong { color: var(--busy); }
+.lot { padding: 0 14px 14px; border: 1px solid #263246; background: #050505; }
+.drive-lane { display: flex; align-items: center; gap: 12px; height: 46px; color: #c6d4e8; font-size: 10px; font-weight: 700; letter-spacing: 1px; white-space: nowrap; }
+.lane-dash { flex: 1; height: 0; border-top: 2px dashed #f5c542; }
+.bays { display: grid; grid-template-columns: repeat(5, 1fr); border-left: 2px solid #e5e7eb; }
+.bay { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: space-between; min-height: 230px; padding: 14px 8px 12px; border-right: 2px solid #e5e7eb; border-bottom: 2px solid #e5e7eb; transition: background .3s; }
+.bay.available { background: linear-gradient(180deg, rgba(52, 211, 153, .10), rgba(52, 211, 153, .02)); }
+.bay.occupied { background: linear-gradient(180deg, rgba(248, 113, 113, .12), rgba(248, 113, 113, .03)); }
+.bay-number { color: #fff; font-size: 22px; font-weight: 700; }
+.bay-body { display: grid; flex: 1; width: 100%; place-items: center; }
+.bay.available .bay-body { color: var(--free); font-size: 64px; font-weight: 700; opacity: .85; }
+.bay-body svg { width: min(70%, 78px); height: auto; }
+.car-body { fill: var(--busy); }
+.car-glass { fill: #1f2937; }
+.car-wheel { fill: #111; }
+.bay-status { padding: 4px 8px; border: 1px solid currentColor; font-size: 10px; font-weight: 700; letter-spacing: .8px; }
+.bay.available .bay-status { color: var(--free); }
+.bay.occupied .bay-status { color: var(--busy); }
+.capacity-text { margin-left: auto; color: var(--terminal); }
+.metrics { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.metrics .metric { margin-bottom: 0; }
+.environment-panel { margin-bottom: 14px; }
+
+.log-panel { margin-top: 14px; }
+.log-note { margin: 0 0 12px; color: var(--muted); font-size: 9px; }
+.log-subtitle { margin: 14px 0 6px; color: var(--muted); font-size: 9px; font-weight: 700; letter-spacing: .7px; text-transform: uppercase; }
+.log-table { width: 100%; border-collapse: collapse; font-size: 10px; }
+.log-table th { padding: 6px 8px; border-bottom: 1px solid var(--line); color: var(--muted); font-size: 9px; font-weight: 500; text-align: left; }
+.log-table td { padding: 7px 8px; border-bottom: 1px solid #1a1a1a; }
+.log-table .event-in td:nth-child(3) { color: var(--terminal); }
+.log-table .event-full td:nth-child(3), .log-table .event-wrong_gate td:nth-child(3) { color: #f87171; }
+.log-empty td { color: var(--muted); text-align: center; }
+
 @media (max-width: 700px) {
     .dashboard { width: min(100% - 28px, 560px); }
-    .content-grid { grid-template-columns: 1fr; }
+    .lot-heading { align-items: flex-start; flex-direction: column; }
+    .lot-stats { width: 100%; }
+    .lot-stat { flex: 1; min-width: 0; }
+    .bay { min-height: 170px; }
+    .bay-number { font-size: 17px; }
+    .bay.available .bay-body { font-size: 44px; }
+    .metrics { grid-template-columns: 1fr; }
 }
 
 @media (max-width: 440px) {
     .topbar { height: 58px; }
     .intro { align-items: flex-start; gap: 12px; margin-top: 23px; }
     .sample-badge { margin-top: 2px; padding: 7px; font-size: 8px; white-space: nowrap; }
-    .summary { gap: 6px; }
-    .summary-card { min-height: 65px; padding: 9px; }
-    .summary-card p { font-size: 8px; }
-    .summary-card strong { font-size: 17px; }
+    .lot { padding: 0 6px 8px; }
+    .drive-lane { gap: 6px; font-size: 8px; letter-spacing: .3px; }
+    .bay { min-height: 140px; padding: 10px 2px 8px; }
+    .bay-number { font-size: 14px; }
+    .bay.available .bay-body { font-size: 32px; }
+    .bay-status { padding: 3px 2px; font-size: 7px; letter-spacing: 0; border: 0; }
+    .lot-stat strong { font-size: 22px; }
     .barrier-control { align-items: flex-start; flex-direction: column; padding: 13px; }
     .barrier-lanes, .barrier-actions, .barrier-emergency { width: 100%; }
     .barrier-actions button { flex: 1; }
     .barrier-emergency { flex-wrap: wrap; }
     .barrier-emergency button { flex: 1; }
     .panel { padding: 13px; }
-    .parking-lot { grid-template-columns: 32px 1fr; gap: 6px; padding: 7px; }
-    .space { gap: 7px; padding: 6px; }
-    .space-info { align-items: flex-start; flex-direction: column; gap: 3px; }
 }

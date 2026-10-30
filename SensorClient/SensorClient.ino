@@ -76,8 +76,10 @@ void init_sensor() {
     currentWaterMm = read_water_mm();
 }
 
-void update_sensor() {
+// Returns true when a debounced slot or flame state changed, so it can be sent at once.
+bool update_sensor() {
     unsigned long now = millis();
+    bool changed = false;
 
     // 1. Update IR Parking Sensors
     for (int i = 0; i < 5; i++) {
@@ -91,6 +93,7 @@ void update_sensor() {
         if (pendingState[i] != state[i] &&
             now - changeTime[i] >= STABLE_TIME) {
             state[i] = pendingState[i];
+            changed = true;
 
             Serial.print("Sensor ");
             Serial.print(i);
@@ -110,6 +113,7 @@ void update_sensor() {
         now - flameChangeTime >= STABLE_TIME) {
 
         flameState = pendingFlameState;
+        changed = true;
         Serial.print("Flame Alert = ");
         Serial.println(flameState ? "DETECTED (1)" : "CLEAR (0)");
     }
@@ -119,6 +123,7 @@ void update_sensor() {
         lastWaterRead = now;
         currentWaterMm = read_water_mm();
     }
+    return changed;
 }
 
 /******************SENSOR SECTION END**********************/
@@ -184,9 +189,11 @@ void setup() {
 
 void loop() {
     ArduinoOTA.handle();
-    update_sensor();
+    bool changed = update_sensor();
     unsigned long now = millis();
-    if (now - lastSend >= SEND_INTERVAL) {
+    // Send on every debounced change for low latency, plus a 1 s heartbeat so a lost
+    // datagram is corrected by the next full snapshot.
+    if (changed || now - lastSend >= SEND_INTERVAL) {
         lastSend = now;
         send_UDP();
     }

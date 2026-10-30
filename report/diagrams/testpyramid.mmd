@@ -1,0 +1,9 @@
+flowchart LR
+  L3["<b>Kiểm thử hệ thống trên phần cứng</b><br/>15 kịch bản S1–S15"]
+  L2["<b>Kiểm thử tích hợp bằng công cụ giả lập Python</b><br/>examples/udp_sender.py · udp_rfid_sender.py"]
+  L1["<b>Kiểm thử tự động trên máy tính</b><br/>module máy chủ + mã nguồn hai client · 250 phép kiểm tra · vài giây"]
+  L1 --> L2 --> L3
+  classDef a fill:#FCE4EC,stroke:#AD1457;
+  classDef b fill:#FFF3E0,stroke:#C77700;
+  classDef c fill:#E8F5E9,stroke:#2E7D32;
+  class L3 a; class L2 b; class L1 c;

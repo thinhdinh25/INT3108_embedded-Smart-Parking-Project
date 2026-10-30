@@ -1,0 +1,82 @@
+% =====================================================================
+\chapter{Giới thiệu bài toán}\label{chap:gioithieu}
+% =====================================================================
+
+\section{Bối cảnh}
+Tại các đô thị lớn như Hà Nội, số lượng ô tô và xe máy tăng nhanh hơn nhiều so với
+diện tích bãi đỗ. Người lái thường phải đi vòng nhiều lần để tìm chỗ trống, gây ùn
+tắc cục bộ và lãng phí nhiên liệu. Phần lớn bãi xe hiện nay vẫn vận hành thủ công:
+vé giấy, ghi biển số bằng tay, tính tiền bằng ước lượng, không biết trước còn bao
+nhiêu chỗ và hầu như không có cơ chế cảnh báo an toàn khi xảy ra cháy hoặc ngập
+nước — hai rủi ro thường gặp ở tầng hầm.
+
+Một \textbf{bãi đỗ xe thông minh} tự động hóa các công việc này: cảm biến phát hiện
+chỗ trống, thẻ RFID kiểm soát ra vào và tính phí, thanh chắn tự mở/đóng, cảm biến
+môi trường cảnh báo sự cố và mọi thông tin được hiển thị trực tiếp tại bãi lẫn trên
+điện thoại của người quản lý.
+
+\section{Mục tiêu của bài toán}
+Đề tài xây dựng một mô hình bãi xe 5 chỗ, 2 cổng, đáp ứng các mục tiêu:
+\begin{enumerate}
+  \item \textbf{Giám sát chỗ đỗ theo thời gian thực}: biết chính xác chỗ nào trống,
+        chỗ nào có xe; màn hình tại bãi cập nhật trong khoảng 0,1 giây, trang web trong
+        khoảng 1 giây.
+  \item \textbf{Kiểm soát ra vào bằng thẻ RFID}: thẻ quẹt ở cổng vào mở thanh chắn
+        vào, cùng thẻ quẹt ở cổng ra mở thanh chắn ra; thanh chắn tự đóng sau 3 giây;
+        quẹt sai cổng hoặc bãi đầy bị từ chối và thông báo rõ trên màn hình.
+  \item \textbf{Tính phí tự động}: 5.000\,VNĐ cho mỗi giờ bắt đầu, tối thiểu 1 giờ;
+        hiển thị hóa đơn khi xe ra.
+  \item \textbf{An toàn}: phát hiện lửa — bật còi, hiển thị cảnh báo, \emph{mở cả hai
+        thanh chắn} để sơ tán; theo dõi mực nước và nhiệt độ.
+  \item \textbf{Giám sát và điều khiển từ xa}: trang web tại \code{http://parking.local}
+        dùng được trên mọi điện thoại, không cần cài ứng dụng, có nhật ký xe vào/ra.
+  \item \textbf{Hoạt động độc lập}: tự tạo mạng Wi-Fi riêng, không cần Internet hay
+        router; tự phục hồi khi mất kết nối.
+\end{enumerate}
+
+\section{Ý nghĩa}
+\paragraph{Ý nghĩa thực tiễn.} Mô hình chứng minh rằng một bãi xe nhỏ (chung cư mini,
+văn phòng, trường học) có thể được tự động hóa bằng linh kiện phổ thông giá rẻ.
+Người lái biết ngay còn chỗ hay không; người quản lý thu phí chính xác, có nhật ký
+xe ra vào, được cảnh báo cháy/ngập kịp thời; khi cháy, thanh chắn tự mở giúp sơ tán
+nhanh.
+
+\paragraph{Ý nghĩa học thuật.} Đây là bài toán nhúng điển hình, vận dụng gần như toàn
+bộ kiến thức của môn học: lập trình đa tác vụ với \textbf{hệ điều hành thời gian
+thực FreeRTOS}, đồng bộ giữa các tác vụ, điều khiển ngoại vi bằng phần cứng chuyên
+dụng (PWM, SPI có DMA, ADC, GPIO), giao tiếp không dây, quản lý bộ nhớ hạn chế
+(vài trăm KB RAM), xử lý dữ liệu không tin cậy từ mạng và kiểm thử phần mềm nhúng
+khi không có phần cứng.
+
+\section{Phạm vi}
+Hệ thống là \textbf{mô hình} quy mô phòng thí nghiệm: 5 chỗ đỗ, 2 cổng, xe mô hình,
+thẻ RFID MIFARE. Thanh toán điện tử, nhận dạng biển số và lưu trữ đám mây nằm ngoài
+phạm vi và được nêu ở phần hướng phát triển (Chương~\ref{chap:ketluan}).
+
+\section{Kết quả đạt được (tóm tắt)}
+\begin{itemize}
+  \item Ba bo mạch hoạt động phối hợp, 10 use case (Chương~\ref{chap:usecase}) đều
+        được hiện thực và có phép kiểm thử tương ứng.
+  \item Firmware máy chủ 1,08\,MB, dùng 36\% RAM tĩnh; còn 29\% phân vùng ứng dụng.
+  \item 250 phép kiểm thử tự động đều đạt (Chương~\ref{chap:kiemthu}).
+\end{itemize}
+
+\section{Cấu trúc báo cáo}
+\begin{table}[H]
+\centering\small
+\caption{Cấu trúc báo cáo theo yêu cầu của môn học}\label{tab:cautruc}
+\begin{tabularx}{\linewidth}{@{}lXl@{}}
+\toprule
+\textbf{Chương} & \textbf{Nội dung} & \textbf{Yêu cầu} \\ \midrule
+\ref{chap:gioithieu} & Giới thiệu bài toán, mục tiêu, ý nghĩa & Giới thiệu (1đ) \\
+\ref{chap:usecase} & 10 use case: tác nhân, luồng chính, ngoại lệ, kiểm thử & Use case (10đ) \\
+\ref{chap:thanhphan} & Các thành phần phần cứng và phần mềm, thông số quan trọng & Thành phần (2đ) \\
+\ref{chap:caidat} & Cài đặt môi trường, hệ điều hành, phần mềm mô phỏng & Cài đặt (1đ) \\
+\ref{chap:thietke} & Thiết kế, phân tích kiến trúc, luồng hoạt động, demo & Thiết kế (3đ) \\
+\ref{chap:huongdanchay} & Hướng dẫn chạy mã nguồn từng bước & Chạy mã nguồn (2đ) \\
+\ref{chap:kiemthu} & Kiểm thử tự động và kịch bản kiểm thử phần cứng & Bổ trợ thiết kế/demo \\
+\ref{chap:ketluan} & Tổng kết, hạn chế, hướng phát triển & Kết luận (1đ) \\
+\ref{chap:donggop} & Đóng góp của thành viên, phân chia điểm & Đóng góp \\
+\bottomrule
+\end{tabularx}
+\end{table}

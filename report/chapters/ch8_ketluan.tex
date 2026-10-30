@@ -1,0 +1,49 @@
+% =====================================================================
+\chapter{Tổng kết}\label{chap:ketluan}
+% =====================================================================
+
+\section{Kết quả đạt được}
+Nhóm đã xây dựng hoàn chỉnh một hệ thống bãi đỗ xe thông minh quy mô mô hình gồm ba
+vi điều khiển, tự vận hành trên mạng Wi-Fi riêng:
+\begin{itemize}
+  \item \textbf{10 use case} (Chương~\ref{chap:usecase}) đều được hiện thực: theo dõi chỗ
+        trống tại bãi và trên web, gửi/lấy xe bằng RFID kèm tính phí, từ chối quẹt sai
+        cổng hoặc bãi đầy, cảnh báo cháy và mở đường sơ tán, giám sát nước và nhiệt độ,
+        điều khiển thanh chắn thủ công, nhật ký vào/ra kèm giá.
+  \item \textbf{Kiến trúc} phân lớp rõ ràng, không vòng phụ thuộc; đa tác vụ với
+        FreeRTOS và ba cơ chế đồng bộ dùng đúng chỗ; giao tiếp UDP nhẹ, tự sửa khi mất gói;
+        tên \code{parking.local} luôn trỏ đúng IP.
+  \item \textbf{Hiệu năng}: màn hình phản ánh thay đổi trong khoảng 0,1\,s; thanh chắn mở
+        khoảng 0,2\,s sau khi quẹt thẻ; firmware dùng 36\% RAM tĩnh, còn 29\% flash ứng dụng.
+  \item \textbf{Chất lượng}: 250 phép kiểm thử tự động đều đạt, chạy cả mã nguồn hai
+        client trên phần cứng giả lập.
+\end{itemize}
+
+Qua đề tài, nhóm đã vận dụng các kiến thức trọng tâm của môn lập trình nhúng: hệ điều
+hành thời gian thực, đồng bộ tác vụ, PWM và SPI có DMA, ADC và lọc nhiễu tín hiệu số,
+lập trình socket, quản lý bộ nhớ hạn chế, xử lý dữ liệu không tin cậy, và kiểm thử
+phần mềm nhúng không cần phần cứng.
+
+\section{Hạn chế}
+\begin{enumerate}
+  \item \textbf{Bảo mật}: bản tin UDP và API điều khiển chưa có xác thực; mật khẩu Wi-Fi
+        cố định trong mã nguồn.
+  \item \textbf{Sự kiện RFID có thể mất}: khác bản tin cảm biến, sự kiện quẹt thẻ không
+        được nhắc lại; nếu gói bị mất, người lái phải quẹt lại.
+  \item \textbf{Dữ liệu trong RAM}: phiên gửi xe và nhật ký mất khi máy chủ khởi động lại;
+        thời gian tính từ lúc khởi động, không phải giờ thực.
+  \item \textbf{Nhiệt độ} chỉ được cập nhật khi có xe quẹt thẻ (đi kèm bản tin RFID).
+  \item \textbf{Số phiên RFID và cảm biến IR} chưa được đối chiếu với nhau.
+\end{enumerate}
+
+\section{Hướng phát triển}
+\begin{itemize}
+  \item Thêm mã xác thực HMAC-SHA256 (có sẵn trong mbedTLS của ESP-IDF) và số thứ tự chống
+        phát lại cho mỗi bản tin; thêm đăng nhập cho API điều khiển.
+  \item Bản tin xác nhận (ACK) cho \code{rfid\_event}; RFID Client gửi lại nếu không nhận được.
+  \item Lưu phiên vào NVS theo lô; đồng bộ giờ bằng SNTP hoặc module RTC DS3231.
+  \item Gửi nhiệt độ định kỳ độc lập với sự kiện quẹt thẻ.
+  \item Kết nối MQTT lên đám mây để quản lý nhiều bãi, thống kê doanh thu, đặt chỗ trước,
+        thanh toán bằng mã QR.
+  \item Bổ sung OTA cho máy chủ (bảng phân vùng hai khe ứng dụng).
+\end{itemize}

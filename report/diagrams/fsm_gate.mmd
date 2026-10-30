@@ -1,0 +1,16 @@
+stateDiagram-v2
+  direction LR
+  [*] --> Dong
+  Dong: ĐÓNG
+  MoHen: MỞ có hẹn giờ
+  MoTay: MỞ thủ công
+  Chay: MỞ do cháy (khóa đóng)
+  Dong --> MoHen: RFID hợp lệ
+  MoHen --> Dong: hết 3 s
+  Dong --> MoTay: web OPEN
+  MoTay --> Dong: web CLOSE
+  MoHen --> MoTay: web OPEN (hủy hẹn giờ)
+  MoHen --> Chay: fire=true
+  MoTay --> Chay: fire=true
+  Dong --> Chay: fire=true
+  Chay --> Dong: fire=false

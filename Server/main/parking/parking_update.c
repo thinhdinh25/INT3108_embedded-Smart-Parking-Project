@@ -1,180 +1,74 @@
-#include <stdbool.h>
-#include <stdlib.h>
 #include <string.h>
 
+#include "json_scan.h"
 #include "parking_update.h"
 
-static void skip_json_whitespace(const char **cursor)
-{
-    while (**cursor == ' ' || **cursor == '\t' || **cursor == '\r' || **cursor == '\n')
-        ++(*cursor);
-}
+#define PARKING_UPDATE_MAX_FIELDS 4
 
-static bool consume_json_char(const char **cursor, char expected)
-{
-    skip_json_whitespace(cursor);
-    if (**cursor != expected)
-        return false;
-    ++(*cursor);
-    return true;
-}
-
-static bool consume_json_string(const char **cursor, const char *expected)
-{
-    skip_json_whitespace(cursor);
-    if (**cursor != '"')
-        return false;
-    ++(*cursor);
-    while (*expected != '\0')
-    {
-        if (**cursor != *expected)
-            return false;
-        ++(*cursor);
-        ++expected;
-    }
-    if (**cursor != '"')
-        return false;
-    ++(*cursor);
-    return true;
-}
-
+/* Strict parser for {"type":"parking_update","slots":[5 x 0|1],"water_mm":N,"fire":bool}.
+ * Keys may come in any order; "fire" is optional for older clients. */
 bool parking_update_parse_json(const char *payload, parking_state_t *state)
 {
-    if (payload == NULL || state == NULL)
+    if (payload == NULL || state == NULL || !json_consume_char(&payload, '{'))
         return false;
 
-    const char *cursor = payload;
-    bool has_type = false;
-    bool has_slots = false;
-    bool has_water = false;
-    bool has_fire = false;
-    bool expect_field = false;
-    if (!consume_json_char(&cursor, '{'))
-        return false;
-
-    for (int field = 0; field < 5; ++field)
+    bool has_type = false, has_slots = false, has_water = false, has_fire = false;
+    for (int field = 0; field < PARKING_UPDATE_MAX_FIELDS; ++field)
     {
-        skip_json_whitespace(&cursor);
-        if (*cursor == '}')
-        {
-            if (expect_field)
-                return false;
-            break;
-        }
+        char key[12], value[16];
+        if (!json_parse_string(&payload, key, sizeof(key)) ||
+            !json_consume_char(&payload, ':'))
+            return false;
 
-        bool is_type = false;
-        bool is_slots = false;
-        bool is_water = false;
-        bool is_fire = false;
-        if (strncmp(cursor, "\"type\"", 6) == 0)
+        if (strcmp(key, "type") == 0)
         {
-            is_type = true;
-            cursor += 6;
-            if (has_type)
+            if (has_type || !json_parse_string(&payload, value, sizeof(value)) ||
+                strcmp(value, "parking_update") != 0)
                 return false;
             has_type = true;
         }
-        else if (strncmp(cursor, "\"slots\"", 7) == 0)
+        else if (strcmp(key, "slots") == 0)
         {
-            is_slots = true;
-            cursor += 7;
-            if (has_slots)
+            if (has_slots || !json_consume_char(&payload, '['))
+                return false;
+            for (int i = 0; i < PARKING_SLOT_COUNT; ++i)
+            {
+                json_skip_ws(&payload);
+                if (*payload != '0' && *payload != '1')
+                    return false;
+                state->slots[i] = *payload++ - '0';
+                if (i < PARKING_SLOT_COUNT - 1 && !json_consume_char(&payload, ','))
+                    return false;
+            }
+            if (!json_consume_char(&payload, ']'))
                 return false;
             has_slots = true;
         }
-        else if (strncmp(cursor, "\"water_mm\"", 10) == 0)
+        else if (strcmp(key, "water_mm") == 0)
         {
-            is_water = true;
-            cursor += 10;
-            if (has_water)
+            float water;
+            if (has_water || !json_parse_number(&payload, &water) ||
+                !(water >= 0.0f && water <= 10000.0f))
                 return false;
+            state->water_mm = water;
             has_water = true;
         }
-        else if (strncmp(cursor, "\"fire\"", 6) == 0)
+        else if (strcmp(key, "fire") == 0)
         {
-            is_fire = true;
-            cursor += 6;
-            if (has_fire)
+            if (has_fire || !json_parse_bool(&payload, &state->fire))
                 return false;
             has_fire = true;
         }
         else
             return false;
 
-        expect_field = false;
-        if (!consume_json_char(&cursor, ':'))
+        json_skip_ws(&payload);
+        if (*payload == '}')
+            break;
+        if (*payload != ',' || field == PARKING_UPDATE_MAX_FIELDS - 1)
             return false;
-        if (is_type)
-        {
-            if (!consume_json_string(&cursor, "parking_update"))
-                return false;
-        }
-        else if (is_slots)
-        {
-            if (!consume_json_char(&cursor, '['))
-                return false;
-            for (int i = 0; i < PARKING_SLOT_COUNT; ++i)
-            {
-                skip_json_whitespace(&cursor);
-                if (*cursor != '0' && *cursor != '1')
-                    return false;
-                state->slots[i] = *cursor++ - '0';
-                if (i < PARKING_SLOT_COUNT - 1 && !consume_json_char(&cursor, ','))
-                    return false;
-            }
-            if (!consume_json_char(&cursor, ']'))
-                return false;
-        }
-        else if (is_fire)
-        {
-            skip_json_whitespace(&cursor);
-            if (strncmp(cursor, "true", 4) == 0)
-            {
-                state->fire = true;
-                cursor += 4;
-            }
-            else if (strncmp(cursor, "false", 5) == 0)
-            {
-                state->fire = false;
-                cursor += 5;
-            }
-            else
-                return false;
-        }
-        else
-        {
-            skip_json_whitespace(&cursor);
-            if ((*cursor < '0' || *cursor > '9') && *cursor != '-')
-                return false;
-            char *end = NULL;
-            float value = strtof(cursor, &end);
-            if (end == cursor)
-                return false;
-            cursor = end;
-            if (is_water)
-            {
-                if (!(value >= 0.0f && value <= 10000.0f))
-                    return false;
-                state->water_mm = value;
-            }
-        }
-
-        skip_json_whitespace(&cursor);
-        if (*cursor == ',')
-        {
-            if (field == 4)
-                return false;
-            ++cursor;
-            expect_field = true;
-        }
-        else if (*cursor != '}')
-            return false;
+        ++payload;
     }
 
-    if (!has_type || !has_slots || !has_water ||
-        !consume_json_char(&cursor, '}'))
-        return false;
-    (void)has_fire; /* Older parking clients may omit the fire sensor field. */
-    skip_json_whitespace(&cursor);
-    return *cursor == '\0';
+    return has_type && has_slots && has_water && json_parse_object_end(&payload);
 }

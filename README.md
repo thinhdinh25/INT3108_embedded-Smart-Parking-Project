@@ -22,9 +22,10 @@ The full technical report (Vietnamese, LaTeX source and PDF) is in
 
 - Five parking-space states from debounced digital IR sensors.
 - RFID entry/exit: a card scanned on the entry reader opens the entry barrier;
-  the same card scanned on the exit reader opens the exit barrier. Scans on the
-  wrong reader are rejected. RFID-opened barriers close automatically after
-  3 seconds.
+  the same card scanned on the exit reader opens the exit barrier.
+  RFID-opened barriers close automatically after 3 seconds (one-shot timer).
+- Rejected scans (wrong gate, lot full) show a red notice on the TFT for 5 s,
+  e.g. `WRONG GATE – ALREADY INSIDE - USE EXIT GATE`.
 - Parking fee of 5,000 VND per started hour (minimum one hour). The TFT shows
   card ID, parking time and fee for 60 seconds after exit.
 - Fire alarm: animated "FIRE DETECTED" screen, dashboard banner, an
@@ -33,6 +34,9 @@ The full technical report (Vietnamese, LaTeX source and PDF) is in
 - Water level (mm) from the analog sensor and temperature from the DHT11.
 - Browser dashboard and JSON API hosted by the server, with independent and
   emergency (all) barrier controls.
+- Dashboard centred on a large parking-lot view (cars drawn in occupied bays),
+  plus an in/out log: who is parked now with the fee so far, and the last 10
+  card scans with exit duration and fee (kept in RAM, cleared on reboot).
 - Both barriers start closed after every reboot.
 
 ## Boards, languages, and software
@@ -113,7 +117,8 @@ The RFID Client creates the hotspot; the server and the Sensor Client join it:
 
 - SSID `ESP32-Parking`, password `12345678`, WPA2-PSK, channel 1, max 4 stations
 - RFID Client (hotspot) address `192.168.4.1`; the server gets its address by DHCP
-- Dashboard: [http://parking.local](http://parking.local) (mDNS). If a device
+- Dashboard: [http://parking.local](http://parking.local) (mDNS, re-announced
+  whenever the server gets a new IP). If a device
   cannot resolve `.local` names, use the IP the server prints on its serial log
   (`Web interface: http://…`).
 - UDP receiver on port `3333`; clients send to broadcast `192.168.4.255:3333`
@@ -141,10 +146,11 @@ HTTP API:
 | GET | `/` , `/style.css` | Dashboard |
 | GET | `/api/parking` | Slots, free count, temperature, water, fire |
 | GET | `/api/barrier` | `{"in_open":…,"out_open":…}` |
+| GET | `/api/rfid` | Price per hour, cars inside (entry time, fee so far), last 10 RFID events (in/out/rejected, duration, fee) |
 | POST | `/api/barrier/{in,out,all}/{open,close}` | Move barriers manually |
 
 The default password is for a local demo. Change it in
-`Server/main/network/wifi_ap.c`, `SensorClient/SensorClient.ino` and
+`Server/main/network/wifi_sta.c`, `SensorClient/SensorClient.ino` and
 `RFIDClient/RFIDClient.ino`
 together before using a shared network.
 
@@ -177,13 +183,27 @@ Sensor Client. Join `ESP32-Parking` from a phone or laptop and open
 `http://parking.local`. Scan a card on the entry reader to enter and on the
 exit reader to leave and see the fee.
 
-Without hardware, simulate the clients from a computer on the hotspot:
+Without the clients, simulate them from a computer on the same Wi-Fi (add
+`--host <server IP>` when the hotspot is not the RFID Client, e.g. a phone
+hotspot named `ESP32-Parking`):
 
 ```sh
-python examples/udp_sender.py
+python examples/udp_sender.py --slots 1,0,0,1,0
 python examples/udp_rfid_sender.py A1B2C3D4 --gate in
 python examples/udp_rfid_sender.py A1B2C3D4 --gate out
+python examples/udp_sender.py --slots 1,0,0,1,0 --fire
 ```
+
+### 4. Tests (no hardware needed)
+
+```sh
+make -C tests
+```
+
+Runs 250 checks on the host: the server JSON parsers, RFID sessions/fees/log/
+notices, the animation frame data, and both ESP8266 sketches compiled against a
+fake Arduino layer (`tests/arduino/`), with every client payload fed to the real
+server parser.
 
 ## Repository layout
 
@@ -198,8 +218,10 @@ Server/main/
 SensorClient/           Sensor Client: ESP8266 IR / flame / water sender
 RFIDClient/             RFID Client: ESP8266 hotspot, dual RC522 + DHT11 sender
 examples/               Python and ESP-IDF UDP test senders
+tests/                  Host test suite (make -C tests)
 docs/                   Wiring notes
-report/                 Technical report (LaTeX + PDF, Vietnamese)
+report/                 Technical report (LaTeX + PDF, Vietnamese);
+                        diagrams/*.mmd are the Mermaid sources of the figures
 ```
 
 Active RFID sessions and the last receipt are kept in RAM (up to five cars), so
