@@ -4,6 +4,8 @@ import argparse
 import json
 import socket
 
+from packet_auth import seal
+
 UDP_PORT = 3333
 
 
@@ -14,13 +16,13 @@ def send_rfid_scan(host, card_id, gate="in", temperature_c=28.0):
         "gate": gate,
         "temperature_c": temperature_c,
     }
-    payload = json.dumps(request).encode("utf-8")
+    payload = json.dumps(request, separators=(",", ":")).encode("utf-8")
 
     with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as udp_socket:
         udp_socket.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
-        udp_socket.sendto(payload, (host, UDP_PORT))
+        udp_socket.sendto(seal(payload), (host, UDP_PORT))
 
-    print(f"Sent {payload.decode()} to {host}:{UDP_PORT}")
+    print(f"Sent signed {payload.decode()} to {host}:{UDP_PORT}")
 
 
 if __name__ == "__main__":

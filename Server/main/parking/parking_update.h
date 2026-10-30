@@ -6,5 +6,6 @@
 #include "parking_state.h"
 
 bool parking_update_parse_json(const char *payload, parking_state_t *state);
+bool climate_parse_json(const char *payload, float *temperature_c);
 
 #endif

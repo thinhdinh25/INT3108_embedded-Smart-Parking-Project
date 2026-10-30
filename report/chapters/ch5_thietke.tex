@@ -27,11 +27,11 @@ nên cũng không cần biết IP.
 \caption{Thông số mạng}\label{tab:netparams}
 \begin{tabularx}{\linewidth}{@{}lX@{}}
 \toprule
-SSID / mật khẩu & \code{ESP32-Parking} / \code{12345678}, WPA2-PSK, kênh 1, tối đa 4 trạm \\
+SSID / mật khẩu & Mặc định \code{ESP32-Parking} / \code{12345678} (đổi trong menuconfig và \file{secrets.h}), WPA2-PSK, kênh 1, tối đa 4 trạm \\
 Điểm truy cập & RFID Client, \code{192.168.4.1/24}, cấp IP bằng DHCP \\
 Máy chủ & Trạm Wi-Fi, IP do DHCP cấp, tên \code{parking.local}, dịch vụ \code{\_http.\_tcp} cổng 80 \\
-UDP & Máy chủ nghe cổng 3333; client gửi tới \code{192.168.4.255:3333} \\
-HTTP & Cổng 80: trang web, \code{/api/parking}, \code{/api/barrier}, \code{/api/rfid} \\
+UDP & Máy chủ nghe cổng 3333; client gửi tới \code{192.168.4.255:3333}; gói được ký SipHash-2-4; máy chủ trả ACK đơn hướng cho sự kiện quẹt thẻ \\
+HTTP & Cổng 80: trang web, \code{/api/parking}, \code{/api/barrier}, \code{/api/rfid}, \code{/api/time}; lệnh POST cần mã PIN \\
 \bottomrule
 \end{tabularx}
 \end{table}
@@ -67,8 +67,13 @@ nhắc lại mỗi giây. Mất một gói chỉ làm trễ tối đa 1\,s, khô
 dài, nên độ tin cậy của TCP là không cần thiết, trong khi chi phí của nó (bắt tay,
 socket, bộ đệm) đáng kể trên vi điều khiển. Gửi broadcast giúp client không cần biết
 IP máy chủ và cho phép máy tính trong mạng ``nghe'' để gỡ lỗi. JSON được chọn vì đọc
-được trong log và dễ sinh từ \code{snprintf}/Python; bản tin dài 70–110 byte, nằm
-gọn trong một gói UDP.
+được trong log và dễ sinh từ \code{snprintf}/Python; bản tin dài 70–110 byte (thêm
+24 byte chữ ký), nằm gọn trong một gói UDP.
+
+Sự kiện quẹt thẻ thì khác: nó \emph{không} được nhắc lại, mất gói là mất lượt quẹt.
+Thay vì chuyển sang TCP, nhóm thêm đúng phần độ tin cậy cần thiết: máy chủ trả
+\code{ACK} cho từng sự kiện, RFID Client gửi lại sau 300\,ms nếu chưa nhận được, và
+số thứ tự giúp máy chủ nhận ra bản gửi lại để không mở cổng hai lần.
 \end{lydo}
 
 % ---------------------------------------------------------------------
@@ -96,9 +101,10 @@ phần cứng nên chạy được cả trên máy tính để kiểm thử.
 \node[mod,minimum width=1.4cm] at (6.45,2.75) {\texttt{network}\\Wi-Fi, mDNS};
 \node[lay,fill=boxB,minimum width=\W cm] (dom) at (0,1.2) {};
 \node[anchor=west,font=\small\bfseries,align=left] at (-7.2,1.2) {Nghiệp vụ};
-\node[mod] at (-2.6,1.2) {\texttt{parking\_state}\\trạng thái bãi};
-\node[mod] at (0.2,1.2) {\texttt{json\_scan}, \texttt{parking\_update}\\kiểm tra bản tin};
-\node[mod] at (3.6,1.2) {\texttt{rfid\_session}\\phiên, phí, nhật ký, thông báo};
+\node[mod] at (-4.2,1.2) {\texttt{parking\_state}\\trạng thái, đồng hồ};
+\node[mod] at (-1.4,1.2) {\texttt{json\_scan}, \texttt{parking\_update}\\kiểm tra bản tin};
+\node[mod] at (1.75,1.2) {\texttt{rfid\_session}\\phiên, phí, nhật ký, lưu/khôi phục};
+\node[mod] at (4.95,1.2) {\texttt{packet\_auth}\\ký gói, chống phát lại};
 \node[lay,fill=boxC,minimum width=\W cm] (drv) at (0,-0.3) {};
 \node[anchor=west,font=\small\bfseries,align=left] at (-7.2,-0.3) {ESP-IDF};
 \node[mod] at (-3.5,-0.3) {\code{esp\_lcd} · SPI DMA};
@@ -127,9 +133,11 @@ lớp dịch vụ, nên không có vòng phụ thuộc.
 
 \begin{lydo}[Tại sao phân lớp như vậy]
 (1) \emph{Kiểm thử được}: \file{parking\_state}, \file{json\_scan}, \file{parking\_update},
-\file{rfid\_session} chỉ cần hai macro critical section và hàm đọc đồng hồ — thay bằng
+\file{rfid\_session}, \file{packet\_auth} chỉ cần hai macro critical section và hàm đọc đồng hồ — thay bằng
 hai tệp header giả là chạy được trên máy tính. (2) \emph{Thay đổi cục bộ}: đổi màn hình
 khác chỉ sửa \file{lcd\_display}; đổi giao thức mạng chỉ sửa \file{udp\_server}.
+Việc ghi flash nằm riêng trong \file{parking\_persist}: \file{rfid\_session} chỉ đưa ra
+một ``ảnh chụp'' trạng thái (\code{rfid\_store\_t}) nên vẫn kiểm thử được trên máy tính.
 (3) \emph{Không vòng phụ thuộc} (Hình~\ref{fig:deps}): \file{udp\_server} là nơi duy
 nhất ``điều phối'' — nhận bản tin, gọi nghiệp vụ, rồi ra lệnh cho servo, còi và đánh
 thức màn hình.

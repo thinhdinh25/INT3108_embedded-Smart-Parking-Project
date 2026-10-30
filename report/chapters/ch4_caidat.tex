@@ -101,11 +101,12 @@ thống khi chưa có (hoặc không mang theo) đủ phần cứng.
 \file{udp\_sender.py} & Giả lập Sensor Client: gửi một bản tin \code{parking\_update} (5 ô đỗ, mực nước, cháy) tới máy chủ thật qua UDP broadcast \\
 \file{udp\_rfid\_sender.py} & Giả lập RFID Client: gửi \code{rfid\_event} với UID bất kỳ và cổng \code{--gate in|out}; chạy hai lần để giả lập vào rồi ra \\
 \file{udp\_sender\_espidf.c} & Ví dụ gửi bản tin từ một bo ESP-IDF khác \\
+\file{packet\_auth.py} & Ký gói tin bằng SipHash-2-4 như client thật; hai script trên dùng chung \\
 \bottomrule
 \end{tabularx}
 \end{table}
-Máy tính chỉ cần kết nối Wi-Fi \code{ESP32-Parking}; máy chủ không phân biệt bản tin
-đến từ ESP8266 thật hay từ script, nên toàn bộ màn hình, thanh chắn, còi, trang web và
+Máy tính chỉ cần kết nối Wi-Fi \code{ESP32-Parking}; vì script ký gói tin bằng cùng
+khóa, máy chủ không phân biệt bản tin đến từ ESP8266 thật hay từ script, nên toàn bộ màn hình, thanh chắn, còi, trang web và
 nhật ký đều được kiểm tra như thật.
 
 \subsection{Mô phỏng phần cứng Arduino trên máy tính (\file{tests/arduino/})}
@@ -113,8 +114,9 @@ nhật ký đều được kiểm tra như thật.
 được, mức logic của từng chân, giá trị ADC, Wi-Fi bật/tắt, gói UDP được ghi lại,
 đầu đọc RFID có thể ``đặt thẻ'' và DHT11 trả nhiệt độ tùy ý. Nhờ vậy \emph{chính mã
 nguồn} \file{SensorClient.ino} và \file{RFIDClient.ino} được biên dịch và chạy trên
-máy tính, mỗi bản tin chúng gửi được đưa thẳng vào bộ đọc JSON thật của máy chủ để
-kiểm tra hai bên ``nói cùng một ngôn ngữ''. Chi tiết ở Chương~\ref{chap:kiemthu}.
+máy tính, mỗi bản tin chúng gửi được kiểm tra chữ ký và đọc bằng chính mã của máy chủ
+để bảo đảm hai bên ``nói cùng một ngôn ngữ''. Lớp giả lập còn có EEPROM (giữ số thứ
+tự qua lần ``khởi động lại'') và hàng đợi gói UDP đến (để gửi ACK cho RFID Client). Chi tiết ở Chương~\ref{chap:kiemthu}.
 
 \begin{lydo}[Tại sao tự viết công cụ mô phỏng thay vì dùng trình mô phỏng có sẵn]
 Các trình mô phỏng vi điều khiển trực tuyến hỗ trợ ESP32-C3 nhưng không mô phỏng

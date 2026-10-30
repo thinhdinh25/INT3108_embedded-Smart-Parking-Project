@@ -77,3 +77,6 @@ Desktop.ini
 *.suo       # Visual Studio Solution User Options
 *.sln.docstates # Visual Studio
 /.vscode
+
+# Per-device Wi-Fi password and UDP key (see */secrets.example.h)
+secrets.h

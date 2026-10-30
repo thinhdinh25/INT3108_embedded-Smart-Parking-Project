@@ -37,6 +37,8 @@ h1 { margin-bottom: 5px; font-size: clamp(22px, 4vw, 30px); }
 .fire-alert[hidden] { display: none; }
 .fire-alert strong { color: #ff6b6b; font-size: 14px; letter-spacing: 1px; }
 .fire-alert span { font-size: 10px; }
+.lot-alert { border-color: #f5b301; background: #241b02; }
+.lot-alert strong { color: #f5b301; }
 .barrier-control { display: flex; align-items: center; justify-content: space-between; gap: 18px; margin-bottom: 14px; padding: 15px 18px; border: 1px solid var(--line); background: var(--panel); }
 .barrier-copy h2 { margin: 0 0 5px; font-size: 14px; font-weight: 600; }
 .barrier-copy .eyebrow { margin-bottom: 5px; font-size: 8px; }

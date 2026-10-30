@@ -1,10 +1,12 @@
 #include <string.h>
 
 #include "freertos/FreeRTOS.h"
+#include "esp_timer.h"
 
 #include "parking_state.h"
 
 static parking_state_t current_state = {0};
+static int64_t clock_offset_us;
 static portMUX_TYPE state_lock = portMUX_INITIALIZER_UNLOCKED;
 
 void parking_state_update(const parking_state_t *state)
@@ -45,4 +47,19 @@ void parking_state_get(parking_state_t *state, int *free_count)
         free_slots += current_state.slots[i] == 0;
     portEXIT_CRITICAL(&state_lock);
     *free_count = free_slots;
+}
+
+int64_t parking_clock_now_us(void)
+{
+    portENTER_CRITICAL(&state_lock); /* 64-bit read is not atomic on the 32-bit core */
+    int64_t offset = clock_offset_us;
+    portEXIT_CRITICAL(&state_lock);
+    return offset + esp_timer_get_time();
+}
+
+void parking_clock_adjust(int64_t delta_us)
+{
+    portENTER_CRITICAL(&state_lock);
+    clock_offset_us += delta_us;
+    portEXIT_CRITICAL(&state_lock);
 }

@@ -3,18 +3,19 @@ flowchart TB
     direction TB
     a1["ArduinoOTA.handle()"] --> a2["Đọc 5 IR + lửa, lọc nhiễu 50 ms<br/>đọc ADC mực nước mỗi 250 ms"]
     a2 --> a3{"Trạng thái đổi<br/>hoặc đã 1 s?"}
-    a3 -- có --> a4["Gửi parking_update<br/>nếu còn Wi-Fi"] --> a1
+    a3 -- có --> a4["Ký và gửi parking_update<br/>seq tăng dần (giữ qua reset)"] --> a1
     a3 -- không --> a1
   end
   subgraph RCL["RFID Client · loop()"]
     direction TB
-    b1["ArduinoOTA.handle()<br/>đọc DHT11 mỗi 5 s"] --> b2["Đầu đọc kế tiếp:<br/>bật ăng-ten, chờ 4 ms"]
+    b1["ArduinoOTA.handle()<br/>đọc DHT11 mỗi 5 s → gửi climate"] --> b0["Nhận ACK, gửi lại sự kiện<br/>chưa có ACK sau 300 ms (tối đa 6 lần)"]
+    b0 --> b2["Đầu đọc kế tiếp:<br/>bật ăng-ten, chờ 4 ms"]
     b2 --> b3{"Có thẻ và ngoài<br/>2 s chống lặp?"}
-    b3 -- có --> b4["UID → hex in hoa<br/>gửi rfid_event, gate = in / out"] --> b5
+    b3 -- có --> b4["UID → hex in hoa<br/>ký và gửi rfid_event, gate = in / out<br/>giữ lại chờ ACK"] --> b5
     b3 -- không --> b5["Tắt ăng-ten"]
     b5 --> b1
   end
   style SCL fill:#E8F5E9,stroke:#2E7D32
   style RCL fill:#FFF3E0,stroke:#C77700
   classDef n fill:#ffffff,stroke:#555;
-  class a1,a2,a4,b1,b2,b4,b5 n;
+  class a1,a2,a4,b0,b1,b2,b4,b5 n;

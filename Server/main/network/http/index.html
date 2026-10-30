@@ -31,6 +31,11 @@
             <span>Fire sensor is active · evacuate the parking area</span>
         </section>
 
+        <section class="fire-alert lot-alert" id="lot-alert" role="status" hidden>
+            <strong>CHECK THE LOT</strong>
+            <span id="lot-alert-text"></span>
+        </section>
+
         <section class="panel lot-panel" aria-labelledby="spaces-title">
             <div class="lot-heading">
                 <div><p class="eyebrow">01 / FACILITY</p><h2 id="spaces-title">Parking spaces</h2></div>
@@ -124,12 +129,32 @@
             '<rect x="2" y="24" width="5" height="12" rx="2" class="car-wheel"/><rect x="53" y="24" width="5" height="12" rx="2" class="car-wheel"/>' +
             '<rect x="2" y="66" width="5" height="12" rx="2" class="car-wheel"/><rect x="53" y="66" width="5" height="12" rx="2" class="car-wheel"/></svg>';
         const dataState = document.getElementById('data-state');
+        // Every POST carries the admin PIN; it is asked once and remembered in this browser.
+        const savedPin = () => { try { return localStorage.getItem('parkingPin') || ''; } catch (e) { return ''; } };
+        async function post(url, body) {
+            let pin = savedPin();
+            for (;;) {
+                const response = await fetch(url, { method: 'POST', body, headers: { 'X-Parking-Key': pin } });
+                if (response.status !== 401) {
+                    if (response.ok && url !== '/api/time') syncClock();
+                    return response;
+                }
+                pin = prompt('Admin PIN');
+                if (!pin) return response;
+                try { localStorage.setItem('parkingPin', pin); } catch (e) { /* keep it for this page only */ }
+            }
+        }
+        // The server has no RTC or internet: an operator's browser gives it the real time.
+        function syncClock() {
+            if (savedPin()) post('/api/time', String(Math.floor(Date.now() / 1000))).catch(() => {});
+        }
+        syncClock();
         async function setBarrier(direction, open, controls) {
             const state = document.getElementById(`${direction}-state`);
             const buttons = controls.querySelectorAll('button');
             buttons.forEach(button => button.disabled = true);
             try {
-                const response = await fetch(`/api/barrier/${direction}/${open ? 'open' : 'close'}`, { method: 'POST' });
+                const response = await post(`/api/barrier/${direction}/${open ? 'open' : 'close'}`);
                 if (!response.ok) throw new Error('Servo command failed');
                 state.textContent = open ? 'OPEN' : 'CLOSED';
                 state.classList.toggle('is-open', open);
@@ -153,7 +178,7 @@
                 emergencyButtons.forEach(control => control.disabled = true);
                 status.textContent = 'Sending command…';
                 try {
-                    const response = await fetch(`/api/barrier/all/${open ? 'open' : 'close'}`, { method: 'POST' });
+                    const response = await post(`/api/barrier/all/${open ? 'open' : 'close'}`);
                     if (!response.ok) throw new Error('Servo command failed');
                     [['in', 'in-state'], ['out', 'out-state']].forEach(([, id]) => {
                         const state = document.getElementById(id);
@@ -189,6 +214,7 @@
             document.getElementById('total-spaces').textContent = data.total;
             document.getElementById('available-spaces').textContent = available;
             document.getElementById('occupied-spaces').textContent = data.total - available;
+            occupiedBays = data.received ? data.total - available : null;
             document.getElementById('capacity').textContent = `${available} / ${data.total} FREE`;
             document.getElementById('temperature-value').textContent = data.temperature_received ? Number(data.temperature_c).toFixed(1) : '--';
             document.getElementById('water-value').textContent = data.received ? Number(data.water_mm).toFixed(1) : '--';
@@ -232,10 +258,22 @@
             }
         }
 
+        // Cross-check cards inside against IR-occupied bays; cars need a while to park or leave.
+        let occupiedBays = null;
+        let mismatchSince = 0;
+        function checkLot(cardsInside) {
+            const mismatch = occupiedBays !== null && occupiedBays !== cardsInside;
+            mismatchSince = mismatch ? (mismatchSince || Date.now()) : 0;
+            const show = mismatch && Date.now() - mismatchSince > 15000;
+            document.getElementById('lot-alert').hidden = !show;
+            if (show) document.getElementById('lot-alert-text').textContent =
+                `${cardsInside} card(s) checked in but ${occupiedBays} bay(s) occupied · a car may have entered without a card or a sensor is blocked`;
+        }
+
         const EVENT_LABELS = { in: 'IN', out: 'OUT', full: 'REJECTED · FULL', wrong_gate: 'REJECTED · WRONG GATE' };
         const vnd = n => `${Number(n).toLocaleString('vi-VN')} VND`;
         const duration = s => `${Math.floor(s / 3600)}h ${String(Math.floor(s / 60) % 60).padStart(2, '0')}m`;
-        // The server has no clock: convert its uptime seconds to the browser's local time.
+        // Show server times relative to its own "now", so they are right even before the clock is set.
         const clock = (nowS, atS) => new Date(Date.now() - (nowS - atS) * 1000).toLocaleTimeString('vi-VN');
         function row(cells, className) {
             const tr = document.createElement('tr');
@@ -256,6 +294,7 @@
                 if (!response.ok) throw new Error('RFID log unavailable');
                 const data = await response.json();
                 document.getElementById('fee-rate').textContent = `${vnd(data.fee_per_hour)} / HOUR`;
+                checkLot(data.parked.length);
                 const parked = data.parked.map(car => row([car.card, clock(data.now_s, car.in_s), vnd(car.fee)]));
                 document.getElementById('parked-list').replaceChildren(...(parked.length ? parked : [emptyRow('No cars inside', 3)]));
                 const events = data.log.map(e => row([

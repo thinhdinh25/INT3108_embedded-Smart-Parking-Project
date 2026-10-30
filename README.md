@@ -36,7 +36,14 @@ The full technical report (Vietnamese, LaTeX source and PDF) is in
   emergency (all) barrier controls.
 - Dashboard centred on a large parking-lot view (cars drawn in occupied bays),
   plus an in/out log: who is parked now with the fee so far, and the last 10
-  card scans with exit duration and fee (kept in RAM, cleared on reboot).
+  card scans with exit duration and fee.
+- Sessions, the log and the parking clock are saved in NVS after every scan
+  and every 5 minutes, so a power cut loses nothing. The operator's browser
+  sets the real time (the lot has no internet), and downtime is added back.
+- Temperature is sent every 5 s on its own, not only with card scans.
+- Cross-check with the IR sensors: when all 5 bays are occupied a new card is
+  refused, and the dashboard warns when cards inside and occupied bays differ
+  for more than 15 s.
 - Both barriers start closed after every reboot.
 
 ## Boards, languages, and software
@@ -115,7 +122,8 @@ every 5 s.
 
 The RFID Client creates the hotspot; the server and the Sensor Client join it:
 
-- SSID `ESP32-Parking`, password `12345678`, WPA2-PSK, channel 1, max 4 stations
+- SSID `ESP32-Parking`, password `12345678` by default (see Secrets below),
+  WPA2-PSK, channel 1, max 4 stations
 - RFID Client (hotspot) address `192.168.4.1`; the server gets its address by DHCP
 - Dashboard: [http://parking.local](http://parking.local) (mDNS, re-announced
   whenever the server gets a new IP). If a device
@@ -135,6 +143,21 @@ RFID scan (RFID Client, per card read; `gate` is `in` or `out`):
 {"type":"rfid_event","card_id":"A1B2C3D4","gate":"in","temperature_c":28.0}
 ```
 
+Temperature (RFID Client, every 5 s):
+
+```json
+{"type":"climate","temperature_c":28.0}
+```
+
+Every datagram is signed: `<tag:16 hex><seq:8 hex><json>`, where
+tag = SipHash-2-4(16-byte key, seq hex + json). The server drops packets with a
+wrong tag before parsing, and keeps a 32-entry anti-replay window per message
+type, so a recorded packet cannot be played back. `seq` keeps growing across
+client reboots (blocks are reserved in EEPROM). The server ACKs every
+`rfid_event` with a signed `<tag><seq>ACK`; the RFID Client resends an
+unacknowledged scan every 300 ms (up to 6 times), and the server acts on each
+`seq` once.
+
 The server parsers are strict: unknown keys, duplicate keys, wrong types or
 trailing data reject the datagram. `fire` must be a JSON boolean and may be
 omitted by older clients.
@@ -148,11 +171,22 @@ HTTP API:
 | GET | `/api/barrier` | `{"in_open":…,"out_open":…}` |
 | GET | `/api/rfid` | Price per hour, cars inside (entry time, fee so far), last 10 RFID events (in/out/rejected, duration, fee) |
 | POST | `/api/barrier/{in,out,all}/{open,close}` | Move barriers manually |
+| POST | `/api/time` | Body: Unix seconds. Sets the parking clock |
 
-The default password is for a local demo. Change it in
-`Server/main/network/wifi_sta.c`, `SensorClient/SensorClient.ino` and
-`RFIDClient/RFIDClient.ino`
-together before using a shared network.
+Every POST needs the admin PIN in the `X-Parking-Key` header (the dashboard
+asks for it once and remembers it); a wrong or missing PIN returns 401.
+
+### Secrets
+
+The repository only holds demo values. Real ones stay out of Git:
+
+- Server: `idf.py menuconfig` → *Parking network and security*: Wi-Fi SSID
+  and password, `PARKING_UDP_KEY` (32 hex digits), admin PIN (default `2468`).
+  They are stored in the git-ignored `Server/sdkconfig`.
+- Clients: copy `secrets.example.h` to `secrets.h` next to each sketch and
+  edit it (`secrets.h` is git-ignored). The 16-byte key must be the same on all
+  three boards, otherwise the server logs `Dropping unsigned UDP packet`.
+  Generate one with `python3 -c "import secrets; print(secrets.token_hex(16))"`.
 
 ## Setup and run
 
@@ -194,16 +228,22 @@ python examples/udp_rfid_sender.py A1B2C3D4 --gate out
 python examples/udp_sender.py --slots 1,0,0,1,0 --fire
 ```
 
+The simulators sign with the demo key and a time-based `seq`. Do not mix them
+with the real client of the same type: after simulating RFID scans the real
+RFID Client's `seq` looks old and is dropped until NVS is erased
+(`idf.py -p PORT erase-flash flash`).
+
 ### 4. Tests (no hardware needed)
 
 ```sh
 make -C tests
 ```
 
-Runs 250 checks on the host: the server JSON parsers, RFID sessions/fees/log/
-notices, the animation frame data, and both ESP8266 sketches compiled against a
-fake Arduino layer (`tests/arduino/`), with every client payload fed to the real
-server parser.
+Runs 318 checks on the host: packet signing (SipHash reference vectors,
+tampering, replay window), the server JSON parsers, RFID sessions/fees/log/
+notices/persistence/clock, the animation frame data, and both ESP8266 sketches
+compiled against a fake Arduino layer (`tests/arduino/`), with every client
+packet checked and parsed by the real server code.
 
 ## Repository layout
 
@@ -214,15 +254,15 @@ Server/main/
   buzzer/               GPIO9 active-low buzzer
   display/              ST7789 UI, fire screen, LZSS-compressed GIF frames
   network/              Wi-Fi station, mDNS, HTTP dashboard/API, UDP receiver
-  parking/              Shared state, JSON parsers, RFID sessions and fees
+  parking/              Shared state, JSON parsers, RFID sessions and fees,
+                        packet signing, NVS persistence
 SensorClient/           Sensor Client: ESP8266 IR / flame / water sender
 RFIDClient/             RFID Client: ESP8266 hotspot, dual RC522 + DHT11 sender
+  (both)                packet_auth.h (same copy), secrets.example.h
 examples/               Python and ESP-IDF UDP test senders
 tests/                  Host test suite (make -C tests)
 docs/                   Wiring notes
 report/                 Technical report (LaTeX + PDF, Vietnamese);
-                        diagrams/*.mmd are the Mermaid sources of the figures
+                        diagrams/*.mmd are the Mermaid sources of the figures,
+                        photos/ the physical model
 ```
-
-Active RFID sessions and the last receipt are kept in RAM (up to five cars), so
-a server reboot clears them.

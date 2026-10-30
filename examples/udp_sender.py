@@ -4,19 +4,21 @@ import argparse
 import json
 import socket
 
+from packet_auth import seal
+
 UDP_PORT = 3333
 
 
 def send_parking_update(host, slots, water_mm, fire):
     # 1 = occupied, 0 = free, for spaces S1..S5.
     request = {"type": "parking_update", "slots": slots, "water_mm": water_mm, "fire": fire}
-    payload = json.dumps(request).encode("utf-8")
+    payload = json.dumps(request, separators=(",", ":")).encode("utf-8")
 
     with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as udp_socket:
         udp_socket.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
-        udp_socket.sendto(payload, (host, UDP_PORT))
+        udp_socket.sendto(seal(payload), (host, UDP_PORT))
 
-    print(f"Sent {payload.decode()} to {host}:{UDP_PORT}")
+    print(f"Sent signed {payload.decode()} to {host}:{UDP_PORT}")
 
 
 def parse_slots(text):

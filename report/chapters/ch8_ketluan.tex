@@ -15,8 +15,12 @@ vi điều khiển, tự vận hành trên mạng Wi-Fi riêng:
         tên \code{parking.local} luôn trỏ đúng IP.
   \item \textbf{Hiệu năng}: màn hình phản ánh thay đổi trong khoảng 0,1\,s; thanh chắn mở
         khoảng 0,2\,s sau khi quẹt thẻ; firmware dùng 36\% RAM tĩnh, còn 29\% flash ứng dụng.
-  \item \textbf{Chất lượng}: 250 phép kiểm thử tự động đều đạt, chạy cả mã nguồn hai
+  \item \textbf{Chất lượng}: 318 phép kiểm thử tự động đều đạt, chạy cả mã nguồn hai
         client trên phần cứng giả lập.
+  \item \textbf{An toàn và bền vững}: gói tin có chữ ký và chống phát lại, quẹt thẻ không
+        bị mất, dữ liệu gửi xe giữ được qua mất điện, giờ thực không cần Internet.
+  \item \textbf{Mô hình thực tế} hoàn chỉnh (Hình~\ref{fig:model}): 5 ô có cảm biến, 2 cổng
+        servo, hộp điều khiển trung tâm có màn hình, nguồn có bảo vệ ngược cực.
 \end{itemize}
 
 Qua đề tài, nhóm đã vận dụng các kiến thức trọng tâm của môn lập trình nhúng: hệ điều
@@ -24,26 +28,60 @@ hành thời gian thực, đồng bộ tác vụ, PWM và SPI có DMA, ADC và l
 lập trình socket, quản lý bộ nhớ hạn chế, xử lý dữ liệu không tin cậy, và kiểm thử
 phần mềm nhúng không cần phần cứng.
 
-\section{Hạn chế}
-\begin{enumerate}
-  \item \textbf{Bảo mật}: bản tin UDP và API điều khiển chưa có xác thực; mật khẩu Wi-Fi
-        cố định trong mã nguồn.
-  \item \textbf{Sự kiện RFID có thể mất}: khác bản tin cảm biến, sự kiện quẹt thẻ không
-        được nhắc lại; nếu gói bị mất, người lái phải quẹt lại.
-  \item \textbf{Dữ liệu trong RAM}: phiên gửi xe và nhật ký mất khi máy chủ khởi động lại;
-        thời gian tính từ lúc khởi động, không phải giờ thực.
-  \item \textbf{Nhiệt độ} chỉ được cập nhật khi có xe quẹt thẻ (đi kèm bản tin RFID).
-  \item \textbf{Số phiên RFID và cảm biến IR} chưa được đối chiếu với nhau.
-\end{enumerate}
+\section{Các hạn chế đã được khắc phục}
+Bản thiết kế đầu tiên có năm hạn chế. Cả năm đều đã được khắc phục trong firmware,
+kiểm chứng bằng kiểm thử tự động (Bảng~\ref{tab:unittests}) và kịch bản phần cứng
+S15–S21 (Bảng~\ref{tab:systest}):
+
+\begin{longtable}{@{}p{3.2cm}p{6.6cm}p{4.6cm}@{}}
+\caption{Hạn chế ban đầu và giải pháp đã hiện thực}\label{tab:fixed}\\
+\toprule \textbf{Hạn chế} & \textbf{Giải pháp} & \textbf{Kiểm chứng} \\ \midrule \endfirsthead
+\toprule \textbf{Hạn chế} & \textbf{Giải pháp} & \textbf{Kiểm chứng} \\ \midrule \endhead
+Bản tin UDP và API không có xác thực; mật khẩu cố định trong mã nguồn &
+Mọi gói UDP được ký SipHash-2-4 với khóa 16 byte, kèm số thứ tự và cửa sổ chống phát
+lại; lệnh POST cần mã PIN quản trị; mật khẩu, khóa, PIN chuyển ra \file{sdkconfig}
+(menuconfig) và \file{secrets.h}, không còn trong Git &
+\file{packet\_auth} (27), hai bộ client; S15, S16, S19 \\ \midrule
+Sự kiện quẹt thẻ có thể mất &
+Máy chủ trả ACK có ký; RFID Client gửi lại sau 300\,ms, tối đa 6 lần; máy chủ nhận ra
+bản gửi lại qua số thứ tự nên không mở cổng hai lần &
+\file{rfid\_client}: gửi lại, ACK giả, bỏ cuộc; S18 \\ \midrule
+Phiên và nhật ký mất khi khởi động lại; thời gian tính từ lúc khởi động &
+Toàn bộ trạng thái (\code{rfid\_store\_t}) lưu NVS sau mỗi lần quẹt và mỗi 5 phút, khôi
+phục khi khởi động; trình duyệt của người vận hành gửi giờ Unix
+(\code{POST /api/time}), máy chủ dời các mốc cũ theo và bù thời gian mất điện &
+\file{rfid\_session}: lưu/khôi phục, đặt giờ; S17 \\ \midrule
+Nhiệt độ chỉ cập nhật khi có xe quẹt thẻ &
+RFID Client gửi bản tin \code{climate} mỗi 5\,s, độc lập với quẹt thẻ &
+\file{rfid\_client}, \file{json\_parsers}; S21 \\ \midrule
+Số phiên RFID và cảm biến IR chưa được đối chiếu &
+Máy chủ từ chối thẻ mới khi IR báo đủ 5 ô có xe; trang web cảnh báo \code{CHECK THE LOT}
+khi số thẻ trong bãi lệch số ô có xe quá 15\,s &
+\file{rfid\_session}: đối chiếu IR; S20 \\
+\bottomrule
+\end{longtable}
+
+\section{Hạn chế còn lại}
+Các điểm dưới đây là đánh đổi có chủ đích ở quy mô mô hình, đã được ghi rõ trong mã
+nguồn và hướng dẫn:
+\begin{itemize}
+  \item Trang web dùng HTTP (không mã hóa) trên mạng WPA2: người trong cùng mạng Wi-Fi có
+        thể nghe được mã PIN. HTTPS cần chứng chỉ và thêm $\approx$ 40\,KB RAM cho TLS.
+  \item Khóa ký gói tin dùng chung cho ba bo: lộ một bo thì phải đổi khóa cả ba.
+  \item Cửa sổ chống phát lại của bản tin cảm biến chỉ nằm trong RAM: ngay sau khi máy chủ
+        khởi động lại, một gói cảm biến cũ bị phát lại có thể có hiệu lực tới khi gói
+        thật kế tiếp đến ($\le$ 1\,s). Cửa sổ của sự kiện quẹt thẻ được lưu NVS nên
+        không bị ảnh hưởng.
+  \item Nếu chưa có trình duyệt nào gửi giờ sau khi mất điện, thời gian mất điện chưa
+        được tính vào thời gian gửi xe (được bù ngay khi trình duyệt kết nối).
+  \item Công cụ giả lập và client thật cùng loại không nên chạy xen kẽ (số thứ tự lệch).
+\end{itemize}
 
 \section{Hướng phát triển}
 \begin{itemize}
-  \item Thêm mã xác thực HMAC-SHA256 (có sẵn trong mbedTLS của ESP-IDF) và số thứ tự chống
-        phát lại cho mỗi bản tin; thêm đăng nhập cho API điều khiển.
-  \item Bản tin xác nhận (ACK) cho \code{rfid\_event}; RFID Client gửi lại nếu không nhận được.
-  \item Lưu phiên vào NVS theo lô; đồng bộ giờ bằng SNTP hoặc module RTC DS3231.
-  \item Gửi nhiệt độ định kỳ độc lập với sự kiện quẹt thẻ.
+  \item HTTPS cho trang quản trị; mỗi bo một khóa riêng do máy chủ cấp khi ghép cặp.
+  \item Module RTC DS3231 để có giờ thực ngay cả khi chưa có trình duyệt kết nối.
   \item Kết nối MQTT lên đám mây để quản lý nhiều bãi, thống kê doanh thu, đặt chỗ trước,
         thanh toán bằng mã QR.
-  \item Bổ sung OTA cho máy chủ (bảng phân vùng hai khe ứng dụng).
+  \item Bổ sung OTA cho máy chủ (bảng phân vùng hai khe ứng dụng, cần flash 4\,MB).
 \end{itemize}

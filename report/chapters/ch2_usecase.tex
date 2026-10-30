@@ -67,7 +67,7 @@ UC10 & Xem nhật ký vào/ra và giá & \file{rfid\_session.c}, \file{http\_ser
   \item Màn hình vẽ lại: số chỗ trống \code{FREE SPACES x/5} và 5 ô S1–S5 (xanh = trống, đỏ = có xe).
 \end{enumerate}
 \item[Ngoại lệ] 3a. Mất gói UDP: bản tin nhắc lại sau tối đa 1\,s sửa lại trạng thái.
-  4a. Bản tin sai định dạng: bị bỏ qua, trạng thái cũ được giữ.
+  4a. Bản tin sai định dạng, sai chữ ký hoặc là bản ghi lại gói cũ: bị bỏ qua, trạng thái cũ được giữ.
 \item[Hậu điều kiện] Màn hình phản ánh đúng trạng thái 5 chỗ đỗ.
 \item[Thông số] Debounce 50\,ms; nhắc lại 1\,s; độ trễ hiển thị $\approx$ 0,1\,s.
 \end{usecase}
@@ -94,12 +94,15 @@ UC10 & Xem nhật ký vào/ra và giá & \file{rfid\_session.c}, \file{http\_ser
 \item[Luồng chính] \begin{enumerate}[nosep,leftmargin=1.3em]
   \item Người lái đưa thẻ vào đầu đọc cổng vào.
   \item RFID Client đọc UID, chuyển thành chuỗi hex in hoa, gửi \code{rfid\_event} với \code{"gate":"in"}.
-  \item Máy chủ tạo phiên mới, lưu thời điểm vào, ghi nhật ký \code{IN}.
+  \item Máy chủ kiểm tra chữ ký và số thứ tự, trả \code{ACK}, tạo phiên mới, lưu thời điểm vào,
+        ghi nhật ký \code{IN} và lưu cả bảng phiên vào flash (NVS).
   \item Máy chủ mở thanh chắn cổng vào (90°) và hẹn giờ đóng sau 3\,s.
   \item Đồng hồ hết 3\,s, thanh chắn tự đóng.
 \end{enumerate}
 \item[Ngoại lệ] 1a. Thẻ để yên trên đầu đọc: chỉ gửi một lần trong 2\,s.
-  3a. Bãi đầy hoặc thẻ đã ở trong bãi: chuyển sang UC05.
+  2a. Gói tin bị mất: chưa nhận \code{ACK} sau 300\,ms thì RFID Client gửi lại (tối đa 6 lần);
+      máy chủ nhận bản sao thì chỉ trả \code{ACK}, không mở cổng lần hai.
+  3a. Bãi đầy (5 phiên, \emph{hoặc} cảm biến IR báo cả 5 ô có xe) hoặc thẻ đã ở trong bãi: chuyển sang UC05.
   5a. Người vận hành bấm đóng/mở trên web trước khi hết giờ: lệnh tay thắng, hủy hẹn giờ.
 \item[Hậu điều kiện] Thẻ có phiên hoạt động; thanh chắn đóng lại.
 \item[Thông số] Thời gian mở 3\,s; chống đọc lặp 2\,s; tối đa 5 phiên.
@@ -125,7 +128,7 @@ UC10 & Xem nhật ký vào/ra và giá & \file{rfid\_session.c}, \file{http\_ser
 \item[Tác nhân] Người lái xe; RFID Client; Đồng hồ hệ thống.
 \item[Mô tả] Hệ thống từ chối các lần quẹt không hợp lệ và hướng dẫn người lái.
 \item[Tiền điều kiện] Một trong ba trường hợp: (a) thẻ đã trong bãi nhưng quẹt ở cổng vào;
-  (b) thẻ chưa vào nhưng quẹt ở cổng ra; (c) đã đủ 5 phiên mà có thẻ mới ở cổng vào.
+  (b) thẻ chưa vào nhưng quẹt ở cổng ra; (c) đã đủ 5 phiên, hoặc cả 5 ô đều có xe theo cảm biến IR, mà có thẻ mới ở cổng vào.
 \item[Luồng chính] \begin{enumerate}[nosep,leftmargin=1.3em]
   \item Máy chủ nhận \code{rfid\_event} và xác định kết quả \code{INVALID\_GATE} hoặc \code{FULL}.
   \item Thanh chắn \emph{không} mở.
@@ -173,12 +176,13 @@ UC10 & Xem nhật ký vào/ra và giá & \file{rfid\_session.c}, \file{http\_ser
 \item[Mô tả] Theo dõi nhiệt độ môi trường tại cổng.
 \item[Luồng chính] \begin{enumerate}[nosep,leftmargin=1.3em]
   \item RFID Client đọc DHT11 mỗi 5\,s, giữ giá trị hợp lệ gần nhất.
-  \item Giá trị được gửi kèm mỗi \code{rfid\_event} (\code{temperature\_c}).
+  \item Mỗi lần đọc được, RFID Client gửi bản tin \code{climate} riêng (không phụ thuộc
+        việc có xe quẹt thẻ); giá trị cũng đi kèm mỗi \code{rfid\_event}.
   \item Máy chủ kiểm tra dải $-40$ đến $125$\,°C, cập nhật trạng thái chung.
   \item Màn hình (\code{TEMP C}) và web (\code{TEMPERATURE}) hiển thị.
 \end{enumerate}
 \item[Ngoại lệ] 1a. DHT11 đọc lỗi (NaN): giữ giá trị cũ, không gửi số sai.
-\item[Hậu điều kiện] Nhiệt độ cập nhật mỗi lần có xe quẹt thẻ.
+\item[Hậu điều kiện] Nhiệt độ trên màn hình và web không cũ hơn 5\,s.
 \end{usecase}
 
 \begin{usecase}{UC09}{Điều khiển thanh chắn thủ công}
@@ -187,11 +191,12 @@ UC10 & Xem nhật ký vào/ra và giá & \file{rfid\_session.c}, \file{http\_ser
 \item[Luồng chính] \begin{enumerate}[nosep,leftmargin=1.3em]
   \item Người vận hành bấm \code{OPEN}/\code{CLOSE} của cổng vào, cổng ra, hoặc
         \code{EMERGENCY OPEN/CLOSE ALL}.
-  \item Trang web gửi yêu cầu \code{POST} tới \code{/api/barrier/<cổng>/<lệnh>} (cổng: \code{in}, \code{out}, \code{all}; lệnh: \code{open}, \code{close}); nút bị khóa đến khi có phản hồi.
+  \item Trang web gửi yêu cầu \code{POST} tới \code{/api/barrier/<cổng>/<lệnh>} (cổng: \code{in}, \code{out}, \code{all}; lệnh: \code{open}, \code{close}) kèm mã PIN quản trị trong header \code{X-Parking-Key}; nút bị khóa đến khi có phản hồi.
   \item Máy chủ hủy hẹn giờ tự đóng (nếu có) rồi đặt góc servo.
   \item Trang web cập nhật trạng thái \code{OPEN}/\code{CLOSED}.
 \end{enumerate}
-\item[Ngoại lệ] 3a. Đang có cháy mà yêu cầu đóng: từ chối, hiển thị lỗi.
+\item[Ngoại lệ] 2a. Chưa có hoặc sai mã PIN: máy chủ trả 401, trang web hỏi mã PIN một lần
+      và nhớ trong trình duyệt. 3a. Đang có cháy mà yêu cầu đóng: từ chối, hiển thị lỗi.
 \item[Hậu điều kiện] Thanh chắn ở đúng trạng thái người vận hành chọn.
 \end{usecase}
 
@@ -202,8 +207,12 @@ UC10 & Xem nhật ký vào/ra và giá & \file{rfid\_session.c}, \file{http\_ser
   \item Trang web gọi \code{GET /api/rfid} mỗi 2\,s.
   \item Máy chủ trả giá mỗi giờ, danh sách xe trong bãi (UID, giờ vào, phí tạm tính) và
         10 sự kiện mới nhất (vào, ra kèm thời lượng và phí, bị từ chối).
-  \item Trình duyệt đổi thời gian ``giây kể từ khi khởi động'' thành giờ thực theo đồng hồ điện thoại.
+  \item Trình duyệt của người vận hành (đã nhập PIN) gửi giờ thực cho máy chủ qua
+        \code{POST /api/time}; từ đó mọi mốc thời gian là giờ Unix.
+  \item Trang web so số thẻ trong bãi với số ô có xe theo cảm biến IR; lệch quá 15\,s thì
+        hiện cảnh báo vàng \code{CHECK THE LOT}.
 \end{enumerate}
-\item[Ngoại lệ] 2a. Máy chủ khởi động lại: nhật ký và phiên được làm mới (lưu trong RAM).
+\item[Ngoại lệ] 2a. Máy chủ mất điện: phiên, nhật ký và đồng hồ được khôi phục từ flash;
+  thời gian mất điện được bù khi trình duyệt gửi lại giờ thực.
 \item[Hậu điều kiện] Người vận hành đối soát được tiền thu và xe trong bãi.
 \end{usecase}

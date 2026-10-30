@@ -6,6 +6,7 @@
 #include "buzzer/buzzer.h"
 #include "barrier/servo.h"
 #include "network/network_service.h"
+#include "parking/parking_persist.h"
 
 static const char *TAG = "MAIN";
 
@@ -23,6 +24,9 @@ void app_main(void)
     }
 
     ESP_ERROR_CHECK(ret);
+
+    // Bring back cars still inside and the log from before a power cut.
+    parking_persist_load();
 
     // Start the local screen before Wi-Fi consumes system memory.
     ESP_ERROR_CHECK(lcd_display_start());

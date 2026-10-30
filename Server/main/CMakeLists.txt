@@ -10,6 +10,8 @@ idf_component_register(
         "parking/json_scan.c"
         "parking/parking_update.c"
         "parking/rfid_session.c"
+        "parking/packet_auth.c"
+        "parking/parking_persist.c"
         "network/network_service.c"
         "network/wifi_sta.c"
         "network/http/http_server.c"

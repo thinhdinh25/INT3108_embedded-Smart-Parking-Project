@@ -2,6 +2,7 @@
 #include "esp_log.h"
 #include "esp_netif.h"
 #include "mdns.h"
+#include "sdkconfig.h"
 
 #include "http/http_server.h"
 #include "network_service.h"
@@ -74,7 +75,7 @@ esp_err_t network_service_start(void)
     }
 
     ESP_LOGI(TAG, "Smart Parking Server is ready");
-    ESP_LOGI(TAG, "Connecting to Wi-Fi hotspot: ESP32-Parking");
+    ESP_LOGI(TAG, "Connecting to Wi-Fi hotspot: " CONFIG_PARKING_WIFI_SSID);
     ESP_LOGI(TAG, "Web interface: http://" MDNS_HOSTNAME ".local");
 
     return ESP_OK;

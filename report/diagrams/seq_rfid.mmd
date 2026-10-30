@@ -9,18 +9,24 @@ sequenceDiagram
   rect rgb(232, 245, 233)
   Note over U,L: Gửi xe
   U->>C: Quẹt thẻ ở cổng vào
-  C->>S: rfid_event gate=in (UDP)
+  C->>S: rfid_event gate=in, ký SipHash, seq = n (UDP)
+  S->>S: Kiểm tra chữ ký, seq n chưa dùng
+  S-->>C: ACK n (cũng ký) → client ngừng gửi lại
   S->>R: rfid_session_scan()
   R-->>S: ENTERED, lưu giờ vào, nhật ký IN
+  S->>S: Lưu phiên + nhật ký vào NVS
   S->>B: servo_open_for(IN, 3000)
   S-)L: thông báo tác vụ: vẽ lại
-  B->>B: Mở 90°, hẹn giờ 3 s
-  B->>B: Hết 3 s → đóng 0°
+  B->>B: Mở 90°, hẹn giờ 3 s → đóng 0°
+  end
+  rect rgb(255, 243, 224)
+  Note over C,S: Gói tin bị mất
+  C-xS: rfid_event gate=out, seq = n+1
+  C->>S: Sau 300 ms chưa có ACK → gửi lại bản giống hệt
+  S-->>C: ACK n+1
   end
   rect rgb(225, 236, 250)
   Note over U,L: Lấy xe
-  U->>C: Quẹt cùng thẻ ở cổng ra
-  C->>S: rfid_event gate=out (UDP)
   S->>R: rfid_session_scan()
   R-->>S: EXITED, phí = max(1, ⌈t/3600⌉) × 5000
   S->>B: servo_open_for(OUT, 3000)

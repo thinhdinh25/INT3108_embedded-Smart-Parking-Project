@@ -41,3 +41,26 @@ config PARKING_LCD_Y_GAP
     default 0
 
 endmenu
+
+menu "Parking network and security"
+
+config PARKING_WIFI_SSID
+    string "Wi-Fi SSID (the RFID client's access point)"
+    default "ESP32-Parking"
+
+config PARKING_WIFI_PASSWORD
+    string "Wi-Fi password"
+    default "12345678"
+
+config PARKING_UDP_KEY
+    string "UDP signing key (32 hex digits, same as the clients' secrets.h)"
+    default "5061726b696e674b65792d44656d6f21"
+    help
+        16-byte SipHash key that signs every UDP packet. Change it together with
+        PARKING_UDP_KEY in SensorClient/secrets.h and RFIDClient/secrets.h.
+
+config PARKING_ADMIN_PIN
+    string "Dashboard admin PIN (barrier control and clock)"
+    default "2468"
+
+endmenu

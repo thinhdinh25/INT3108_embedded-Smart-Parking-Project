@@ -11,9 +11,9 @@ CXXFLAGS := -std=c++17 -Wall -Wextra -O1 -g -Wno-sign-compare -Wno-unused-parame
             -I. -Iarduino -Istubs -I$(PARKING)
 
 PARKING_SRC := $(PARKING)/json_scan.c $(PARKING)/parking_update.c \
-               $(PARKING)/parking_state.c $(PARKING)/rfid_session.c
+               $(PARKING)/parking_state.c $(PARKING)/rfid_session.c $(PARKING)/packet_auth.c
 
-TESTS := json_parsers rfid_session gif_frames sensor_client rfid_client
+TESTS := packet_auth json_parsers rfid_session gif_frames sensor_client rfid_client
 
 .PHONY: all clean
 all: $(addprefix $(BUILD)/test_,$(TESTS))
@@ -31,16 +31,19 @@ PARKING_OBJ := $(patsubst $(PARKING)/%.c,$(BUILD)/parking_%.o,$(PARKING_SRC))
 $(BUILD)/test_json_parsers: test_json_parsers.c $(PARKING_OBJ) | $(BUILD)
 	$(CC) $(CFLAGS) $^ -o $@
 
+$(BUILD)/test_packet_auth: test_packet_auth.c $(BUILD)/parking_packet_auth.o | $(BUILD)
+	$(CC) $(CFLAGS) $^ -o $@
+
 $(BUILD)/test_rfid_session: test_rfid_session.c $(PARKING_OBJ) | $(BUILD)
 	$(CC) $(CFLAGS) $^ -o $@
 
 $(BUILD)/test_gif_frames: test_gif_frames.c $(DISPLAY)/kaoruko_gif.c $(DISPLAY)/claude_gif.c | $(BUILD)
 	$(CC) $(CFLAGS) $^ -o $@
 
-$(BUILD)/test_sensor_client: test_sensor_client.cpp ../SensorClient/SensorClient.ino $(PARKING_OBJ) | $(BUILD)
+$(BUILD)/test_sensor_client: test_sensor_client.cpp ../SensorClient/SensorClient.ino ../SensorClient/packet_auth.h $(PARKING_OBJ) | $(BUILD)
 	$(CXX) $(CXXFLAGS) test_sensor_client.cpp $(PARKING_OBJ) -o $@
 
-$(BUILD)/test_rfid_client: test_rfid_client.cpp ../RFIDClient/RFIDClient.ino $(PARKING_OBJ) | $(BUILD)
+$(BUILD)/test_rfid_client: test_rfid_client.cpp ../RFIDClient/RFIDClient.ino ../RFIDClient/packet_auth.h $(PARKING_OBJ) | $(BUILD)
 	$(CXX) $(CXXFLAGS) test_rfid_client.cpp $(PARKING_OBJ) -o $@
 
 clean:

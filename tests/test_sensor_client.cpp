@@ -4,6 +4,7 @@
 #include "../SensorClient/SensorClient.ino"
 
 extern "C" {
+#include "packet_auth.h"
 #include "parking_update.h"
 }
 #include "test.h"
@@ -24,12 +25,17 @@ static void run_for(unsigned long ms)
     }
 }
 
+/* What the server does: check the tag with the shared key, then parse the JSON. */
+static bool server_accepts(const std::string &packet, parking_state_t *out, uint32_t *seq = nullptr)
+{
+    memset(out, 0, sizeof(*out));
+    const char *json = packet_auth_open(packet.c_str(), packet.size(), UDP_KEY, seq);
+    return json && parking_update_parse_json(json, out);
+}
+
 static bool last_packet(parking_state_t *out)
 {
-    if (fake::udp_sent.empty())
-        return false;
-    memset(out, 0, sizeof(*out));
-    return parking_update_parse_json(fake::udp_sent.back().c_str(), out);
+    return !fake::udp_sent.empty() && server_accepts(fake::udp_sent.back(), out);
 }
 
 int main()
@@ -73,7 +79,7 @@ int main()
     run_for(500);
     for (const std::string &p : fake::udp_sent)
     {
-        CHECK(parking_update_parse_json(p.c_str(), &s));
+        CHECK(server_accepts(p, &s));
         CHECK(s.slots[4] == 0);
     }
 
@@ -110,6 +116,28 @@ int main()
     WiFi.connected = true;
     run_for(1100);
     CHECK(!fake::udp_sent.empty());
+
+    /* Every packet is signed with a sequence number the server has not seen before. */
+    fake::udp_sent.clear();
+    run_for(3010);
+    uint32_t prev = 0, seq = 0;
+    bool increasing = fake::udp_sent.size() == 3;
+    for (const std::string &p : fake::udp_sent)
+    {
+        increasing &= server_accepts(p, &s, &seq) && seq > prev;
+        prev = seq;
+    }
+    CHECK(increasing);
+    CHECK(fake::udp_sent.back().compare(0, 1, "{") != 0); /* never plain JSON */
+
+    /* After a reboot the numbers still go up (reserved in flash), so the server keeps
+     * accepting them while a recorded old packet stays stale. */
+    const int commits = fake::eeprom_commits;
+    setup();
+    fake::udp_sent.clear();
+    run_for(1010);
+    CHECK(!fake::udp_sent.empty() && server_accepts(fake::udp_sent.back(), &s, &seq) && seq > prev);
+    CHECK(fake::eeprom_commits == commits + 1); /* one flash write per boot, not per packet */
 
     return TEST_REPORT("sensor_client");
 }

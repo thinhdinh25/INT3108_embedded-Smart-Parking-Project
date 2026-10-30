@@ -1,8 +1,9 @@
 flowchart TD
   s0(["Cấp nguồn / reset"]) --> s1["Khởi tạo NVS"]
   s1 --> d1{"NVS đầy hoặc<br/>khác phiên bản?"}
-  d1 -- có --> s1b["Xóa và khởi tạo lại NVS"] --> s2
-  d1 -- không --> s2["Màn hình: SPI DMA, framebuffer 115 KB,<br/>tác vụ vẽ và ảnh động"]
+  d1 -- có --> s1b["Xóa và khởi tạo lại NVS"] --> s1c
+  d1 -- không --> s1c["Khôi phục phiên, nhật ký,<br/>cửa sổ chống phát lại, đồng hồ từ NVS"]
+  s1c --> s2["Màn hình: SPI DMA, framebuffer 115 KB,<br/>tác vụ vẽ và ảnh động"]
   s2 --> s3["Còi: GPIO9 = mức cao (im lặng)"]
   s3 --> s4["Servo: LEDC 50 Hz, đưa 2 cổng về vị trí đóng,<br/>tạo 2 hẹn giờ một lần"]
   s4 --> s5["Mạng: Wi-Fi STA → mDNS → HTTP server → UDP server"]

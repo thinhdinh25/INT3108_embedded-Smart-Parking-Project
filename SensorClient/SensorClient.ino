@@ -2,10 +2,14 @@
 #include <ESP8266mDNS.h>
 #include <WiFiUdp.h>
 #include <ArduinoOTA.h>
+#include "packet_auth.h"
 
-// Join the access point created by the ESP32 parking server.
-const char* ssid = "ESP32-Parking";
-const char* password = "12345678";
+// Wi-Fi of the RFID client's access point and the UDP signing key.
+#if __has_include("secrets.h")
+#include "secrets.h"
+#else
+#include "secrets.example.h"
+#endif
 
 /******************SENSOR SECTION BEGIN**********************/
 
@@ -145,17 +149,20 @@ void send_UDP() {
 
     // `1` means occupied/detected and `0` means free/clear.
     char payload[112];
-    int length = snprintf(payload, sizeof(payload),
+    int jsonLength = snprintf(payload, sizeof(payload),
                           "{\"type\":\"parking_update\",\"slots\":[%d,%d,%d,%d,%d],\"water_mm\":%.1f,\"fire\":%s}",
                           state[0], state[1], state[2], state[3], state[4],
                           currentWaterMm, flameState ? "false" : "true");
-    if (length < 0 || length >= sizeof(payload)) {
+    char packet[sizeof(payload) + 24];
+    int length = jsonLength < 0 || jsonLength >= sizeof(payload)
+                     ? 0 : auth_seal(UDP_KEY, seq_take(), payload, packet, sizeof(packet));
+    if (length == 0) {
         Serial.println("UDP payload formatting failed");
         return;
     }
 
     if (udp.beginPacket(serverIP, serverPort) &&
-        udp.write(reinterpret_cast<const uint8_t*>(payload), length) == length &&
+        udp.write(reinterpret_cast<const uint8_t*>(packet), length) == length &&
         udp.endPacket()) {
         Serial.print("Sent: ");
         Serial.println(payload);
@@ -170,10 +177,11 @@ void setup() {
     Serial.begin(115200);
     WiFi.mode(WIFI_STA);
     WiFi.setAutoReconnect(true);
-    WiFi.begin(ssid, password);
+    WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
+    seq_begin();
 
     Serial.print("Connecting to ");
-    Serial.println(ssid);
+    Serial.println(WIFI_SSID);
     while (WiFi.status() != WL_CONNECTED) {
         delay(500);
         Serial.print(".");

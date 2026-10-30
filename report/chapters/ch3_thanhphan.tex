@@ -107,11 +107,58 @@ Còi (module) & Tích cực mức thấp: chân tín hiệu mức 0 thì kêu \\
 \begin{tabularx}{\linewidth}{@{}p{2.9cm}p{4.0cm}X@{}}
 \toprule
 \textbf{Cảm biến} & \textbf{Thông số} & \textbf{Lý do lựa chọn} \\ \midrule
-IR phản xạ (FC-51) $\times5$ & 2–30\,cm, so sánh LM393 có biến trở, ngõ ra số tích cực mức thấp & Rẻ, phát hiện vật ở cự ly vài cm hợp với xe mô hình, chỉ tốn 1 chân. Siêu âm chính xác hơn nhưng tốn 2 chân/cảm biến và phải đo thời gian. \\
-Cảm biến lửa & Bước sóng 760–1100\,nm, góc $\approx$ 60°, ngõ ra số có ngưỡng & Phản ứng nhanh hơn cảm biến khói/nhiệt; ngõ ra số sẵn ngưỡng. \\
+IR phản xạ HW-201 (họ FC-51) $\times5$ & 2–30\,cm, so sánh LM393 có biến trở, ngõ ra số tích cực mức thấp & Rẻ, phát hiện vật ở cự ly vài cm hợp với xe mô hình, chỉ tốn 1 chân. Siêu âm chính xác hơn nhưng tốn 2 chân/cảm biến và phải đo thời gian. \\
+Cảm biến lửa (module 4 chân AO/DO) & Bước sóng 760–1100\,nm, góc $\approx$ 60°, ngõ ra số có ngưỡng & Phản ứng nhanh hơn cảm biến khói/nhiệt; ngõ ra số sẵn ngưỡng. \\
 Mực nước (điện trở) & Vùng đo $\approx$ 40\,mm, ngõ ra tương tự & Đơn giản, chỉ cần 1 chân ADC, hợp với mô hình tầng hầm. \\
 RFID MFRC522 $\times2$ & 13,56\,MHz, ISO 14443A (MIFARE), SPI, 3,3\,V, đọc vài cm & Đọc được thẻ phổ biến (thẻ sinh viên, móc khóa), thư viện ổn định, giá rẻ. \\
 DHT11 & 0–50\,°C ($\pm$2\,°C), 20–90\%RH, đọc tối đa 1 lần/giây & Đủ cho giám sát môi trường, chỉ cần 1 chân. \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\section{Mô hình thực tế và bố trí phần cứng}\label{sec:mohinh}
+Hình~\ref{fig:model} là mô hình nhóm đã chế tạo. Đế và vách làm bằng bìa formex
+trắng (nhẹ, dễ cắt khoét lỗ cho cảm biến, cách điện); 5 ô đỗ được kẻ vạch dọc vách
+sau, phía trước là sân quay đầu và hai làn ra/vào nằm hai bên hộp điều khiển ở giữa.
+
+\begin{figure}[H]
+\centering
+\begin{subfigure}[t]{0.49\linewidth}\centering
+  \includegraphics[width=\linewidth,height=0.36\textheight,keepaspectratio]{photos/model_top.jpg}
+  \caption{Nhìn từ phía cổng: 5 ô đỗ, hộp điều khiển với TFT, hai thanh chắn servo}\label{fig:model-top}
+\end{subfigure}\hfill
+\begin{subfigure}[t]{0.49\linewidth}\centering
+  \includegraphics[width=\linewidth,height=0.36\textheight,keepaspectratio]{photos/model_angle.jpg}
+  \caption{Góc nghiêng: dãy cảm biến ở mặt ngoài vách sau, cảm biến nước ở góc}\label{fig:model-angle}
+\end{subfigure}
+
+\vspace{4pt}
+\begin{subfigure}[t]{0.49\linewidth}\centering
+  \includegraphics[width=\linewidth,height=0.36\textheight,keepaspectratio]{photos/model_sensorwall.jpg}
+  \caption{Mặt ngoài vách sau: 5 module IR HW-201, module lửa (đỏ), jack nguồn DC, diode và tụ lọc}\label{fig:model-wall}
+\end{subfigure}\hfill
+\begin{subfigure}[t]{0.49\linewidth}\centering
+  \includegraphics[width=\linewidth,height=0.36\textheight,keepaspectratio]{photos/model_gate.jpg}
+  \caption{Cổng: servo SG90 gắn ở đầu vách, cần chắn quay ngang làn xe; DHT11 trên nóc hộp}\label{fig:model-gate}
+\end{subfigure}
+\caption{Mô hình bãi đỗ xe thông minh của nhóm}\label{fig:model}
+\end{figure}
+
+\begin{table}[H]
+\centering\small
+\caption{Vị trí lắp đặt từng thiết bị trên mô hình và lý do}\label{tab:placement}
+\begin{tabularx}{\linewidth}{@{}p{3.1cm}p{4.3cm}X@{}}
+\toprule
+\textbf{Thiết bị} & \textbf{Vị trí} & \textbf{Lý do} \\ \midrule
+5 module IR HW-201 & Mặt \emph{ngoài} vách sau, mỗi ô một module; LED phát/thu xuyên qua lỗ khoét vào đúng giữa ô & Dây và bo mạch nằm ngoài nên lòng bãi gọn, xe không vướng; khoảng cách tới đuôi xe chỉ vài cm, đúng tầm đo của IR. Mỗi module có biến trở chỉnh ngưỡng riêng theo độ phản xạ thực tế \\
+Module lửa & Giữa dãy IR (giữa ô 3 và 4), đầu thu hướng vào lòng bãi & Góc nhìn $\approx$ 60° phủ được cả 5 ô từ vị trí trung tâm \\
+Cảm biến mực nước & Góc trong của vách sau, sát sàn & Nước đọng tại điểm thấp và góc tường trước; đặt sát sàn để phát hiện sớm \\
+Hộp điều khiển & Giữa bãi, giữa hai làn & Dây tới cảm biến, đầu đọc và servo đều ngắn; che bo mạch khỏi va chạm \\
+TFT ST7789 & Mặt trước hộp, quay ra cổng & Người lái nhìn thấy số chỗ trống, hóa đơn và cảnh báo ngay khi tới cổng \\
+2 đầu đọc RC522 & Hai hông hộp, mỗi đầu đọc quay ra một làn & Người lái quẹt thẻ từ trong xe ở đúng làn của mình; hai đầu đọc cách nhau cả hộp nên ít nhiễu chéo \\
+2 servo SG90 & Đầu vách trái và phải, cần chắn quay ngang làn & Trục servo nằm ngoài làn, cần chắn nhẹ (nhựa) nên mô-men 1,8\,kg$\cdot$cm là dư \\
+DHT11 & Nóc hộp điều khiển & Ra khỏi lòng hộp để không đo nhầm nhiệt do bo mạch tỏa ra \\
+Jack DC, diode, tụ hóa & Mặt ngoài vách sau, cạnh dãy cảm biến & Một điểm cấp nguồn cho cả mô hình; xem đoạn ``Nguồn điện'' \\
 \bottomrule
 \end{tabularx}
 \end{table}
@@ -152,9 +199,19 @@ DHT11 & 2 (D4) & GPIO2 cần mức cao khi khởi động, DHT11 có điện tr�
 \end{tabularx}
 \end{table}
 
-\paragraph{Nguồn điện.} Servo SG90 có dòng khởi động vài trăm mA mỗi con; nếu lấy từ
-chân 3V3 của bo, sụt áp làm ESP32-C3 reset. Vì vậy servo dùng nguồn 5\,V riêng,
-\textbf{nối chung GND} với ESP32-C3 để tín hiệu PWM có cùng mức tham chiếu.
+\paragraph{Nguồn điện.} Mô hình có một điểm cấp nguồn là jack DC trên vách sau
+(Hình~\ref{fig:model-wall}); khi trình diễn có thể cấp qua cáp USB vào hộp điều
+khiển. Ba chi tiết được thêm sau khi đo thực tế:
+\begin{itemize}[nosep]
+  \item \textbf{Diode nối tiếp} ở đầu vào: cắm nhầm cực adapter thì diode chặn, không
+        làm hỏng ba bo mạch và các module.
+  \item \textbf{Tụ hóa lớn} song song nguồn 5\,V: servo SG90 kéo vài trăm mA lúc khởi
+        động; tụ cấp dòng tức thời này nên điện áp không sụt làm ESP32-C3 hay ESP8266
+        reset khi thanh chắn chuyển động.
+  \item \textbf{Servo lấy nguồn 5\,V}, không lấy từ chân 3V3 của bo (bộ ổn áp trên bo
+        chỉ cho vài trăm mA), và \textbf{nối chung GND} với ESP32-C3 để xung PWM có cùng
+        mức tham chiếu.
+\end{itemize}
 
 \section{Thành phần phần mềm}
 \begin{table}[H]
@@ -184,19 +241,21 @@ HTML/CSS/JavaScript & thuần & Trang web, không framework, không CDN \\
 \begin{tabularx}{\linewidth}{@{}p{4.3cm}rX@{}}
 \toprule
 \textbf{Tệp} & \textbf{Dòng} & \textbf{Trách nhiệm} \\ \midrule
-\file{main.c} & 39 & Khởi tạo NVS, màn hình, còi, servo, mạng theo thứ tự \\
-\file{parking/parking\_state.c} & 48 & Trạng thái bãi dùng chung (critical section) \\
+\file{main.c} & 43 & Khởi tạo NVS, khôi phục phiên, màn hình, còi, servo, mạng theo thứ tự \\
+\file{parking/parking\_state.c} & 65 & Trạng thái bãi dùng chung, đồng hồ bãi (critical section) \\
 \file{parking/json\_scan.c} & 81 & Hàm đọc JSON dùng chung, không cấp phát động \\
-\file{parking/parking\_update.c} & 74 & Kiểm tra bản tin \code{parking\_update} \\
-\file{parking/rfid\_session.c} & 256 & Bản tin RFID, phiên gửi xe, phí, hóa đơn, thông báo, nhật ký \\
+\file{parking/parking\_update.c} & 108 & Kiểm tra bản tin \code{parking\_update} và \code{climate} \\
+\file{parking/rfid\_session.c} & 314 & Bản tin RFID, phiên gửi xe, phí, hóa đơn, thông báo, nhật ký, chống lặp, đối chiếu IR, lưu/khôi phục, đặt giờ \\
+\file{parking/packet\_auth.c} & 135 & Ký/kiểm tra gói UDP bằng SipHash-2-4, cửa sổ chống phát lại \\
+\file{parking/parking\_persist.c} & 47 & Lưu/đọc phiên, nhật ký, đồng hồ trong NVS \\
 \file{barrier/servo.c} & 230 & PWM servo, hẹn giờ tự đóng, chế độ cháy \\
 \file{buzzer/buzzer.c} & 29 & Còi tích cực mức thấp \\
 \file{display/lcd\_display.c} & 623 & Giao diện TFT, màn hình cháy, ảnh động \\
 \file{display/*\_gif.c} & dữ liệu & Khung ảnh động đã nén LZSS \\
 \file{network/wifi\_sta.c} & 134 & Kết nối Wi-Fi, tự kết nối lại \\
 \file{network/network\_service.c} & 81 & Khởi động mạng, mDNS, cập nhật IP cho mDNS \\
-\file{network/udp/udp\_server.c} & 138 & Nhận và điều phối bản tin UDP \\
-\file{network/http/http\_server.c} & 195 & 11 route HTTP, API JSON \\
+\file{network/udp/udp\_server.c} & 196 & Kiểm tra chữ ký, điều phối bản tin UDP, gửi ACK \\
+\file{network/http/http\_server.c} & 244 & 12 route HTTP, API JSON, kiểm tra mã PIN \\
 \bottomrule
 \end{tabularx}
 \end{table}

@@ -1,6 +1,7 @@
 /* Host shim for testing the ESP8266 sketches: a fake clock, pins, serial and UDP capture. */
 #pragma once
 #include <cmath>
+#include <cstdlib>
 #include <cstdint>
 #include <cstdio>
 #include <cstring>

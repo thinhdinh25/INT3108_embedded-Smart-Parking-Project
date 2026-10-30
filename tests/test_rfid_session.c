@@ -182,6 +182,83 @@ static void test_rejection_notice(void)
         CHECK(scan(ids[i], RFID_GATE_OUT, 30200) == RFID_SCAN_EXITED);
 }
 
+static void test_ir_cross_check(void)
+{
+    /* Every bay is taken by a car the RFID system does not know about: no entry. */
+    parking_state_t lot = {.slots = {1, 1, 1, 1, 1}};
+    parking_state_update(&lot);
+    CHECK(scan("IR1", RFID_GATE_IN, 40000) == RFID_SCAN_FULL);
+    lot.slots[2] = 0;
+    parking_state_update(&lot);
+    CHECK(scan("IR1", RFID_GATE_IN, 40001) == RFID_SCAN_ENTERED);
+    CHECK(scan("IR1", RFID_GATE_OUT, 40002) == RFID_SCAN_EXITED);
+    lot.slots[0] = lot.slots[1] = lot.slots[3] = lot.slots[4] = 0;
+    parking_state_update(&lot);
+}
+
+static void test_persistence_and_clock(void)
+{
+    rfid_active_t active[RFID_MAX_ACTIVE];
+    rfid_log_entry_t log[RFID_LOG_SIZE];
+    rfid_store_t saved;
+
+    /* Never-set clock: times count from the first boot. */
+    fake_time_us = (int64_t)SEC(50000);
+    CHECK(scan("KEEP", RFID_GATE_IN, 49900) == RFID_SCAN_ENTERED);
+    CHECK(rfid_session_check_seq(7) == PACKET_NEW);
+    rfid_session_snapshot(&saved);
+    CHECK(saved.clock_us == (int64_t)SEC(50000) && !saved.clock_synced);
+
+    /* Power cut: uptime restarts, the clock resumes on the next second and the car is still in. */
+    fake_time_us = (int64_t)SEC(2);
+    rfid_session_restore(&saved);
+    CHECK(parking_clock_now_us() == (int64_t)SEC(50001));
+    CHECK(rfid_session_get_active(active, RFID_MAX_ACTIVE) == 1 && strcmp(active[0].card_id, "KEEP") == 0);
+    CHECK(rfid_session_check_seq(7) == PACKET_DUPLICATE); /* replay window survives too */
+
+    /* A browser sets Unix time: every stored time moves with the clock, durations stay right. */
+    const uint64_t T = 1700000000ULL;
+    fake_time_us = (int64_t)SEC(62); /* clock now 50061 */
+    rfid_session_set_clock(T);
+    CHECK(parking_clock_now_us() == (int64_t)SEC(T));
+    rfid_session_get_active(active, RFID_MAX_ACTIVE);
+    CHECK(active[0].entered_s == T - 161);
+    rfid_session_get_log(log, 1);
+    CHECK(log[0].at_s == T - 161 && strcmp(log[0].card_id, "KEEP") == 0);
+
+    /* A second set in the same boot only corrects drift, it does not move records again. */
+    rfid_session_set_clock(T + 5);
+    rfid_session_get_active(active, RFID_MAX_ACTIVE);
+    CHECK(active[0].entered_s == T - 161);
+    CHECK(scan("KEEP", RFID_GATE_OUT, T + 5) == RFID_SCAN_EXITED);
+    rfid_session_get_log(log, 1);
+    CHECK(log[0].duration_s == 166 && log[0].fee_vnd == 5000);
+
+    /* Unix-time snapshot, reboot, a car enters before any browser connects, then the clock
+     * is set with the real downtime: only times stamped since the reboot move. */
+    CHECK(scan("OLD", RFID_GATE_IN, T + 5) == RFID_SCAN_ENTERED);
+    rfid_session_snapshot(&saved);
+    CHECK(saved.clock_synced);
+    fake_time_us = (int64_t)SEC(1);
+    rfid_session_restore(&saved);          /* clock resumes at T+6 */
+    fake_time_us = (int64_t)SEC(11);
+    CHECK(scan("NEW", RFID_GATE_IN, T + 16) == RFID_SCAN_ENTERED);
+    rfid_session_set_clock(T + 3600 + 16); /* the server was off for an hour */
+    size_t n = rfid_session_get_active(active, RFID_MAX_ACTIVE);
+    bool old_kept = false, new_moved = false;
+    for (size_t i = 0; i < n; ++i)
+    {
+        old_kept |= strcmp(active[i].card_id, "OLD") == 0 && active[i].entered_s == T + 5;
+        new_moved |= strcmp(active[i].card_id, "NEW") == 0 && active[i].entered_s == T + 3600 + 16;
+    }
+    CHECK(n == 2 && old_kept && new_moved);
+
+    /* A corrupt or older-format save is ignored. */
+    saved.version = 0;
+    rfid_session_restore(&saved);
+    CHECK(rfid_session_get_active(active, RFID_MAX_ACTIVE) == 2);
+}
+
 int main(void)
 {
     test_fee();
@@ -189,5 +266,7 @@ int main(void)
     test_capacity_and_active_list();
     test_event_log();
     test_rejection_notice();
+    test_ir_cross_check();
+    test_persistence_and_clock();
     return TEST_REPORT("rfid_session");
 }

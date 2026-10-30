@@ -7,6 +7,9 @@
 #include "lwip/inet.h"
 #include "lwip/sockets.h"
 
+#include "sdkconfig.h"
+#include "../parking/packet_auth.h"
+#include "../parking/parking_persist.h"
 #include "../parking/parking_state.h"
 #include "../parking/parking_update.h"
 #include "../parking/rfid_session.h"
@@ -17,12 +20,31 @@
 #include "udp_server.h"
 
 #define UDP_BUFFER_SIZE 256
+#define PERSIST_INTERVAL_US (5 * 60 * 1000000LL)
 
 static const char *TAG = "UDP_SERVER";
+
+static void send_ack(int socket_fd, const uint8_t key[16], uint32_t seq,
+                     const struct sockaddr_in *to)
+{
+    char ack[PACKET_AUTH_HEADER_LEN + 4];
+    size_t len = packet_auth_seal(key, seq, "ACK", ack, sizeof(ack));
+    if (sendto(socket_fd, ack, len, 0, (const struct sockaddr *)to, sizeof(*to)) < 0)
+        ESP_LOGW(TAG, "RFID ACK failed: errno %d", errno);
+}
 
 static void udp_server_task(void *arg)
 {
     (void)arg;
+
+    uint8_t key[16];
+    if (!packet_auth_parse_key(CONFIG_PARKING_UDP_KEY, key))
+    {
+        ESP_LOGE(TAG, "PARKING_UDP_KEY must be 32 hex digits; UDP disabled");
+        vTaskDelete(NULL);
+    }
+    packet_window_t sensor_window = {0}, climate_window = {0};
+    int64_t next_persist_us = esp_timer_get_time() + PERSIST_INTERVAL_US;
 
     for (;;)
     {
@@ -73,9 +95,27 @@ static void udp_server_task(void *arg)
                      inet_ntoa(source_addr.sin_addr),
                      ntohs(source_addr.sin_port), received, buffer);
 
-            parking_state_t new_state = {0};
-            if (parking_update_parse_json(buffer, &new_state))
+            /* Unsigned or forged packets are dropped before any parsing. */
+            uint32_t seq;
+            const char *json = packet_auth_open(buffer, (size_t)received, key, &seq);
+            if (!json)
             {
+                ESP_LOGW(TAG, "Dropping unsigned UDP packet from %s", inet_ntoa(source_addr.sin_addr));
+                continue;
+            }
+
+            parking_state_t new_state = {0};
+            float temperature_c;
+            if (parking_update_parse_json(json, &new_state))
+            {
+                if (packet_window_check(&sensor_window, seq) != PACKET_NEW)
+                    continue; /* replayed or out of date */
+                /* The sensor sends every second, so this also keeps the saved clock fresh. */
+                if (esp_timer_get_time() >= next_persist_us)
+                {
+                    next_persist_us = esp_timer_get_time() + PERSIST_INTERVAL_US;
+                    parking_persist_save();
+                }
                 parking_state_update(&new_state);
                 lcd_display_notify();
                 buzzer_set_fire(new_state.fire);
@@ -89,14 +129,32 @@ static void udp_server_task(void *arg)
                 continue;
             }
 
+            if (climate_parse_json(json, &temperature_c))
+            {
+                if (packet_window_check(&climate_window, seq) == PACKET_NEW)
+                {
+                    parking_state_set_temperature(temperature_c);
+                    lcd_display_notify();
+                }
+                continue;
+            }
+
             rfid_event_t event = {0};
-            if (!rfid_event_parse_json(buffer, &event))
+            if (!rfid_event_parse_json(json, &event))
             {
                 ESP_LOGW(TAG, "Ignoring invalid or unknown UDP request");
                 continue;
             }
 
-            rfid_scan_result_t result = rfid_session_scan(&event, (uint64_t)esp_timer_get_time());
+            /* ACK every copy so the client stops retrying, but act on each scan once. */
+            packet_freshness_t freshness = rfid_session_check_seq(seq);
+            if (freshness != PACKET_STALE)
+                send_ack(socket_fd, key, seq, &source_addr);
+            if (freshness != PACKET_NEW)
+                continue;
+
+            rfid_scan_result_t result = rfid_session_scan(&event, (uint64_t)parking_clock_now_us());
+            parking_persist_save();
             lcd_display_notify(); /* temperature or receipt may have changed */
             if (result == RFID_SCAN_ENTERED)
             {

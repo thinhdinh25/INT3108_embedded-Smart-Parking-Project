@@ -121,10 +121,31 @@ static void test_rfid_event(void)
     }
 }
 
+static void test_climate(void)
+{
+    float t = 0;
+    CHECK(climate_parse_json("{\"type\":\"climate\",\"temperature_c\":28.5}", &t) && t == 28.5f);
+    CHECK(climate_parse_json(" { \"temperature_c\" : -40 , \"type\" : \"climate\" } ", &t) && t == -40.0f);
+    const char *bad[] = {
+        "{\"type\":\"climate\"}",
+        "{\"temperature_c\":28}",
+        "{\"type\":\"climate\",\"temperature_c\":126}",
+        "{\"type\":\"climate\",\"temperature_c\":\"28\"}",
+        "{\"type\":\"rfid_event\",\"temperature_c\":28}",
+        "{\"type\":\"climate\",\"temperature_c\":28,\"x\":1}",
+        "{\"type\":\"climate\",\"type\":\"climate\"}",
+        "{\"type\":\"climate\",\"temperature_c\":28}!",
+    };
+    for (size_t i = 0; i < sizeof(bad) / sizeof(bad[0]); ++i)
+        CHECK(!climate_parse_json(bad[i], &t));
+    CHECK(!climate_parse_json(NULL, &t));
+}
+
 int main(void)
 {
     test_parking_update_valid();
     test_parking_update_rejects();
     test_rfid_event();
+    test_climate();
     return TEST_REPORT("json_parsers");
 }

@@ -2,43 +2,124 @@
 \chapter{Đóng góp của thành viên và phân chia điểm}\label{chap:donggop}
 % =====================================================================
 
-\section{Phân công công việc}
-Mỗi thành viên phụ trách chính một phân hệ, đồng thời cả nhóm cùng tham gia thiết kế
-kiến trúc, tích hợp, kiểm thử và viết báo cáo. Công việc được chia để khối lượng của
-ba thành viên tương đương nhau.
+\section{Cách nhóm chia việc}
+Đề tài có ba mảng khối lượng tương đương: \textbf{phần mềm} (firmware ba bo mạch,
+trang web, kiểm thử), \textbf{điện} (chọn linh kiện, nguồn, đi dây) và \textbf{cơ khí}
+(mô hình, cơ cấu thanh chắn). Mỗi thành viên phụ trách chính một mảng và tham gia
+phần giao giữa các mảng: người làm điện viết firmware đọc cảm biến mình lắp, người làm
+mô hình viết firmware điều khiển servo mình gắn. Nhóm làm việc trên một kho GitHub
+chung từ 22/09 đến 30/10/2026, họp mỗi tuần để tích hợp và chạy thử trên mô hình.
 
-\begin{longtable}{@{}p{3.2cm}p{11.2cm}@{}}
-\caption{Phân công công việc}\label{tab:phancong}\\
-\toprule \textbf{Thành viên} & \textbf{Công việc chính} \\ \midrule \endfirsthead
-\toprule \textbf{Thành viên} & \textbf{Công việc chính} \\ \midrule \endhead
-Nguyễn Chí Minh\newline 24020232 &
-\begin{itemize}[nosep,leftmargin=1.1em,before=\vspace{-\baselineskip}]
-  \item Firmware máy chủ: kiến trúc phân lớp, tác vụ FreeRTOS, UDP/HTTP server, mDNS.
-  \item Màn hình ST7789, trang web giám sát, nhật ký vào/ra.
-  \item Tối ưu hiệu năng và bộ nhớ.
-  \item Viết Chương 3, 5 của báo cáo.
-\end{itemize} \\ \midrule
-Đinh Đức Thịnh\newline 24020313 &
-\begin{itemize}[nosep,leftmargin=1.1em,before=\vspace{-\baselineskip}]
-  \item Firmware Sensor Client và RFID Client: cảm biến IR, lửa, nước; hai đầu đọc MFRC522, DHT11; OTA.
-  \item Logic vào/ra theo cổng, điểm truy cập Wi-Fi, hiệu chỉnh chống rung.
-  \item Lắp đặt, đấu dây cảm biến trên mô hình.
-  \item Viết Chương 2, 4 của báo cáo.
-\end{itemize} \\ \midrule
-Nguyễn Việt Tiến\newline 24020322 &
-\begin{itemize}[nosep,leftmargin=1.1em,before=\vspace{-\baselineskip}]
-  \item Thanh chắn servo tự động, chế độ cháy, còi báo động.
-  \item Công cụ giả lập, bộ kiểm thử, kịch bản kiểm thử phần cứng.
-  \item Tài liệu hướng dẫn (README), mô hình bãi xe.
-  \item Viết Chương 1, 6, 7, 8 của báo cáo.
-\end{itemize} \\ \midrule
-Cả nhóm &
-\begin{itemize}[nosep,leftmargin=1.1em,before=\vspace{-\baselineskip}]
-  \item Phân tích yêu cầu, thiết kế giao thức và kiến trúc tổng thể.
-  \item Tích hợp ba bo mạch, chạy kịch bản demo, rà soát báo cáo.
-\end{itemize} \\
+\begin{table}[H]
+\centering\small
+\caption{Mảng phụ trách chính}\label{tab:mang}
+\begin{tabularx}{\linewidth}{@{}lXX@{}}
+\toprule
+\textbf{Thành viên} & \textbf{Mảng chính} & \textbf{Phần giao với mảng khác} \\ \midrule
+Nguyễn Chí Minh & Phần mềm: firmware máy chủ, trang web, giao thức, bảo mật, kiểm thử & Tích hợp firmware hai client vào giao thức chung; tối ưu toàn hệ thống \\
+Đinh Đức Thịnh & Điện: chọn phần cứng, thiết kế nguồn, sơ đồ chân, đi dây & Firmware RFID Client và Sensor Client; khởi tạo dự án ESP-IDF \\
+Nguyễn Việt Tiến & Cơ khí: mô hình bãi xe, cơ cấu thanh chắn servo & Firmware thanh chắn và còi; tài liệu hướng dẫn cài đặt \\
 \bottomrule
-\end{longtable}
+\end{tabularx}
+\end{table}
+
+\section{Chi tiết đóng góp từng thành viên}
+
+\subsection{Nguyễn Chí Minh (24020232) — phần mềm và tích hợp}
+\begin{itemize}
+  \item \textbf{Firmware máy chủ ESP32-C3}: dựng kiến trúc phân lớp, các tác vụ FreeRTOS
+        và cơ chế đồng bộ; UDP server, HTTP server với 12 route; mDNS
+        \code{parking.local} tự thông báo lại khi đổi IP; xử lý lỗi \code{accept (23)}
+        bằng giới hạn và thu hồi kết nối.
+  \item \textbf{Màn hình ST7789}: driver SPI có DMA, giao diện \code{PARKSENSE}, hóa đơn,
+        thông báo quẹt sai cổng, màn hình cháy; nén ảnh động LZSS và tiền xử lý trên máy
+        tính để giảm RAM và CPU.
+  \item \textbf{Giao thức và bảo mật}: định dạng JSON và bộ đọc JSON không cấp phát động;
+        ký gói SipHash-2-4, cửa sổ chống phát lại, ACK cho sự kiện quẹt thẻ; mã PIN cho
+        API; lưu phiên vào NVS và đồng hồ bãi lấy giờ từ trình duyệt.
+  \item \textbf{Trang web giám sát}: sơ đồ bãi trực quan, điều khiển thanh chắn, nhật ký
+        vào/ra kèm phí, cảnh báo lệch thẻ/cảm biến.
+  \item \textbf{Kiểm thử}: lớp giả lập Arduino để chạy nguyên mã hai sketch trên máy tính;
+        6 bộ kiểm thử, 318 phép kiểm tra; công cụ giả lập client bằng Python.
+  \item \textbf{Báo cáo}: Chương 3, 5 và các sơ đồ Mermaid.
+\end{itemize}
+\textit{Các commit tiêu biểu}:
+\begin{itemize}[nosep]
+  \item \code{init server}, \code{add udp server}, \code{add display st7789},
+        \code{add kaoruko anime gif to display}, \code{add emergency button};
+  \item \code{update dashboard UI and display UI, fix rgb565 byte swap logic};
+  \item \code{Add parking.local mDNS}, \code{Optimize firmware, add host tests},
+        \code{Fix HTTP accept failures}.
+\end{itemize}
+
+\subsection{Đinh Đức Thịnh (24020313) — điện, phần cứng và client}
+\begin{itemize}
+  \item \textbf{Lựa chọn phần cứng}: so sánh và chốt ESP32-C3 SuperMini cho máy chủ,
+        ESP8266 cho client; cảm biến IR HW-201, module lửa, cảm biến mực nước, RC522,
+        DHT11 theo tiêu chí giá, mức logic 3,3\,V và số chân (Bảng~\ref{tab:sensors}).
+  \item \textbf{Thiết kế nguồn}: một điểm cấp nguồn qua jack DC trên vách sau; diode
+        chống cắm ngược cực; tụ hóa lọc sụt áp khi servo khởi động — nguyên nhân làm
+        ESP32-C3 tự reset ở bản lắp thử đầu tiên; tách nguồn 5\,V cho servo, nối chung GND.
+  \item \textbf{Sơ đồ chân và đi dây}: lập sơ đồ chân ba bo tránh chân strapping và UART
+        (Bảng~\ref{tab:pin-srv}, \ref{tab:pin-clients}); gắn 5 module IR và module lửa ở
+        mặt ngoài vách để dây không đi qua lòng bãi; đổi chân GPIO client khi phát hiện
+        xung đột lúc khởi động (commit \code{Change some client GPIO}); chỉnh biến trở
+        từng module IR theo độ phản xạ của xe mẫu.
+  \item \textbf{Firmware client}: Sensor Client đọc 5 IR, lửa, mực nước; RFID Client với
+        hai đầu đọc RC522 dùng chung SPI bật/tắt ăng-ten luân phiên để tránh nhiễu chéo,
+        DHT11, điểm truy cập Wi-Fi, OTA; logic vào/ra theo cổng ở máy chủ.
+  \item \textbf{Báo cáo}: Chương 2, 4 và phần nguồn điện, sơ đồ chân.
+\end{itemize}
+\textit{Các commit tiêu biểu}: \code{Init New ESP-IDF Project},
+\code{Restructure ESP32 server and add client sketch}, \code{Change some client GPIO},
+\code{Update client RFID}, \code{Complete RFID in and out logic}.
+
+\subsection{Nguyễn Việt Tiến (24020322) — mô hình và thanh chắn}
+\begin{itemize}
+  \item \textbf{Mô hình bãi xe} (Hình~\ref{fig:model}): thiết kế kích thước 5 ô đỗ và hai
+        làn theo chiều dài xe mẫu; cắt, dán đế và vách bằng bìa formex; khoét lỗ cho đầu
+        phát/thu của cảm biến đúng giữa từng ô; làm hộp điều khiển trung tâm có ô cho màn
+        hình, hai hông gắn đầu đọc RC522, nóc gắn DHT11.
+  \item \textbf{Cơ cấu thanh chắn}: gắn hai servo SG90 ở đầu vách, làm cần chắn nhẹ để
+        servo không quá tải; căn góc đóng/mở thực tế cho hai cổng lắp đối xứng (commit
+        \code{reverse door}: cổng ra quay ngược chiều cổng vào).
+  \item \textbf{Firmware thanh chắn và còi}: điều khiển hai servo bằng LEDC, tự đóng sau
+        khi mở bằng thẻ, chế độ mở khi cháy (commit \code{Add dual SG90 barrier control and
+        test sketch}, \code{update automated door}); module còi báo cháy
+        (\code{implement buzzer}).
+  \item \textbf{Tài liệu và kiểm thử phần cứng}: README hướng dẫn cài đặt
+        (\code{docs: add project setup README}); kịch bản kiểm thử trên mô hình
+        (Bảng~\ref{tab:systest}) và quay video demo.
+  \item \textbf{Báo cáo}: Chương 1, 6, 7, 8.
+\end{itemize}
+
+\subsection{Cả nhóm}
+Phân tích yêu cầu và 10 use case; thống nhất giao thức giữa ba bo; các buổi tích hợp
+trên mô hình (tinh chỉnh thời gian lọc nhiễu IR từ 250\,ms xuống 50\,ms, thời gian mở
+cổng từ 5\,s xuống 3\,s, thứ tự ô S1–S5); rà soát chéo báo cáo.
+
+\section{Lịch sử đóng góp trên GitHub}
+\begin{table}[H]
+\centering\small
+\caption{Các mốc chính trong lịch sử commit}\label{tab:timeline}
+\begin{tabularx}{\linewidth}{@{}llX@{}}
+\toprule
+\textbf{Thời gian} & \textbf{Thành viên} & \textbf{Nội dung} \\ \midrule
+22–25/09 & Thịnh & Khởi tạo dự án ESP-IDF, thử nghiệm bo mạch \\
+29/09–08/10 & Minh & Khung máy chủ, UDP, HTTP, màn hình ST7789, trang web \\
+02/10 & Thịnh & Tổ chức lại thư mục máy chủ, sketch client đầu tiên \\
+13–20/10 & Minh, Thịnh & Định dạng bản tin, logic cảm biến IR, đổi chân GPIO client \\
+20–27/10 & Tiến & Hai thanh chắn servo, tự đóng, còi, README \\
+27–30/10 & Thịnh & RFID Client hai đầu đọc, logic vào/ra theo cổng \\
+29–30/10 & Minh & Tối ưu, mDNS, kiểm thử, bảo mật, lưu NVS, báo cáo \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+Số commit không phản ánh đầy đủ khối lượng công việc: phần điện (chọn linh kiện, đo
+đạc, đi dây, sửa lỗi nguồn) và phần cơ khí (chế tạo mô hình, căn chỉnh servo) chiếm
+nhiều thời gian nhưng không nằm trong Git. Vì vậy nhóm đánh giá đóng góp theo mảng
+việc và thời gian bỏ ra, không theo số dòng mã.
 
 \section{Tỉ lệ đóng góp và phân chia điểm}
 Cả ba thành viên thống nhất rằng \textbf{mức đóng góp là ngang nhau}. Theo quy định

@@ -4,11 +4,13 @@
 #include "esp_log.h"
 #include "esp_netif.h"
 #include "esp_wifi.h"
+#include "sdkconfig.h"
 
 #include "wifi_sta.h"
 
-#define WIFI_STA_SSID     "ESP32-Parking"
-#define WIFI_STA_PASSWORD "12345678"
+/* Set in menuconfig ("Parking network and security"); real values stay in the git-ignored sdkconfig. */
+#define WIFI_STA_SSID     CONFIG_PARKING_WIFI_SSID
+#define WIFI_STA_PASSWORD CONFIG_PARKING_WIFI_PASSWORD
 
 static const char *TAG = "WIFI_STA";
 

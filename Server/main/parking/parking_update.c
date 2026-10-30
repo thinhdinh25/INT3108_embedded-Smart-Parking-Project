@@ -72,3 +72,37 @@ bool parking_update_parse_json(const char *payload, parking_state_t *state)
 
     return has_type && has_slots && has_water && json_parse_object_end(&payload);
 }
+
+/* {"type":"climate","temperature_c":N} sent by the RFID client every few seconds, in any key order. */
+bool climate_parse_json(const char *payload, float *temperature_c)
+{
+    if (payload == NULL || temperature_c == NULL || !json_consume_char(&payload, '{'))
+        return false;
+
+    bool has_type = false, has_temp = false;
+    for (int field = 0; field < 2; ++field)
+    {
+        char key[16], value[12];
+        if (field > 0 && !json_consume_char(&payload, ','))
+            return false;
+        if (!json_parse_string(&payload, key, sizeof(key)) || !json_consume_char(&payload, ':'))
+            return false;
+        if (strcmp(key, "type") == 0)
+        {
+            if (has_type || !json_parse_string(&payload, value, sizeof(value)) ||
+                strcmp(value, "climate") != 0)
+                return false;
+            has_type = true;
+        }
+        else if (strcmp(key, "temperature_c") == 0)
+        {
+            if (has_temp || !json_parse_number(&payload, temperature_c) ||
+                !(*temperature_c >= -40.0f && *temperature_c <= 125.0f))
+                return false;
+            has_temp = true;
+        }
+        else
+            return false;
+    }
+    return has_type && has_temp && json_parse_object_end(&payload);
+}

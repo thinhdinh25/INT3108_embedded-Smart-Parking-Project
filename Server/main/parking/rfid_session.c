@@ -2,7 +2,6 @@
 #include <string.h>
 
 #include "freertos/FreeRTOS.h"
-#include "esp_timer.h"
 #include "json_scan.h"
 #include "parking_state.h"
 #include "rfid_session.h"
@@ -11,19 +10,11 @@
 #define RECEIPT_DISPLAY_US 60000000ULL
 #define NOTICE_DISPLAY_US 5000000ULL
 
-typedef struct
-{
-    bool active;
-    char card_id[RFID_CARD_ID_MAX + 1];
-    uint64_t entered_us;
-} active_session_t;
-
-static active_session_t active_sessions[RFID_MAX_ACTIVE];
+static rfid_store_t store = {.version = RFID_STORE_VERSION};
 static rfid_receipt_t latest_receipt;
 static rfid_notice_t latest_notice;
-static rfid_log_entry_t event_log[RFID_LOG_SIZE]; /* ring buffer */
-static size_t log_next;
-static size_t log_count;
+static bool clock_set_this_boot;
+static int64_t unsynced_from_us; /* records stamped at or after this time predate the clock being set */
 static portMUX_TYPE session_lock = portMUX_INITIALIZER_UNLOCKED;
 
 bool rfid_event_parse_json(const char *payload, rfid_event_t *event)
@@ -111,16 +102,16 @@ uint32_t rfid_fee_for_seconds(uint64_t seconds)
 static void log_event(const rfid_event_t *event, rfid_scan_result_t result, uint64_t now_us,
                       uint32_t duration_s, uint32_t fee_vnd)
 {
-    rfid_log_entry_t *entry = &event_log[log_next];
+    rfid_log_entry_t *entry = &store.log[store.log_next];
     memcpy(entry->card_id, event->card_id, strlen(event->card_id) + 1);
     entry->result = result;
     entry->gate = event->gate;
     entry->at_s = (uint32_t)(now_us / 1000000ULL);
     entry->duration_s = duration_s;
     entry->fee_vnd = fee_vnd;
-    log_next = (log_next + 1) % RFID_LOG_SIZE;
-    if (log_count < RFID_LOG_SIZE)
-        ++log_count;
+    store.log_next = (store.log_next + 1) % RFID_LOG_SIZE;
+    if (store.log_count < RFID_LOG_SIZE)
+        ++store.log_count;
 }
 
 rfid_scan_result_t rfid_session_scan(const rfid_event_t *event, uint64_t now_us)
@@ -128,18 +119,24 @@ rfid_scan_result_t rfid_session_scan(const rfid_event_t *event, uint64_t now_us)
     if (!event)
         return RFID_SCAN_FULL;
 
+    /* Cross-check with the IR sensors: a car that entered without a card still takes a bay. */
+    parking_state_t lot;
+    int free_bays;
+    parking_state_get(&lot, &free_bays);
+    const bool bays_full = lot.received && free_bays == 0;
+
     rfid_scan_result_t result = RFID_SCAN_ENTERED;
     portENTER_CRITICAL(&session_lock);
     int active_index = -1;
     int free_index = -1;
     for (int i = 0; i < RFID_MAX_ACTIVE; ++i)
     {
-        if (active_sessions[i].active && strcmp(active_sessions[i].card_id, event->card_id) == 0)
+        if (store.sessions[i].active && strcmp(store.sessions[i].card_id, event->card_id) == 0)
         {
             active_index = i;
             break;
         }
-        if (!active_sessions[i].active && free_index < 0)
+        if (!store.sessions[i].active && free_index < 0)
             free_index = i;
     }
 
@@ -152,13 +149,14 @@ rfid_scan_result_t rfid_session_scan(const rfid_event_t *event, uint64_t now_us)
         }
         else
         {
-            uint64_t elapsed_seconds = (now_us - active_sessions[active_index].entered_us) / 1000000ULL;
+            uint64_t entered_us = store.sessions[active_index].entered_us;
+            uint64_t elapsed_seconds = now_us > entered_us ? (now_us - entered_us) / 1000000ULL : 0;
             latest_receipt.valid = true;
             memcpy(latest_receipt.card_id, event->card_id, strlen(event->card_id) + 1);
             latest_receipt.duration_seconds = elapsed_seconds > UINT32_MAX ? UINT32_MAX : (uint32_t)elapsed_seconds;
             latest_receipt.display_until_us = now_us + RECEIPT_DISPLAY_US;
             latest_receipt.fee_vnd = rfid_fee_for_seconds(elapsed_seconds);
-            active_sessions[active_index].active = false;
+            store.sessions[active_index].active = false;
             result = RFID_SCAN_EXITED;
         }
     }
@@ -169,16 +167,16 @@ rfid_scan_result_t rfid_session_scan(const rfid_event_t *event, uint64_t now_us)
         {
             result = RFID_SCAN_INVALID_GATE;
         }
-        else if (free_index < 0)
+        else if (free_index < 0 || bays_full)
         {
             result = RFID_SCAN_FULL;
         }
         else
         {
-            active_sessions[free_index].active = true;
-            memcpy(active_sessions[free_index].card_id, event->card_id,
+            store.sessions[free_index].active = true;
+            memcpy(store.sessions[free_index].card_id, event->card_id,
                    strlen(event->card_id) + 1);
-            active_sessions[free_index].entered_us = now_us;
+            store.sessions[free_index].entered_us = now_us;
             result = RFID_SCAN_ENTERED;
         }
     }
@@ -210,7 +208,7 @@ void rfid_session_get_receipt(rfid_receipt_t *receipt)
     portENTER_CRITICAL(&session_lock);
     memcpy(receipt, &latest_receipt, sizeof(*receipt));
     portEXIT_CRITICAL(&session_lock);
-    if (receipt->valid && (uint64_t)esp_timer_get_time() >= receipt->display_until_us)
+    if (receipt->valid && (uint64_t)parking_clock_now_us() >= receipt->display_until_us)
         receipt->valid = false;
 }
 
@@ -221,7 +219,7 @@ void rfid_session_get_notice(rfid_notice_t *notice)
     portENTER_CRITICAL(&session_lock);
     memcpy(notice, &latest_notice, sizeof(*notice));
     portEXIT_CRITICAL(&session_lock);
-    if (notice->valid && (uint64_t)esp_timer_get_time() >= notice->display_until_us)
+    if (notice->valid && (uint64_t)parking_clock_now_us() >= notice->display_until_us)
         notice->valid = false;
 }
 
@@ -230,9 +228,9 @@ size_t rfid_session_get_log(rfid_log_entry_t *out, size_t max)
     if (!out)
         return 0;
     portENTER_CRITICAL(&session_lock);
-    size_t n = log_count < max ? log_count : max;
+    size_t n = store.log_count < max ? store.log_count : max;
     for (size_t i = 0; i < n; ++i)
-        out[i] = event_log[(log_next + RFID_LOG_SIZE - 1 - i) % RFID_LOG_SIZE];
+        out[i] = store.log[(store.log_next + RFID_LOG_SIZE - 1 - i) % RFID_LOG_SIZE];
     portEXIT_CRITICAL(&session_lock);
     return n;
 }
@@ -245,12 +243,72 @@ size_t rfid_session_get_active(rfid_active_t *out, size_t max)
     portENTER_CRITICAL(&session_lock);
     for (int i = 0; i < RFID_MAX_ACTIVE && n < max; ++i)
     {
-        if (!active_sessions[i].active)
+        if (!store.sessions[i].active)
             continue;
-        memcpy(out[n].card_id, active_sessions[i].card_id, sizeof(out[n].card_id));
-        out[n].entered_s = (uint32_t)(active_sessions[i].entered_us / 1000000ULL);
+        memcpy(out[n].card_id, store.sessions[i].card_id, sizeof(out[n].card_id));
+        out[n].entered_s = (uint32_t)(store.sessions[i].entered_us / 1000000ULL);
         ++n;
     }
     portEXIT_CRITICAL(&session_lock);
     return n;
+}
+
+packet_freshness_t rfid_session_check_seq(uint32_t seq)
+{
+    portENTER_CRITICAL(&session_lock);
+    packet_freshness_t freshness = packet_window_check(&store.scan_window, seq);
+    portEXIT_CRITICAL(&session_lock);
+    return freshness;
+}
+
+void rfid_session_snapshot(rfid_store_t *out)
+{
+    const int64_t now_us = parking_clock_now_us();
+    portENTER_CRITICAL(&session_lock);
+    *out = store;
+    portEXIT_CRITICAL(&session_lock);
+    out->clock_us = now_us;
+}
+
+void rfid_session_restore(const rfid_store_t *saved)
+{
+    if (!saved || saved->version != RFID_STORE_VERSION || saved->log_next >= RFID_LOG_SIZE ||
+        saved->log_count > RFID_LOG_SIZE)
+        return;
+    /* Downtime is unknown, so the clock resumes just after it stopped (on a new whole second,
+     * so even second-resolution log times tell old from new) until a browser sets it.
+     * If the saved times were never Unix time, all of them move when it is set. */
+    const int64_t resume_us = (saved->clock_us / 1000000LL + 1) * 1000000LL;
+    portENTER_CRITICAL(&session_lock);
+    store = *saved;
+    unsynced_from_us = saved->clock_synced ? resume_us : 0;
+    clock_set_this_boot = false;
+    portEXIT_CRITICAL(&session_lock);
+    parking_clock_adjust(resume_us - parking_clock_now_us());
+}
+
+static uint64_t shifted(uint64_t t, int64_t delta)
+{
+    return delta < 0 && (uint64_t)-delta > t ? 0 : t + (uint64_t)delta;
+}
+
+void rfid_session_set_clock(uint64_t unix_s)
+{
+    const int64_t delta = (int64_t)(unix_s * 1000000ULL) - parking_clock_now_us();
+    parking_clock_adjust(delta);
+    portENTER_CRITICAL(&session_lock);
+    if (!clock_set_this_boot)
+    {
+        for (int i = 0; i < RFID_MAX_ACTIVE; ++i)
+            if (store.sessions[i].active && (int64_t)store.sessions[i].entered_us >= unsynced_from_us)
+                store.sessions[i].entered_us = shifted(store.sessions[i].entered_us, delta);
+        for (int i = 0; i < store.log_count; ++i)
+            if ((int64_t)store.log[i].at_s * 1000000LL >= unsynced_from_us)
+                store.log[i].at_s = (uint32_t)(shifted(store.log[i].at_s * 1000000ULL, delta) / 1000000ULL);
+        latest_receipt.display_until_us = shifted(latest_receipt.display_until_us, delta);
+        latest_notice.display_until_us = shifted(latest_notice.display_until_us, delta);
+        store.clock_synced = true;
+        clock_set_this_boot = true;
+    }
+    portEXIT_CRITICAL(&session_lock);
 }
