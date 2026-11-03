@@ -12,8 +12,9 @@
 Người lái xe & Người gửi/lấy xe; dùng thẻ RFID và nhìn màn hình TFT tại bãi. \\
 Người vận hành & Bảo vệ hoặc quản lý bãi; dùng trang web trên điện thoại/máy tính để giám sát và điều khiển thanh chắn. \\
 Sensor Client & Tác nhân thiết bị: bo ESP8266 đọc cảm biến chỗ đỗ, lửa, nước và gửi dữ liệu lên máy chủ. \\
-RFID Client & Tác nhân thiết bị: bo ESP8266 đọc thẻ ở hai cổng và cảm biến nhiệt độ; đồng thời phát mạng Wi-Fi. \\
-Đồng hồ hệ thống & Tác nhân thời gian: kích hoạt việc tự đóng thanh chắn, hết hạn hóa đơn/thông báo. \\
+RFID Client & Tác nhân thiết bị: bo ESP8266 đọc thẻ ở hai cổng và cảm biến nhiệt độ. \\
+Đồng hồ hệ thống & Tác nhân thời gian: kích hoạt việc tự đóng thanh chắn, hết hạn hóa đơn/thông báo/lượt thanh toán. \\
+SePay & Hệ thống ngoài: dịch vụ đối soát ngân hàng, cho máy chủ đọc các giao dịch chuyển khoản vào tài khoản của bãi qua API HTTPS. \\
 \bottomrule
 \end{tabularx}
 \end{table}
@@ -21,7 +22,7 @@ RFID Client & Tác nhân thiết bị: bo ESP8266 đọc thẻ ở hai cổng v�
 \section{Sơ đồ use case}
 Hình~\ref{fig:usecase} tổng hợp 10 use case và quan hệ với các tác nhân. Hai tác nhân
 thiết bị (bên phải) là nguồn dữ liệu; hai tác nhân con người (bên trái) là người
-hưởng lợi.
+hưởng lợi; dịch vụ SePay chỉ tham gia UC04 để xác nhận chuyển khoản.
 
 \begin{figure}[H]
 \centering
@@ -39,7 +40,7 @@ hưởng lợi.
 UC01 & Theo dõi chỗ trống tại bãi & \file{lcd\_display.c} & \file{sensor\_client} \\
 UC02 & Giám sát bãi qua trang web & \file{http\_server.c}, \file{index.html} & S2, S12 \\
 UC03 & Gửi xe bằng thẻ RFID & \file{rfid\_session.c}, \file{servo.c} & \file{rfid\_session}, \file{rfid\_client} \\
-UC04 & Lấy xe và thanh toán phí & \file{rfid\_session.c} & \file{rfid\_session} \\
+UC04 & Lấy xe và thanh toán phí (VietQR) & \file{rfid\_session.c}, \file{payment.c}, \file{sepay\_client.c} & \file{rfid\_session}, \file{payment}, S25–S27 \\
 UC05 & Từ chối quẹt sai cổng / bãi đầy & \file{rfid\_session.c}, \file{lcd\_display.c} & \file{rfid\_session} \\
 UC06 & Cảnh báo cháy và sơ tán & \file{udp\_server.c}, \file{servo.c}, \file{buzzer.c} & \file{sensor\_client}, S9 \\
 UC07 & Giám sát mực nước, cảnh báo ngập & \file{SensorClient.ino}, \file{parking\_state.c} & \file{sensor\_client}, \file{rfid\_session} \\
@@ -58,7 +59,7 @@ UC10 & Xem nhật ký vào/ra, giá gửi xe và doanh thu & \file{rfid\_session
 \begin{usecase}{UC01}{Theo dõi chỗ trống tại bãi}
 \item[Tác nhân] Người lái xe (chính); Sensor Client (nguồn dữ liệu).
 \item[Mô tả] Người lái nhìn màn hình TFT ở lối vào để biết số chỗ trống và vị trí từng chỗ trống.
-\item[Tiền điều kiện] Sensor Client và máy chủ đã kết nối Wi-Fi \code{ESP32-Parking}.
+\item[Tiền điều kiện] Sensor Client và máy chủ đã kết nối vào mạng Wi-Fi chung của nhóm.
 \item[Luồng chính] \begin{enumerate}[nosep,leftmargin=1.3em]
   \item Xe đi vào/ra một ô đỗ, cảm biến IR của ô đó đổi mức logic.
   \item Sensor Client lọc nhiễu: chỉ chấp nhận mức mới khi giữ ổn định 50\,ms.
@@ -77,7 +78,7 @@ UC10 & Xem nhật ký vào/ra, giá gửi xe và doanh thu & \file{rfid\_session
 \begin{usecase}{UC02}{Giám sát bãi qua trang web}
 \item[Tác nhân] Người vận hành.
 \item[Mô tả] Xem trực quan sơ đồ bãi, số chỗ trống, cảm biến và trạng thái thanh chắn trên điện thoại.
-\item[Tiền điều kiện] Thiết bị của người vận hành kết nối Wi-Fi \code{ESP32-Parking}.
+\item[Tiền điều kiện] Thiết bị của người vận hành kết nối cùng mạng Wi-Fi chung với máy chủ.
 \item[Luồng chính] \begin{enumerate}[nosep,leftmargin=1.3em]
   \item Người vận hành mở \code{http://parking.local}.
   \item Thiết bị phân giải tên bằng mDNS và nhận địa chỉ IP hiện tại của máy chủ.
@@ -111,19 +112,38 @@ UC10 & Xem nhật ký vào/ra, giá gửi xe và doanh thu & \file{rfid\_session
 \end{usecase}
 
 \begin{usecase}{UC04}{Lấy xe và thanh toán phí}
-\item[Tác nhân] Người lái xe; RFID Client; Đồng hồ hệ thống.
-\item[Mô tả] Người lái quẹt cùng thẻ ở cổng ra; hệ thống tính phí, hiển thị hóa đơn và mở cổng ra.
-\item[Tiền điều kiện] Thẻ đang có phiên gửi xe.
+\item[Tác nhân] Người lái xe; RFID Client; Người vận hành; SePay; Đồng hồ hệ thống.
+\item[Mô tả] Người lái quẹt cùng thẻ ở cổng ra; hệ thống tính phí, hiển thị mã VietQR,
+  chờ chuyển khoản rồi hiển thị hóa đơn và mở cổng ra.
+\item[Tiền điều kiện] Thẻ đang có phiên gửi xe. Thanh toán QR được bật (đã khai báo tài
+  khoản nhận trong menuconfig); nếu không, bỏ qua bước 3–5 và cổng mở ngay như trước.
 \item[Luồng chính] \begin{enumerate}[nosep,leftmargin=1.3em]
   \item Người lái quẹt thẻ ở đầu đọc cổng ra (\code{"gate":"out"}).
-  \item Máy chủ tính thời gian gửi $t$ và phí $\max(1,\lceil t/3600\rceil)\times5000$\,VNĐ.
-  \item Máy chủ đóng phiên, ghi nhật ký \code{OUT} kèm thời gian và phí.
+  \item Máy chủ tính thời gian gửi $t$ và phí $\max(1,\lceil t/3600\rceil)\times5000$\,VNĐ,
+        chốt phí tại thời điểm này và tạo mã thanh toán \code{PK} + 6 ký tự.
+  \item Kết quả \code{AWAITING\_PAYMENT}: thanh chắn vẫn đóng, xe vẫn ``trong bãi''; TFT
+        hiện màn hình \code{SCAN TO PAY} gồm mã QR, phí, \code{NOTE <mã>  ID <thẻ>} và
+        tài khoản nhận.
+  \item Người lái quét QR bằng ứng dụng ngân hàng và chuyển khoản (số tiền và nội dung
+        đã điền sẵn).
+  \item Tác vụ SePay của máy chủ hỏi vòng mỗi 3\,s, thấy giao dịch có nội dung chứa mã
+        và số tiền $\ge$ phí thì hoàn tất thanh toán.
+  \item Máy chủ đóng phiên, ghi nhật ký \code{OUT} kèm thời gian và phí, cộng doanh thu.
   \item Màn hình hiển thị hóa đơn: UID, \code{PARK TIME}, \code{FEE VND} trong 60\,s.
   \item Thanh chắn cổng ra mở và tự đóng sau 3\,s.
 \end{enumerate}
 \item[Ngoại lệ] 1a. Thẻ chưa vào bãi: chuyển sang UC05.
-\item[Hậu điều kiện] Phiên được giải phóng; nhật ký có bản ghi \code{OUT}.
-\item[Thông số] 5.000\,VNĐ/giờ, làm tròn lên, tối thiểu 1 giờ; hóa đơn hiển thị 60\,s.
+  1b. Quẹt lại cùng thẻ khi đang chờ: hiện lại đúng mã QR cũ (cùng phí, cùng mã) và đếm lại 180\,s.
+  1c. Thẻ khác quẹt ở cổng ra khi lượt thanh toán trước còn hiệu lực: TFT báo
+      \code{NEXT CAR: WAIT, ONE IS PAYING} ở dòng cuối màn hình QR, nhật ký ghi \code{WAIT · PAYING}.
+  5a. Quá 180\,s chưa nhận tiền: TFT báo \code{PAY AT BOOTH / NO TRANSFER YET - SEE OPERATOR}
+      trong 30\,s; xe khác được bắt đầu thanh toán. Chuyển khoản đến muộn vẫn hoàn tất lượt này.
+  5b. Không có token SePay hoặc mất Internet: mã QR vẫn hiển thị; người vận hành thấy giao
+      dịch trong ứng dụng ngân hàng (hoặc thu tiền mặt) và bấm \code{Confirm paid} trên trang web
+      (\code{POST /api/payment/confirm}, cần mã PIN), tiếp tục từ bước 6.
+\item[Hậu điều kiện] Phiên được giải phóng; nhật ký có bản ghi \code{OUT}; doanh thu được cộng.
+\item[Thông số] 5.000\,VNĐ/giờ, làm tròn lên, tối thiểu 1 giờ; hỏi vòng SePay 3\,s; chờ
+  chuyển khoản 180\,s; hóa đơn hiển thị 60\,s.
 \end{usecase}
 
 \begin{usecase}{UC05}{Từ chối quẹt sai cổng / bãi đầy}

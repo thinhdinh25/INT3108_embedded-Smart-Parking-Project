@@ -3,15 +3,15 @@
 A three-board smart parking system built for the INT3108 Embedded Programming
 course (VNU-UET).
 
-- **Server** — ESP32-C3 SuperMini running ESP-IDF/FreeRTOS. Joins the Wi-Fi
-  hotspot, receives UDP messages, serves a web dashboard at
+- **Server** — ESP32-C3 SuperMini running ESP-IDF/FreeRTOS. Joins the shared
+  Wi-Fi, receives UDP messages, takes VietQR payments at the exit (checked with
+  SePay), serves a web dashboard at
   `http://parking.local`, draws the parking/fire screens on an ST7789 TFT, and
   drives two SG90 barriers and a buzzer.
 - **Sensor Client** (`SensorClient/SensorClient.ino`) — ESP8266 that reads five
   IR parking sensors, a flame sensor and an analog water sensor, and broadcasts
   a `parking_update` once per second.
-- **RFID Client** (`RFIDClient/RFIDClient.ino`) — ESP8266 that runs the Wi-Fi
-  hotspot and reads two MFRC522 RFID readers (entry and exit) and a DHT11. Each
+- **RFID Client** (`RFIDClient/RFIDClient.ino`) — ESP8266 that reads two MFRC522 RFID readers (entry and exit) and a DHT11. Each
   card scan sends an `rfid_event` with the card UID, gate and latest
   temperature.
 
@@ -128,16 +128,18 @@ every 5 s.
 
 ## Network and protocol
 
-The RFID Client creates the hotspot; the server and the Sensor Client join it:
+All three boards join one shared Wi-Fi (your router or phone hotspot, with
+Internet for SePay); no board runs a hotspot:
 
-- SSID `ESP32-Parking`, password `12345678` by default (see Secrets below),
-  WPA2-PSK, channel 1, max 4 stations
-- RFID Client (hotspot) address `192.168.4.1`; the server gets its address by DHCP
+- SSID `ESP32-Parking`, password `12345678` by default (see Secrets below)
+- Every board gets its address by DHCP. The router must not isolate its
+  clients (no "AP isolation"), or the broadcasts never reach the server.
 - Dashboard: [http://parking.local](http://parking.local) (mDNS, re-announced
   whenever the server gets a new IP). If a device
   cannot resolve `.local` names, use the IP the server prints on its serial log
   (`Web interface: http://…`).
-- UDP receiver on port `3333`; clients send to broadcast `192.168.4.255:3333`
+- UDP receiver on port `3333`; clients send to broadcast `255.255.255.255:3333`,
+  so they need neither the subnet nor the server's IP
 
 Sensor update (Sensor Client, every 1 s). Slot `1` means occupied, `0` free:
 
@@ -177,6 +179,7 @@ HTTP API:
 | GET | `/api/rfid` | Price per hour, today / 7-day revenue and visits, cars inside (entry time, fee so far), last 10 RFID events (in/out/rejected, duration, fee) |
 | POST | `/api/barrier/{in,out,all}/{open,close}` | Move barriers manually |
 | POST | `/api/time` | Body: Unix seconds. Sets the parking clock |
+| POST | `/api/payment/confirm` | Body: card ID. Operator confirms a transfer or cash; opens the exit |
 
 Every POST needs the admin PIN in the `X-Parking-Key` header (the dashboard
 asks for it once and remembers it); a wrong or missing PIN returns 401.
@@ -185,11 +188,31 @@ asks for it once and remembers it); a wrong or missing PIN returns 401.
 
 The repository only holds demo values. Real ones stay out of Git:
 
-- Server: `idf.py menuconfig` → *Parking network and security*: Wi-Fi SSID
-  and password, admin PIN (default `2468`).
-  They are stored in the git-ignored `Server/sdkconfig`.
+- Server: `idf.py menuconfig` → *Parking network and security*: shared Wi-Fi
+  SSID and password, admin PIN (default `2468`); *Parking QR payment (SePay)*:
+  bank BIN (BIDV `970418`), receiving account, holder name, SePay API token.
+  They are stored in the git-ignored `Server/sdkconfig`. The SePay token has
+  full access to the SePay account, so never commit it.
 - Clients: copy `secrets.example.h` to `secrets.h` next to each sketch and
   edit it (`secrets.h` is git-ignored).
+
+## QR payment at the exit
+
+With a receiving account set, an exit scan no longer opens the barrier at once:
+
+1. The TFT shows a VietQR code (NAPAS/EMVCo, built on the ESP32, no network
+   needed) for the fee, with a note `PK` + 6 characters.
+2. The driver scans it with any Vietnamese banking app and pays.
+3. With a SePay token, the server polls
+   `my.sepay.vn/userapi/transactions/list` every 3 s (only transactions newer
+   than the QR) for that note and amount, then opens the exit barrier, prints
+   the receipt and counts the revenue.
+4. No transfer after 180 s: the TFT shows `PAY AT BOOTH`; a late transfer still
+   counts. The operator can always press *Confirm paid* on the dashboard (PIN),
+   which also covers cash and works without Internet or a token.
+
+A second car scanning out while one is paying sees `PLEASE WAIT`. Leave the
+account empty to keep the old behaviour (exits open immediately).
 
 ## Setup and run
 
@@ -197,7 +220,8 @@ The repository only holds demo values. Real ones stay out of Git:
 
 Install ESP-IDF 6.1 with the ESP32-C3 toolchain. From the repository root (the
 root `CMakeLists.txt` points at `Server/main`). The first build downloads the
-`espressif/mdns` component:
+`espressif/mdns` and `espressif/qrcode` components. Fill in the Wi-Fi and
+payment settings with `idf.py menuconfig` first:
 
 ```sh
 idf.py set-target esp32c3
@@ -215,14 +239,13 @@ first upload, both sketches can be updated over the network with ArduinoOTA.
 
 ### 3. Use
 
-Power the RFID Client first (it runs the hotspot), then the server and the
-Sensor Client. Join `ESP32-Parking` from a phone or laptop and open
+Power the boards in any order; they join the shared Wi-Fi and reconnect on
+their own. Join the same Wi-Fi from a phone or laptop and open
 `http://parking.local`. Scan a card on the entry reader to enter and on the
 exit reader to leave and see the fee.
 
-Without the clients, simulate them from a computer on the same Wi-Fi (add
-`--host <server IP>` when the hotspot is not the RFID Client, e.g. a phone
-hotspot named `ESP32-Parking`):
+Without the clients, simulate them from a computer on the same Wi-Fi (they
+broadcast by default; add `--host <server IP>` if your network drops broadcasts):
 
 ```sh
 python examples/udp_sender.py --slots 1,0,0,1,0
@@ -240,8 +263,9 @@ RFID Client.
 make -C tests
 ```
 
-Runs 325 checks on the host: the server JSON parsers, RFID sessions/fees/log/
-notices/persistence/clock/flood/offline/revenue stats/retry dedupe, the animation frame data, and both ESP8266 sketches
+Runs 384 checks on the host: VietQR payload (checked against a published
+sample) and SePay response matching, the server JSON parsers, RFID sessions/fees/log/
+notices/persistence/clock/flood/offline/revenue stats/retry dedupe/QR payment, the animation frame data, and both ESP8266 sketches
 compiled against a fake Arduino layer (`tests/arduino/`), with every client
 packet parsed by the real server code.
 
@@ -253,11 +277,12 @@ Server/main/
   barrier/              SG90 LEDC PWM, timer-based auto-close, fire mode
   buzzer/               GPIO9 active-low buzzer
   display/              ST7789 UI, fire screen, LZSS-compressed GIF frames
-  network/              Wi-Fi station, mDNS, HTTP dashboard/API, UDP receiver
+  network/              Wi-Fi station, mDNS, HTTP dashboard/API, UDP receiver,
+                        SePay polling
   parking/              Shared state, JSON parsers, RFID sessions and fees,
-                        NVS persistence
+                        NVS persistence, VietQR payload
 SensorClient/           Sensor Client: ESP8266 IR / flame / water sender
-RFIDClient/             RFID Client: ESP8266 hotspot, dual RC522 + DHT11 sender
+RFIDClient/             RFID Client: ESP8266 dual RC522 + DHT11 sender
   (both)                secrets.example.h (copy to secrets.h)
 examples/               Python and ESP-IDF UDP test senders
 tests/                  Host test suite (make -C tests)

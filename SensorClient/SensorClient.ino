@@ -134,7 +134,8 @@ bool update_sensor() {
 /******************UDP SECTION BEGIN*********************/
 
 WiFiUDP udp;
-IPAddress serverIP(192, 168, 4, 255);
+// Broadcast to the whole shared Wi-Fi: no need to know its subnet or the server's IP.
+IPAddress serverIP(255, 255, 255, 255);
 const uint16_t serverPort = 3333;
 
 const unsigned long SEND_INTERVAL = 1000;

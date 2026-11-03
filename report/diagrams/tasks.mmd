@@ -16,6 +16,8 @@ flowchart LR
     disp(["lcd_display · 4"])
     anim(["lcd_animation · 3"])
   end
+  sepay(["sepay · 3"])
+  api["SePay API<br/>HTTPS"]
   lcdm[("panel LCD<br/>mutex")] --> spi["SPI2 + DMA"]
   udp -->|ghi| ps
   udp -->|ghi| rs
@@ -30,8 +32,11 @@ flowchart LR
   disp --> lcdm
   anim --> lcdm
   udp -.->|xTaskNotifyGive| disp
+  sepay -->|đọc · hoàn tất thanh toán| rs
+  sepay -->|mở cổng ra| sv
+  sepay -->|hỏi vòng 3 s| api
   classDef task fill:#E1ECFA,stroke:#003E7E;
   classDef res fill:#E8F5E9,stroke:#2E7D32;
   classDef hw fill:#FFF3E0,stroke:#C77700;
-  class udp,http,tmr,disp,anim task; class ps,rs,sv,lcdm res; class spi hw;
+  class udp,http,tmr,disp,anim,sepay task; class ps,rs,sv,lcdm res; class spi,api hw;
   linkStyle 13 stroke:#C62828,stroke-width:2px;

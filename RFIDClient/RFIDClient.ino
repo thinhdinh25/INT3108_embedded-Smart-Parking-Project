@@ -13,7 +13,8 @@
 #endif
 
 WiFiUDP udp;
-const IPAddress udpAddress(192, 168, 4, 255);   // Địa chỉ Broadcast
+// Broadcast toàn mạng: không cần biết dải IP của Wi-Fi chung hay IP của máy chủ
+const IPAddress udpAddress(255, 255, 255, 255);
 const unsigned int udpPort = 3333;              // Cổng UDP đích
 
 // --- CẤU HÌNH PHẦN CỨNG RC522 ---
@@ -83,21 +84,18 @@ void setup() {
   // 1. Khởi tạo DHT11
   dht.begin();
 
-  // 2. Phát WiFi Hotspot (Access Point)
-  WiFi.mode(WIFI_AP);
-  WiFi.softAPConfig(IPAddress(192, 168, 4, 1),
-                    IPAddress(192, 168, 4, 1),
-                    IPAddress(255, 255, 255, 0));
-  Serial.print(F("Đang khởi tạo WiFi Hotspot"));
-  while (!WiFi.softAP(WIFI_SSID, WIFI_PASSWORD, 1, false, 4)) {
+  // 2. Kết nối Wi-Fi chung (máy chủ và Sensor Client cũng vào mạng này)
+  WiFi.mode(WIFI_STA);
+  WiFi.setAutoReconnect(true);
+  WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
+  Serial.print(F("Đang kết nối Wi-Fi "));
+  Serial.println(WIFI_SSID);
+  while (WiFi.status() != WL_CONNECTED) {
     delay(500);
     Serial.print(F("."));
   }
-  Serial.println(F("\nĐã phát WiFi Hotspot!"));
-  Serial.print(F("SSID: "));
-  Serial.println(WIFI_SSID);
-  Serial.print(F("Địa chỉ IP của Hotspot: "));
-  Serial.println(WiFi.softAPIP());
+  Serial.print(F("\nĐã kết nối, IP: "));
+  Serial.println(WiFi.localIP());
 
   // 3. Khởi tạo cổng UDP & OTA
   nextSeq = ESP.random() | 1;  // hardware RNG; odd, so never 0
@@ -223,8 +221,8 @@ void handleDHT11() {
 
 // Broadcasts json; with retry set, keeps it there until the server ACKs it.
 void sendJson(const char *json, PendingScan *retry, uint32_t seq) {
-  if (!(WiFi.getMode() & WIFI_AP)) {
-    Serial.println(F("-> [Lỗi UDP] WiFi Hotspot chưa sẵn sàng!"));
+  if (WiFi.status() != WL_CONNECTED) {
+    Serial.println(F("-> [Lỗi UDP] Chưa kết nối Wi-Fi!"));
     return;
   }
   int length = strlen(json);

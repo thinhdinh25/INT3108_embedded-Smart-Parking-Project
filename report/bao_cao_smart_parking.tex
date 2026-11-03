@@ -197,15 +197,18 @@ sử dụng ba vi điều khiển Wi-Fi của Espressif phối hợp qua một m
         và phục vụ trang web giám sát tại \code{http://parking.local} (mDNS).
   \item \textbf{Sensor Client} (ESP8266) đọc 5 cảm biến hồng ngoại, cảm biến lửa và
         cảm biến mực nước; gửi trạng thái ngay khi có thay đổi và nhắc lại mỗi giây.
-  \item \textbf{RFID Client} (ESP8266) phát điểm truy cập Wi-Fi, đọc hai đầu đọc
+  \item \textbf{RFID Client} (ESP8266) đọc hai đầu đọc
         RFID MFRC522 (cổng vào, cổng ra) và cảm biến nhiệt độ DHT11.
 \end{itemize}
+Cả ba bo là trạm Wi-Fi trong cùng một mạng Wi-Fi chung của nhóm (router hoặc điểm
+phát có Internet); không bo nào phát điểm truy cập. Ở cổng ra, máy chủ hiển thị mã
+VietQR để người lái chuyển khoản và tự xác nhận giao dịch qua SePay.
 
 Báo cáo tuân theo đúng yêu cầu của môn học: giới thiệu bài toán, 10 use case chi
 tiết, các thành phần hệ thống, hướng dẫn cài đặt môi trường, thiết kế và phân tích
 kiến trúc (kèm demo), hướng dẫn chạy mã nguồn từng bước, kiểm thử, kết luận và phần
 đóng góp của các thành viên. Mỗi lựa chọn công nghệ và thông số đều có hộp
-\emph{Lý do} giải thích. Bộ kiểm thử tự động gồm 5 bộ với 325 phép kiểm tra chạy
+\emph{Lý do} giải thích. Bộ kiểm thử tự động gồm 6 bộ với 384 phép kiểm tra chạy
 trên máy tính — kể cả chạy lại chính mã nguồn Arduino của hai client trên phần cứng
 giả lập — và tất cả đều đạt.
 

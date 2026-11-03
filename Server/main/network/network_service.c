@@ -7,7 +7,8 @@
 #include "http/http_server.h"
 #include "network_service.h"
 #include "udp/udp_server.h"
-#include "wifi_sta.h"
+#include "sepay_client.h"
+#include "wifi.h"
 
 #define MDNS_HOSTNAME "parking"
 
@@ -48,10 +49,10 @@ static esp_err_t mdns_service_start(void)
 
 esp_err_t network_service_start(void)
 {
-    esp_err_t err = wifi_sta_start();
+    esp_err_t err = wifi_start();
     if (err != ESP_OK)
     {
-        ESP_LOGE(TAG, "Failed to initialize Wi-Fi station: %s", esp_err_to_name(err));
+        ESP_LOGE(TAG, "Failed to initialize Wi-Fi: %s", esp_err_to_name(err));
         return err;
     }
 
@@ -75,7 +76,11 @@ esp_err_t network_service_start(void)
     }
 
     ESP_LOGI(TAG, "Smart Parking Server is ready");
-    ESP_LOGI(TAG, "Connecting to Wi-Fi hotspot: " CONFIG_PARKING_WIFI_SSID);
+    err = sepay_client_start();
+    if (err != ESP_OK)
+        ESP_LOGW(TAG, "QR payment unavailable: %s", esp_err_to_name(err));
+
+    ESP_LOGI(TAG, "Joining shared Wi-Fi: " CONFIG_PARKING_WIFI_SSID);
     ESP_LOGI(TAG, "Web interface: http://" MDNS_HOSTNAME ".local");
 
     return ESP_OK;

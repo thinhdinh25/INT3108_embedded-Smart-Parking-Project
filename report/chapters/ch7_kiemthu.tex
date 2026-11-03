@@ -17,17 +17,18 @@ thư viện (\file{tests/arduino/}): đồng hồ \code{millis()}, mức logic t
 Wi-Fi, UDP, đầu đọc MFRC522 và DHT11.
 
 \begin{table}[H]
-\centering\small
+\centering\footnotesize
 \caption{Các bộ kiểm thử tự động và kết quả}\label{tab:unittests}
 \begin{tabularx}{\linewidth}{@{}lXr@{}}
 \toprule
 \textbf{Bộ} & \textbf{Nội dung kiểm tra} & \textbf{Kết quả} \\ \midrule
+\file{payment} & CRC16-CCITT với giá trị kiểm tra chuẩn \code{0x29B1}; chuỗi VietQR đúng từng trường (00, 01, 38, 53, 54, 58, 62, 63); trùng từng byte với mã VietQR mẫu đã công bố (\code{\ldots{}6304AB76}); từ chối BIN sai, tài khoản trống hoặc có ký tự lạ, số tiền 0, nội dung có khoảng trắng, bộ đệm quá nhỏ; tìm giao dịch SePay theo mã (kể cả mã viết thường), chấp nhận trả dư, từ chối trả thiếu và mã khác; đọc id giao dịch mới nhất & 30/30 \\
 \file{json\_parsers} & Bản tin hợp lệ (mọi thứ tự khóa, khoảng trắng, giới hạn dải); 22 bản tin \code{parking\_update} sai và 16 bản tin \code{rfid\_event} sai đều bị từ chối (thiếu/thừa khóa, khóa lặp, sai kiểu, ngoài dải, ký tự lạ, dữ liệu thừa, chuỗi có ký tự thoát); bản tin \code{climate} hợp lệ và 8 dạng sai; trường \code{seq} của \code{rfid\_event}: thiếu, bằng 0, âm, thập phân, số mũ, dạng chuỗi, vượt 32 bit, lặp khóa đều bị từ chối, giá trị $2^{32}-1$ đọc chính xác & 78/78 \\
-\file{rfid\_session} & Phí theo giờ (biên 0, 3600, 3601\,s, bão hòa); vào/ra, sai cổng; hóa đơn hết hạn đúng 60\,s; bãi đầy, tái sử dụng chỗ; nhiệt độ; nhật ký vòng (thứ tự, chỉ giữ 10); thông báo từ chối 5\,s; IR báo đủ 5 ô thì từ chối thẻ mới; lưu rồi khôi phục sau ``mất điện'' (phiên, nhật ký, các \code{seq} đã xử lý, đồng hồ); đặt giờ Unix dời đúng các mốc cũ, lần đặt thứ hai không dời lại; chỉ mốc sau khởi động bị dời khi bù thời gian mất điện; bản lưu hỏng bị bỏ qua; cảm biến im lặng quá 3\,s thành ngoại tuyến và dữ liệu cũ không chặn xe vào; cảnh báo ngập bật ở 20\,mm, tắt ở 15\,mm, chặn xe vào nhưng vẫn cho ra; doanh thu và lượt vào/ra theo ngày, sang ngày mới, ra khỏi cửa sổ 7 ngày; \code{seq} gửi lại chỉ được xử lý một lần, nhớ 16 giá trị gần nhất & 120/120 \\
+\file{rfid\_session} & Phí theo giờ (biên 0, 3600, 3601\,s, bão hòa); vào/ra, sai cổng; hóa đơn hết hạn đúng 60\,s; bãi đầy, tái sử dụng chỗ; nhiệt độ; nhật ký vòng (thứ tự, chỉ giữ 10); thông báo từ chối 5\,s; IR báo đủ 5 ô thì từ chối thẻ mới; lưu rồi khôi phục sau ``mất điện'' (phiên, nhật ký, các \code{seq} đã xử lý, đồng hồ); đặt giờ Unix dời đúng các mốc cũ, lần đặt thứ hai không dời lại; chỉ mốc sau khởi động bị dời khi bù thời gian mất điện; bản lưu hỏng bị bỏ qua; cảm biến im lặng quá 3\,s thành ngoại tuyến và dữ liệu cũ không chặn xe vào; cảnh báo ngập bật ở 20\,mm, tắt ở 15\,mm, chặn xe vào nhưng vẫn cho ra; doanh thu và lượt vào/ra theo ngày, sang ngày mới, ra khỏi cửa sổ 7 ngày; \code{seq} gửi lại chỉ được xử lý một lần, nhớ 16 giá trị gần nhất; thanh toán QR: quẹt ra thành chờ thanh toán, quẹt lại hiện cùng mã QR, xe khác bị báo bận, sai mã không hoàn tất, trả xong thì có hóa đơn, nhật ký \code{OUT} và doanh thu, không ra hai lần, hết 180\,s có thông báo, chuyển khoản muộn vẫn được nhận, xác nhận tiền mặt cho xe đang chờ và xe chưa quẹt ra, tắt thanh toán thì ra ngay như cũ & 149/149 \\
 \file{gif\_frames} & 28 khung ảnh động giải nén đủ; nền đã xóa và byte đã đảo đúng; từ chối yêu cầu sai kích thước & 89/89 \\
 \file{sensor\_client} & Chạy \file{SensorClient.ino}: gửi định kỳ đúng 1 gói/giây; gửi ngay sau 50\,ms khi có xe; lọc nhiễu 30\,ms; thứ tự S1–S5; báo cháy và hết cháy; quy đổi mực nước; mất/có lại Wi-Fi; mọi gói được bộ đọc của máy chủ chấp nhận & 15/15 \\
 \file{rfid\_client} & Chạy \file{RFIDClient.ino}: UID hex in hoa; cổng vào/ra; chống lặp 2\,s trên cả hai đầu đọc; UID 10 byte; DHT11 lỗi giữ giá trị cũ; gửi \code{climate} độc lập; chưa có ACK thì gửi lại mỗi 300\,ms, dừng khi có ACK đúng \code{seq}, bỏ qua ACK của sự kiện khác và gói lạ, bỏ cuộc sau 6 lần; \code{seq} bắt đầu từ số ngẫu nhiên và tăng dần; mọi gói được máy chủ chấp nhận & 23/23 \\ \midrule
-\textbf{Tổng} & & \textbf{325/325} \\
+\textbf{Tổng} & & \textbf{384/384} \\
 \bottomrule
 \end{tabularx}
 \end{table}
@@ -65,7 +66,7 @@ Các lệnh ở Bước~10 (Chương~\ref{chap:huongdanchay}) gửi bản tin th
 \caption{Kịch bản kiểm thử trên phần cứng và hành vi mong đợi}\label{tab:systest}\\
 \toprule \textbf{\#} & \textbf{Thao tác} & \textbf{Hành vi mong đợi} \\ \midrule \endfirsthead
 \toprule \textbf{\#} & \textbf{Thao tác} & \textbf{Hành vi mong đợi} \\ \midrule \endhead
-S1 & Cấp nguồn RFID Client, rồi máy chủ & Có Wi-Fi \code{ESP32-Parking}; máy chủ báo \code{Got IP} và \code{mDNS: parking.local -> ...}; TFT hiện giao diện; hai thanh chắn đóng \\
+S1 & Bật router/điểm phát Wi-Fi chung, cấp nguồn máy chủ và RFID Client (thứ tự bất kỳ) & Máy chủ báo \code{Joining shared Wi-Fi: <SSID>}, \code{Got IP} (IP do router cấp) và \code{mDNS: parking.local -> ...}; RFID Client báo \code{Đã kết nối, IP: ...}; TFT hiện giao diện; hai thanh chắn đóng \\
 S2 & Cấp nguồn Sensor Client, mở \code{parking.local} & Web hiện sơ đồ 5 ô, \code{LIVE / SENSOR} \\
 S3 & Đặt xe vào ô S2 & TFT đổi ô S2 sang màu đỏ gần như tức thì; web hiện hình xe ở S2 trong $\le$ 1\,s \\
 S4 & Đưa vật nhanh qua cảm biến ($<$ 50\,ms) & Trạng thái không đổi \\
@@ -78,7 +79,7 @@ S10 & Bấm \code{CLOSE} trên web khi đang cháy & Bị từ chối, thanh ch�
 S11 & Tắt lửa & Còi tắt, hai thanh chắn đóng, TFT trở lại bình thường \\
 S12 & Bấm \code{OPEN}/\code{CLOSE}/\code{EMERGENCY} trên web & Thanh chắn tương ứng chuyển động, trạng thái trên web đúng \\
 S13 & Quẹt thẻ thứ 6 khi đã có 5 xe & Không mở; TFT \code{PARKING FULL} \\
-S14 & Tắt RFID Client rồi bật lại & Máy chủ và Sensor Client tự kết nối lại; \code{parking.local} trỏ đúng IP mới \\
+S14 & Tắt router/điểm phát Wi-Fi rồi bật lại & Cả ba bo tự kết nối lại; \code{parking.local} trỏ đúng IP mới \\
 S15 & Gửi gói UDP rác từ máy tính & Máy chủ ghi \code{Ignoring invalid or unknown UDP request} và tiếp tục hoạt động \\
 S16 & Gửi cùng một gói quẹt thẻ (cùng \code{seq}) hai lần bằng script & Cả hai lần đều nhận ACK; cổng chỉ mở một lần, nhật ký chỉ có một dòng \\
 S17 & Gửi xe, rút điện máy chủ 1 phút, cấp lại, mở web & Xe vẫn trong danh sách; khi trình duyệt gửi giờ, giờ vào đúng và thời gian gửi tính cả lúc mất điện \\
@@ -89,5 +90,8 @@ S21 & Để yên 1 phút không quẹt thẻ & Nhiệt độ trên TFT/web vẫn
 S22 & Rút điện Sensor Client & Sau $\approx$ 3\,s TFT hiện \code{SENSOR OFFLINE}, 5 ô xám; web báo \code{SENSOR OFFLINE} \\
 S23 & Nhúng cảm biến nước sâu hơn 20\,mm, quẹt thẻ mới ở cổng vào & Còi kêu, \code{FLOOD WARNING}; thẻ bị từ chối \code{FLOOD ALARM}; xe trong bãi quẹt ra vẫn mở cổng \\
 S24 & Gửi rồi lấy 2 xe, xem ô doanh thu trên web & \code{TODAY} tăng đúng tổng phí và số lượt; còn nguyên sau khi rút điện máy chủ \\
+S25 & Thanh toán QR bật, có token SePay: quẹt thẻ ở cổng ra, quét mã trên TFT bằng ứng dụng ngân hàng và chuyển khoản & TFT hiện \code{SCAN TO PAY} với mã QR, phí và \code{NOTE PK...}; thanh chắn vẫn đóng; vài giây sau khi chuyển khoản, thanh chắn ra mở, TFT hiện hóa đơn, web có dòng \code{OUT}, doanh thu tăng \\
+S26 & Quẹt ra rồi không chuyển khoản trong 3 phút; sau đó bấm \code{Confirm paid} trên web & Sau 180\,s TFT báo \code{PAY AT BOOTH}; web hiện băng rôn \code{WAITING FOR PAYMENT}; bấm \code{Confirm paid} (nhập PIN) thì thanh chắn ra mở, có hóa đơn và dòng \code{OUT} \\
+S27 & Khi xe thứ nhất đang chờ thanh toán, quẹt thẻ xe thứ hai ở cổng ra & màn hình QR vẫn giữ, dòng cuối đổi thành \code{NEXT CAR: WAIT, ONE IS PAYING}; web \code{WAIT · PAYING}; mã QR của xe thứ nhất không đổi \\
 \bottomrule
 \end{longtable}

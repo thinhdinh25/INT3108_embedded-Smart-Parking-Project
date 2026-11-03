@@ -7,6 +7,7 @@
 
 #include "http_server.h"
 #include "sdkconfig.h"
+#include "../display/lcd_display.h"
 #include "../parking/parking_persist.h"
 #include "../parking/parking_state.h"
 #include "../parking/rfid_session.h"
@@ -83,6 +84,7 @@ static const char *rfid_result_name(rfid_scan_result_t result)
         case RFID_SCAN_EXITED: return "out";
         case RFID_SCAN_FULL: return "full";
         case RFID_SCAN_FLOOD: return "flood";
+        case RFID_SCAN_PAY_BUSY: return "pay_busy";
         default: return "wrong_gate";
     }
 }
@@ -116,8 +118,17 @@ static esp_err_t rfid_log_get_handler(httpd_req_t *req)
                  (unsigned long)rfid_fee_for_seconds(now_s > active[i].entered_s ? now_s - active[i].entered_s : 0));
         err = httpd_resp_sendstr_chunk(req, line);
     }
+    /* The exit payment in progress, if any (QR on the TFT or waiting at the booth). */
+    rfid_payment_t pay;
+    rfid_session_get_payment(&pay);
+    if (pay.active)
+        snprintf(line, sizeof(line),
+                 "],\"payment\":{\"card\":\"%.31s\",\"fee\":%lu,\"code\":\"%s\",\"expired\":%s},\"log\":[",
+                 pay.card_id, (unsigned long)pay.fee_vnd, pay.code, pay.expired ? "true" : "false");
+    else
+        snprintf(line, sizeof(line), "],\"payment\":null,\"log\":[");
     if (err == ESP_OK)
-        err = httpd_resp_sendstr_chunk(req, "],\"log\":[");
+        err = httpd_resp_sendstr_chunk(req, line);
     for (size_t i = 0; i < log_count && err == ESP_OK; ++i)
     {
         snprintf(line, sizeof(line),
@@ -182,6 +193,26 @@ static esp_err_t time_set_handler(httpd_req_t *req)
     return httpd_resp_sendstr(req, "OK");
 }
 
+/* POST /api/payment/confirm, body = card ID: the operator saw the transfer or took cash. */
+static esp_err_t payment_confirm_handler(httpd_req_t *req)
+{
+    if (!authorized(req))
+        return send_unauthorized(req);
+    char card[RFID_CARD_ID_MAX + 1];
+    int len = req->content_len < sizeof(card) ? httpd_req_recv(req, card, req->content_len) : -1;
+    if (len <= 0)
+        return httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "Card ID expected");
+    card[len] = '\0';
+    if (!rfid_session_pay_cash(card))
+        return httpd_resp_send_err(req, HTTPD_404_NOT_FOUND, "Card is not inside");
+    esp_err_t err = servo_open_for(SERVO_GATE_OUT, 3000);
+    if (err != ESP_OK)
+        ESP_LOGE(TAG, "Failed to open exit barrier: %s", esp_err_to_name(err));
+    parking_persist_save();
+    lcd_display_notify();
+    return httpd_resp_sendstr(req, "PAID");
+}
+
 static esp_err_t barrier_state_handler(httpd_req_t *req)
 {
     char response[40];
@@ -194,7 +225,7 @@ static esp_err_t barrier_state_handler(httpd_req_t *req)
 esp_err_t http_server_start(void)
 {
     httpd_config_t config = HTTPD_DEFAULT_CONFIG();
-    config.max_uri_handlers = 12; /* one per route below */
+    config.max_uri_handlers = 13; /* one per route below */
     /* Browsers keep several keep-alive connections open and the dashboard polls every
      * 1-2 s; without purging, idle connections fill every slot and new clients get
      * "error in accept (23)". Budget: 3 internal + 10 clients + 1 UDP = 14 of 16 sockets. */
@@ -229,6 +260,7 @@ esp_err_t http_server_start(void)
         {.uri = "/api/barrier/all/close", .method = HTTP_POST, .handler = barrier_command_handler,
          .user_ctx = (void *)&barrier_commands[5]},
         {.uri = "/api/time", .method = HTTP_POST, .handler = time_set_handler},
+        {.uri = "/api/payment/confirm", .method = HTTP_POST, .handler = payment_confirm_handler},
         {.uri = "/api/rfid", .method = HTTP_GET, .handler = rfid_log_get_handler},
         {.uri = "/api/parking", .method = HTTP_GET, .handler = parking_state_get_handler},
         {.uri = "/style.css", .method = HTTP_GET, .handler = style_get_handler},

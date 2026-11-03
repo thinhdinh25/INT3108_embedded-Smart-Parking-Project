@@ -45,15 +45,48 @@ endmenu
 menu "Parking network and security"
 
 config PARKING_WIFI_SSID
-    string "Wi-Fi SSID (the RFID client's access point)"
+    string "Shared Wi-Fi SSID (server and both clients join it; needs Internet for SePay)"
     default "ESP32-Parking"
 
 config PARKING_WIFI_PASSWORD
-    string "Wi-Fi password"
+    string "Shared Wi-Fi password"
     default "12345678"
 
 config PARKING_ADMIN_PIN
-    string "Dashboard admin PIN (barrier control and clock)"
+    string "Dashboard admin PIN (barrier control, clock, cash payment)"
     default "2468"
+
+endmenu
+
+menu "Parking QR payment (SePay)"
+
+config PARKING_PAY_BANK_BIN
+    string "Bank BIN (6 digits, BIDV = 970418)"
+    default "970418"
+
+config PARKING_PAY_ACCOUNT
+    string "Account number that receives the money (empty = payment off)"
+    default ""
+
+config PARKING_PAY_ACCOUNT_NAME
+    string "Account holder name shown on the TFT (no accents)"
+    default ""
+
+config PARKING_SEPAY_TOKEN
+    string "SePay API token (empty = operator confirms transfers on the dashboard)"
+    default ""
+    help
+        Created in my.sepay.vn > Cau hinh > API Access. It has full access to the SePay
+        account, so keep it only in the git-ignored sdkconfig.
+
+config PARKING_PAY_TIMEOUT_S
+    int "Seconds to wait for the transfer before showing PAY AT BOOTH"
+    range 30 900
+    default 180
+
+config PARKING_PAY_POLL_MS
+    int "SePay polling interval while a payment is pending (ms)"
+    range 1000 30000
+    default 3000
 
 endmenu

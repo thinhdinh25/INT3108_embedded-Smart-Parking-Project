@@ -4,3 +4,5 @@ CONFIG_COMPILER_OPTIMIZATION_PERF=y
 CONFIG_PARTITION_TABLE_SINGLE_APP_LARGE=y
 # 16 sockets: HTTP server (3 internal + 10 clients) + UDP receiver, with headroom.
 CONFIG_LWIP_MAX_SOCKETS=16
+# HTTPS to SePay next to a 115 KB framebuffer: allocate TLS buffers only while a request runs.
+CONFIG_MBEDTLS_DYNAMIC_BUFFER=y

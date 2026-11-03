@@ -10,7 +10,7 @@
 #include "lwip/inet.h"
 #include "lwip/sockets.h"
 
-#define PARKING_SERVER_BROADCAST "192.168.4.255"
+#define PARKING_SERVER_BROADCAST "255.255.255.255"
 #define PARKING_SERVER_PORT 3333
 
 static const char *TAG = "PARKING_UDP_CLIENT";

@@ -11,9 +11,9 @@ CXXFLAGS := -std=c++17 -Wall -Wextra -O1 -g -Wno-sign-compare -Wno-unused-parame
             -I. -Iarduino -Istubs -I$(PARKING)
 
 PARKING_SRC := $(PARKING)/json_scan.c $(PARKING)/parking_update.c \
-               $(PARKING)/parking_state.c $(PARKING)/rfid_session.c
+               $(PARKING)/parking_state.c $(PARKING)/rfid_session.c $(PARKING)/payment.c
 
-TESTS := json_parsers rfid_session gif_frames sensor_client rfid_client
+TESTS := payment json_parsers rfid_session gif_frames sensor_client rfid_client
 
 .PHONY: all clean
 all: $(addprefix $(BUILD)/test_,$(TESTS))
@@ -27,6 +27,9 @@ $(BUILD)/parking_%.o: $(PARKING)/%.c | $(BUILD)
 	$(CC) $(CFLAGS) -c $< -o $@
 
 PARKING_OBJ := $(patsubst $(PARKING)/%.c,$(BUILD)/parking_%.o,$(PARKING_SRC))
+
+$(BUILD)/test_payment: test_payment.c $(BUILD)/parking_payment.o | $(BUILD)
+	$(CC) $(CFLAGS) $^ -o $@
 
 $(BUILD)/test_json_parsers: test_json_parsers.c $(PARKING_OBJ) | $(BUILD)
 	$(CC) $(CFLAGS) $^ -o $@

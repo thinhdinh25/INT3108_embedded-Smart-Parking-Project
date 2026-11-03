@@ -9,10 +9,13 @@
 #define SECONDS_PER_HOUR 3600ULL
 #define RECEIPT_DISPLAY_US 60000000ULL
 #define NOTICE_DISPLAY_US 5000000ULL
+#define PAY_TIMEOUT_NOTICE_US 30000000ULL
 
 static rfid_store_t store = {.version = RFID_STORE_VERSION};
 static rfid_receipt_t latest_receipt;
 static rfid_notice_t latest_notice;
+static rfid_payment_t payment;
+static uint64_t pay_timeout_us; /* 0 = payment off */
 static bool clock_set_this_boot;
 static int64_t unsynced_from_us; /* records stamped at or after this time predate the clock being set */
 static portMUX_TYPE session_lock = portMUX_INITIALIZER_UNLOCKED;
@@ -144,6 +147,57 @@ static rfid_day_stats_t *day_bucket(uint32_t day)
     return oldest;
 }
 
+/* Caller holds session_lock. */
+static uint32_t parked_seconds(int index, uint64_t now_us)
+{
+    const uint64_t entered_us = store.sessions[index].entered_us;
+    const uint64_t s = now_us > entered_us ? (now_us - entered_us) / 1000000ULL : 0;
+    return s > UINT32_MAX ? UINT32_MAX : (uint32_t)s;
+}
+
+/* Caller holds session_lock. The car leaves: receipt, OUT log entry, revenue. */
+static void finish_exit(int index, uint32_t duration_s, uint32_t fee_vnd, uint64_t now_us)
+{
+    rfid_event_t out = {.gate = RFID_GATE_OUT};
+    memcpy(out.card_id, store.sessions[index].card_id, sizeof(out.card_id));
+    latest_receipt.valid = true;
+    memcpy(latest_receipt.card_id, out.card_id, sizeof(out.card_id));
+    latest_receipt.duration_seconds = duration_s;
+    latest_receipt.fee_vnd = fee_vnd;
+    latest_receipt.display_until_us = now_us + RECEIPT_DISPLAY_US;
+    store.sessions[index].active = false;
+    log_event(&out, RFID_SCAN_EXITED, now_us, duration_s, fee_vnd);
+
+    rfid_day_stats_t *day = day_bucket(day_of((int64_t)now_us));
+    ++day->exits;
+    day->revenue_vnd = day->revenue_vnd > UINT32_MAX - fee_vnd ? UINT32_MAX : day->revenue_vnd + fee_vnd;
+    if (payment.active && strcmp(payment.card_id, out.card_id) == 0)
+        payment.active = false;
+}
+
+/* "PK" + 6 characters without look-alikes (no 0/O, 1/I/L), so a driver can type it if needed. */
+static void make_pay_code(char out[RFID_PAY_CODE_LEN + 1], uint32_t seq, uint64_t now_us)
+{
+    static const char ALPHABET[] = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"; /* 31 symbols */
+    uint32_t h = seq * 2654435761u ^ (uint32_t)(now_us >> 10) ^ (uint32_t)(now_us >> 32);
+    out[0] = 'P';
+    out[1] = 'K';
+    for (int i = 2; i < RFID_PAY_CODE_LEN; ++i)
+    {
+        out[i] = ALPHABET[h % 31];
+        h = h / 31 + (h % 31) * 2246822519u;
+    }
+    out[RFID_PAY_CODE_LEN] = '\0';
+}
+
+static int find_session(const char *card_id)
+{
+    for (int i = 0; i < RFID_MAX_ACTIVE; ++i)
+        if (store.sessions[i].active && strcmp(store.sessions[i].card_id, card_id) == 0)
+            return i;
+    return -1;
+}
+
 rfid_scan_result_t rfid_session_scan(const rfid_event_t *event, uint64_t now_us)
 {
     if (!event)
@@ -177,17 +231,31 @@ rfid_scan_result_t rfid_session_scan(const rfid_event_t *event, uint64_t now_us)
         {
             result = RFID_SCAN_INVALID_GATE;
         }
+        else if (pay_timeout_us == 0)
+        {
+            const uint32_t duration_s = parked_seconds(active_index, now_us);
+            finish_exit(active_index, duration_s, rfid_fee_for_seconds(duration_s), now_us);
+            result = RFID_SCAN_EXITED;
+        }
+        else if (payment.active && now_us < payment.expires_us &&
+                 strcmp(payment.card_id, event->card_id) != 0)
+        {
+            result = RFID_SCAN_PAY_BUSY;
+        }
         else
         {
-            uint64_t entered_us = store.sessions[active_index].entered_us;
-            uint64_t elapsed_seconds = now_us > entered_us ? (now_us - entered_us) / 1000000ULL : 0;
-            latest_receipt.valid = true;
-            memcpy(latest_receipt.card_id, event->card_id, strlen(event->card_id) + 1);
-            latest_receipt.duration_seconds = elapsed_seconds > UINT32_MAX ? UINT32_MAX : (uint32_t)elapsed_seconds;
-            latest_receipt.display_until_us = now_us + RECEIPT_DISPLAY_US;
-            latest_receipt.fee_vnd = rfid_fee_for_seconds(elapsed_seconds);
-            store.sessions[active_index].active = false;
-            result = RFID_SCAN_EXITED;
+            /* Start a payment, or show the same QR again (fee fixed at the first scan). */
+            if (!payment.active || strcmp(payment.card_id, event->card_id) != 0)
+            {
+                payment = (rfid_payment_t){.active = true};
+                memcpy(payment.card_id, event->card_id, strlen(event->card_id) + 1);
+                payment.duration_s = parked_seconds(active_index, now_us);
+                payment.fee_vnd = rfid_fee_for_seconds(payment.duration_s);
+                make_pay_code(payment.code, event->seq, now_us);
+            }
+            payment.expired = false;
+            payment.expires_us = now_us + pay_timeout_us;
+            result = RFID_SCAN_AWAITING_PAYMENT;
         }
     }
     else
@@ -214,25 +282,14 @@ rfid_scan_result_t rfid_session_scan(const rfid_event_t *event, uint64_t now_us)
             result = RFID_SCAN_ENTERED;
         }
     }
-    if (result == RFID_SCAN_EXITED)
-        log_event(event, result, now_us, latest_receipt.duration_seconds, latest_receipt.fee_vnd);
-    else
+    /* Exits are logged and counted in finish_exit; a pending payment is not logged yet. */
+    if (result != RFID_SCAN_EXITED && result != RFID_SCAN_AWAITING_PAYMENT)
         log_event(event, result, now_us, 0, 0);
+    if (result == RFID_SCAN_ENTERED)
+        ++day_bucket(day_of((int64_t)now_us))->entries;
 
-    if (result == RFID_SCAN_ENTERED || result == RFID_SCAN_EXITED)
-    {
-        rfid_day_stats_t *day = day_bucket(day_of((int64_t)now_us));
-        if (result == RFID_SCAN_ENTERED)
-            ++day->entries;
-        else
-        {
-            ++day->exits;
-            day->revenue_vnd = day->revenue_vnd > UINT32_MAX - latest_receipt.fee_vnd
-                ? UINT32_MAX : day->revenue_vnd + latest_receipt.fee_vnd;
-        }
-    }
-
-    if (result == RFID_SCAN_FULL || result == RFID_SCAN_INVALID_GATE || result == RFID_SCAN_FLOOD)
+    if (result == RFID_SCAN_FULL || result == RFID_SCAN_INVALID_GATE || result == RFID_SCAN_FLOOD ||
+        result == RFID_SCAN_PAY_BUSY)
     {
         latest_notice.valid = true;
         memcpy(latest_notice.card_id, event->card_id, strlen(event->card_id) + 1);
@@ -361,6 +418,7 @@ void rfid_session_set_clock(uint64_t unix_s)
                 store.log[i].at_s = (uint32_t)(shifted(store.log[i].at_s * 1000000ULL, delta) / 1000000ULL);
         latest_receipt.display_until_us = shifted(latest_receipt.display_until_us, delta);
         latest_notice.display_until_us = shifted(latest_notice.display_until_us, delta);
+        payment.expires_us = shifted(payment.expires_us, delta);
         for (int i = 0; i < RFID_STATS_DAYS; ++i)
         {
             rfid_day_stats_t *day = &store.days[i];
@@ -395,4 +453,67 @@ void rfid_session_get_stats(rfid_day_stats_t *today, rfid_day_stats_t *week)
         *today = t;
     if (week)
         *week = w;
+}
+
+void rfid_session_enable_payment(uint32_t timeout_s)
+{
+    portENTER_CRITICAL(&session_lock);
+    pay_timeout_us = (uint64_t)timeout_s * 1000000ULL;
+    portEXIT_CRITICAL(&session_lock);
+}
+
+void rfid_session_get_payment(rfid_payment_t *out)
+{
+    const uint64_t now_us = (uint64_t)parking_clock_now_us();
+    portENTER_CRITICAL(&session_lock);
+    if (payment.active && !payment.expired && now_us >= payment.expires_us)
+    {
+        payment.expired = true;
+        latest_notice = (rfid_notice_t){.valid = true, .result = RFID_SCAN_PAY_TIMEOUT,
+                                        .gate = RFID_GATE_OUT,
+                                        .display_until_us = now_us + PAY_TIMEOUT_NOTICE_US};
+        memcpy(latest_notice.card_id, payment.card_id, sizeof(latest_notice.card_id));
+    }
+    if (out)
+        *out = payment;
+    portEXIT_CRITICAL(&session_lock);
+}
+
+bool rfid_session_payment_done(const char *code)
+{
+    bool done = false;
+    const uint64_t now_us = (uint64_t)parking_clock_now_us();
+    portENTER_CRITICAL(&session_lock);
+    if (code && payment.active && strcmp(payment.code, code) == 0)
+    {
+        const int index = find_session(payment.card_id);
+        if (index >= 0)
+        {
+            finish_exit(index, payment.duration_s, payment.fee_vnd, now_us);
+            latest_notice.valid = false;
+            done = true;
+        }
+        payment.active = false;
+    }
+    portEXIT_CRITICAL(&session_lock);
+    return done;
+}
+
+bool rfid_session_pay_cash(const char *card_id)
+{
+    bool done = false;
+    const uint64_t now_us = (uint64_t)parking_clock_now_us();
+    portENTER_CRITICAL(&session_lock);
+    const int index = card_id ? find_session(card_id) : -1;
+    if (index >= 0)
+    {
+        /* Charge what the QR showed if the car was already paying, otherwise the fee now. */
+        const bool paying = payment.active && strcmp(payment.card_id, card_id) == 0;
+        const uint32_t duration_s = paying ? payment.duration_s : parked_seconds(index, now_us);
+        finish_exit(index, duration_s, paying ? payment.fee_vnd : rfid_fee_for_seconds(duration_s), now_us);
+        latest_notice.valid = false;
+        done = true;
+    }
+    portEXIT_CRITICAL(&session_lock);
+    return done;
 }

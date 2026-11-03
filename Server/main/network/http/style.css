@@ -119,6 +119,12 @@ footer { display: flex; align-items: center; justify-content: center; gap: 8px; 
 
 .log-panel { margin-top: 14px; }
 .log-note { margin: 0 0 12px; color: var(--muted); font-size: 9px; }
+.payment-pending { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 10px; padding: 12px 14px; border: 1px solid #f5b301; background: #241b02; }
+.payment-pending[hidden] { display: none; }
+.payment-pending div { display: grid; gap: 4px; }
+.payment-pending strong { color: #f5b301; font-size: 12px; letter-spacing: 1px; }
+.payment-pending span { color: #fff; font-size: 10px; }
+.payment-pending button { padding: 9px 14px; border: 1px solid var(--terminal); background: var(--terminal); color: #07111f; font: inherit; font-size: 9px; font-weight: 700; cursor: pointer; }
 .revenue-stats { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-bottom: 4px; }
 .revenue-stat { display: grid; gap: 3px; padding: 10px 12px; border: 1px solid var(--line); background: #000; }
 .revenue-stat span, .revenue-stat small { color: var(--muted); font-size: 9px; letter-spacing: .6px; }

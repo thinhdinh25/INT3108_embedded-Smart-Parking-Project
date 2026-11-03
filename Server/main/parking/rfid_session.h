@@ -37,6 +37,9 @@ typedef enum
     RFID_SCAN_FULL,
     RFID_SCAN_INVALID_GATE,
     RFID_SCAN_FLOOD, /* entry refused while the flood alarm is on; exits still work */
+    RFID_SCAN_AWAITING_PAYMENT, /* exit with QR payment on: QR shown, barrier stays closed */
+    RFID_SCAN_PAY_BUSY,         /* another car is still paying at the exit */
+    RFID_SCAN_PAY_TIMEOUT,      /* notice only: no transfer arrived in time, pay at the booth */
 } rfid_scan_result_t;
 
 /* Short on-screen notice for a rejected scan (wrong gate or lot full). */
@@ -44,7 +47,7 @@ typedef struct
 {
     bool valid;
     char card_id[RFID_CARD_ID_MAX + 1];
-    rfid_scan_result_t result; /* RFID_SCAN_FULL, RFID_SCAN_INVALID_GATE or RFID_SCAN_FLOOD */
+    rfid_scan_result_t result; /* a rejection, or RFID_SCAN_PAY_TIMEOUT */
     rfid_gate_t gate;          /* reader the card was scanned on */
     uint64_t display_until_us;
 } rfid_notice_t;
@@ -104,6 +107,19 @@ typedef struct
     rfid_day_stats_t days[RFID_STATS_DAYS]; /* any order; the oldest is reused for a new day */
 } rfid_store_t;
 
+/* The one exit payment in progress (single exit lane). */
+#define RFID_PAY_CODE_LEN 8 /* "PK" + 6 characters, written in the transfer note */
+typedef struct
+{
+    bool active;
+    bool expired; /* time limit passed: TFT says pay at the booth, a late transfer still counts */
+    char card_id[RFID_CARD_ID_MAX + 1];
+    char code[RFID_PAY_CODE_LEN + 1];
+    uint32_t fee_vnd;
+    uint32_t duration_s;
+    uint64_t expires_us;
+} rfid_payment_t;
+
 bool rfid_event_parse_json(const char *payload, rfid_event_t *event);
 rfid_scan_result_t rfid_session_scan(const rfid_event_t *event, uint64_t now_us);
 void rfid_session_get_receipt(rfid_receipt_t *receipt);
@@ -119,6 +135,15 @@ void rfid_session_snapshot(rfid_store_t *out);
 void rfid_session_restore(const rfid_store_t *saved);
 /* Sets the parking clock to Unix time; times stamped before the first set are shifted with it. */
 void rfid_session_set_clock(uint64_t unix_s);
+/* timeout_s > 0: an exit scan starts a QR payment instead of opening the barrier.
+ * 0 (default): exits open at once. */
+void rfid_session_enable_payment(uint32_t timeout_s);
+void rfid_session_get_payment(rfid_payment_t *out);
+/* A transfer with this code arrived: completes that exit. False if no payment has it. */
+bool rfid_session_payment_done(const char *code);
+/* Paid in cash at the booth: completes the exit of a card that is inside. */
+bool rfid_session_pay_cash(const char *card_id);
+
 /* Today's totals and the totals of the last RFID_STATS_DAYS days, including today. */
 void rfid_session_get_stats(rfid_day_stats_t *today, rfid_day_stats_t *week);
 

@@ -161,6 +161,10 @@ static void udp_server_task(void *arg)
                 ESP_LOGW(TAG, "RFID %s rejected: scanned on wrong reader (%s)",
                          event.card_id, event.gate == RFID_GATE_IN ? "IN" : "OUT");
             }
+            else if (result == RFID_SCAN_AWAITING_PAYMENT)
+                ESP_LOGI(TAG, "RFID %s at exit: showing payment QR, barrier stays closed", event.card_id);
+            else if (result == RFID_SCAN_PAY_BUSY)
+                ESP_LOGW(TAG, "RFID %s must wait: another car is paying", event.card_id);
             else if (result == RFID_SCAN_FLOOD)
                 ESP_LOGW(TAG, "RFID %s rejected: entry closed by flood alarm", event.card_id);
             else

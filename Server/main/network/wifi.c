@@ -6,9 +6,10 @@
 #include "esp_wifi.h"
 #include "sdkconfig.h"
 
-#include "wifi_sta.h"
+#include "wifi.h"
 
-/* Set in menuconfig ("Parking network and security"); real values stay in the git-ignored sdkconfig. */
+/* The shared Wi-Fi every board joins (it also gives Internet for SePay). Set in menuconfig
+ * ("Parking network and security"); real values stay in the git-ignored sdkconfig. */
 #define WIFI_STA_SSID     CONFIG_PARKING_WIFI_SSID
 #define WIFI_STA_PASSWORD CONFIG_PARKING_WIFI_PASSWORD
 
@@ -54,7 +55,7 @@ static void wifi_event_handler(void *arg, esp_event_base_t event_base,
     }
 }
 
-esp_err_t wifi_sta_start(void)
+esp_err_t wifi_start(void)
 {
     esp_err_t err = esp_netif_init();
     if (err != ESP_OK)

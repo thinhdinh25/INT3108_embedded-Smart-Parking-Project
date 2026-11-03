@@ -28,7 +28,7 @@ Nguyễn Việt Tiến & Cơ khí: mô hình bãi xe, cơ cấu thanh chắn ser
 \subsection{Nguyễn Chí Minh (24020232) — phần mềm và tích hợp}
 \begin{itemize}
   \item \textbf{Firmware máy chủ ESP32-C3}: dựng kiến trúc phân lớp, các tác vụ FreeRTOS
-        và cơ chế đồng bộ; UDP server, HTTP server với 12 route; mDNS
+        và cơ chế đồng bộ; UDP server, HTTP server với 13 route; mDNS
         \code{parking.local} tự thông báo lại khi đổi IP; xử lý lỗi \code{accept (23)}
         bằng giới hạn và thu hồi kết nối.
   \item \textbf{Màn hình ST7789}: driver SPI có DMA, giao diện \code{PARKSENSE}, hóa đơn,
@@ -40,7 +40,7 @@ Nguyễn Việt Tiến & Cơ khí: mô hình bãi xe, cơ cấu thanh chắn ser
   \item \textbf{Trang web giám sát}: sơ đồ bãi trực quan, điều khiển thanh chắn, nhật ký
         vào/ra kèm phí, cảnh báo lệch thẻ/cảm biến.
   \item \textbf{Kiểm thử}: lớp giả lập Arduino để chạy nguyên mã hai sketch trên máy tính;
-        5 bộ kiểm thử, 325 phép kiểm tra; công cụ giả lập client bằng Python.
+        6 bộ kiểm thử, 384 phép kiểm tra; công cụ giả lập client bằng Python.
   \item \textbf{Báo cáo}: Chương 3, 5 và các sơ đồ Mermaid.
 \end{itemize}
 \textit{Các commit tiêu biểu}:
@@ -67,7 +67,7 @@ Nguyễn Việt Tiến & Cơ khí: mô hình bãi xe, cơ cấu thanh chắn ser
         từng module IR theo độ phản xạ của xe mẫu.
   \item \textbf{Firmware client}: Sensor Client đọc 5 IR, lửa, mực nước; RFID Client với
         hai đầu đọc RC522 dùng chung SPI, bật/tắt ăng-ten luân phiên để tránh nhiễu chéo,
-        DHT11, điểm truy cập Wi-Fi, OTA; logic vào/ra theo cổng ở máy chủ.
+        DHT11, kết nối Wi-Fi, OTA; logic vào/ra theo cổng ở máy chủ.
   \item \textbf{Báo cáo}: Chương 2, 4 và phần nguồn điện, sơ đồ chân.
 \end{itemize}
 \textit{Các commit tiêu biểu}: \code{Init New ESP-IDF Project},

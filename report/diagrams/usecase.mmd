@@ -17,15 +17,17 @@ flowchart LR
   sensor["«thiết bị»<br/>Sensor Client"]
   rfid["«thiết bị»<br/>RFID Client"]
   clock["«thời gian»<br/>Đồng hồ hệ thống"]
+  sepay["«hệ thống ngoài»<br/>SePay"]
   driver --- UC01 & UC03 & UC04 & UC05 & UC06
-  operator --- UC02 & UC06 & UC07 & UC08 & UC09 & UC10
+  operator --- UC02 & UC04 & UC06 & UC07 & UC08 & UC09 & UC10
   UC01 & UC02 & UC06 & UC07 --- sensor
   UC03 & UC04 & UC05 & UC08 --- rfid
   UC03 & UC04 & UC05 -.- clock
+  UC04 --- sepay
   classDef uc fill:#E1ECFA,stroke:#003E7E;
   classDef dev fill:#E8F5E9,stroke:#2E7D32;
   classDef rf fill:#FFF3E0,stroke:#C77700;
   classDef tm fill:#EDE7F6,stroke:#5E35B1;
   classDef person fill:#ffffff,stroke:#333;
   class UC01,UC02,UC03,UC04,UC05,UC06,UC07,UC08,UC09,UC10 uc;
-  class sensor dev; class rfid rf; class clock tm; class driver,operator person;
+  class sensor dev; class rfid rf; class clock tm; class sepay tm; class driver,operator person;

@@ -14,36 +14,45 @@ và demo (\S\ref{sec:demo}).
 \begin{figure}[H]
 \centering
 \mmd[1][0.6]{deploy}
-\caption{Kiến trúc triển khai: RFID Client làm điểm truy cập; máy chủ, Sensor Client và điện thoại là trạm Wi-Fi}\label{fig:deploy}
+\caption{Kiến trúc triển khai: máy chủ, hai client và điện thoại cùng là trạm của mạng Wi-Fi chung có Internet; máy chủ ra Internet để hỏi SePay}\label{fig:deploy}
 \end{figure}
 
-Hình~\ref{fig:deploy} cho thấy cấu trúc mạng hình sao quanh RFID Client. Bảng~\ref{tab:netparams}
-liệt kê thông số mạng. Hai client gửi tới địa chỉ \emph{broadcast} \code{192.168.4.255}
-nên không cần biết IP máy chủ; người dùng truy cập bằng tên \code{parking.local}
-nên cũng không cần biết IP.
+Hình~\ref{fig:deploy} cho thấy cấu trúc mạng hình sao quanh router (hoặc điểm phát
+trên điện thoại) của nhóm: không bo nào phát điểm truy cập, cả ba bo và điện thoại
+của người vận hành đều là trạm Wi-Fi. Bảng~\ref{tab:netparams} liệt kê thông số mạng.
+Hai client gửi tới địa chỉ \emph{broadcast giới hạn} \code{255.255.255.255} nên không
+cần biết dải mạng hay IP máy chủ; người dùng truy cập bằng tên \code{parking.local}
+nên cũng không cần biết IP. Router còn cho máy chủ đường ra Internet để kiểm tra
+chuyển khoản qua SePay (mục~\ref{sec:vietqr}). Vì tất cả đều là trạm và tự kết nối
+lại, thứ tự bật nguồn các bo không còn quan trọng.
 
 \begin{table}[H]
 \centering\small
 \caption{Thông số mạng}\label{tab:netparams}
 \begin{tabularx}{\linewidth}{@{}lX@{}}
 \toprule
-SSID / mật khẩu & Mặc định \code{ESP32-Parking} / \code{12345678} (đổi trong menuconfig và \file{secrets.h}), WPA2-PSK, kênh 1, tối đa 4 trạm \\
-Điểm truy cập & RFID Client, \code{192.168.4.1/24}, cấp IP bằng DHCP \\
+SSID / mật khẩu & Tên và mật khẩu mạng Wi-Fi chung của nhóm; mặc định \code{ESP32-Parking} / \code{12345678}. Máy chủ: \code{idf.py menuconfig → Parking network and security}; hai client: \file{secrets.h} \\
+Điểm truy cập & Router hoặc điểm phát Wi-Fi (điện thoại) của nhóm, có Internet, cấp IP bằng DHCP; phải \emph{tắt} chế độ cô lập thiết bị (AP/client isolation) \\
 Máy chủ & Trạm Wi-Fi, IP do DHCP cấp, tên \code{parking.local}, dịch vụ \code{\_http.\_tcp} cổng 80 \\
-UDP & Máy chủ nghe cổng 3333; client gửi tới \code{192.168.4.255:3333}; máy chủ trả ACK (unicast) cho sự kiện quẹt thẻ \\
-HTTP & Cổng 80: trang web, \code{/api/parking}, \code{/api/barrier}, \code{/api/rfid}, \code{/api/time}; lệnh POST cần mã PIN \\
+UDP & Máy chủ nghe cổng 3333; client gửi tới \code{255.255.255.255:3333}; máy chủ trả ACK (unicast) cho sự kiện quẹt thẻ \\
+HTTP & Cổng 80: trang web, \code{/api/parking}, \code{/api/barrier}, \code{/api/rfid}, \code{/api/time}, \code{/api/payment/confirm}; lệnh POST cần mã PIN \\
 \bottomrule
 \end{tabularx}
 \end{table}
 
-\begin{lydo}[Tại sao RFID Client làm điểm truy cập và máy chủ dùng mDNS]
-Đặt điểm truy cập trên một bo ESP8266 giải phóng ESP32-C3 khỏi việc quản lý trạm
-(bộ đệm cho từng trạm, DHCP server), dành RAM cho màn hình. Hệ thống vẫn hoạt động
-độc lập, không cần router hay Internet. Đổi lại, IP máy chủ do DHCP cấp và có thể
-thay đổi; mDNS giải quyết bằng một tên cố định \code{parking.local}. Máy chủ còn
-\emph{chủ động thông báo lại} tên này mỗi khi nhận địa chỉ mới (sự kiện
-\code{IP\_EVENT\_STA\_GOT\_IP}), kể cả khi DHCP đổi địa chỉ mà không mất kết nối, nên
-các thiết bị khác không bao giờ giữ một IP cũ.
+\begin{lydo}[Tại sao dùng chung một mạng Wi-Fi có Internet và máy chủ dùng mDNS]
+Một mạng Wi-Fi chung (router hoặc điểm phát của nhóm) cho máy chủ \textbf{đường ra
+Internet} để hỏi SePay xem đã nhận được chuyển khoản chưa — điều không làm được khi
+mạng do một bo ESP8266 tự phát. ESP32-C3 chỉ là trạm nên \textbf{không tốn RAM} cho bộ
+đệm từng trạm và DHCP server, dành RAM cho màn hình và TLS. Điện thoại của người vận
+hành vốn đã ở trong mạng đó nên mở \code{parking.local} ngay mà không phải đổi Wi-Fi.
+Đổi lại, bãi \textbf{phụ thuộc vào router} đó; một số router/điểm phát bật chế độ
+\emph{cô lập thiết bị} (AP/client isolation) chặn gói broadcast giữa các thiết bị — chế độ
+này phải tắt. Mất Internet thì bãi vẫn chạy, chỉ việc xác nhận chuyển khoản chuyển sang
+người vận hành. IP máy chủ do DHCP cấp và có thể thay đổi; mDNS giải quyết bằng một
+tên cố định \code{parking.local}. Máy chủ còn \emph{chủ động thông báo lại} tên này mỗi
+khi nhận địa chỉ mới (sự kiện \code{IP\_EVENT\_STA\_GOT\_IP}), kể cả khi DHCP đổi địa chỉ
+mà không mất kết nối, nên các thiết bị khác không bao giờ giữ một IP cũ.
 \end{lydo}
 
 \subsection{Giao thức truyền: UDP broadcast}
@@ -65,8 +74,9 @@ Khi mất gói & Mất, bản tin sau bù lại & Tự truyền lại & Có QoS 
 Sensor Client gửi \textbf{toàn bộ trạng thái} (không phải ``sự kiện thay đổi''), và
 nhắc lại mỗi giây. Mất một gói chỉ làm trễ tối đa 1\,s, không làm sai trạng thái lâu
 dài, nên độ tin cậy của TCP là không cần thiết, trong khi chi phí của nó (bắt tay,
-socket, bộ đệm) đáng kể trên vi điều khiển. Gửi broadcast giúp client không cần biết
-IP máy chủ và cho phép máy tính trong mạng ``nghe'' để gỡ lỗi. JSON được chọn vì đọc
+socket, bộ đệm) đáng kể trên vi điều khiển. Gửi broadcast giới hạn
+\code{255.255.255.255} giúp client không cần biết dải mạng của router hay IP máy chủ
+và cho phép máy tính trong mạng ``nghe'' để gỡ lỗi. JSON được chọn vì đọc
 được trong log và dễ sinh từ \code{snprintf}/Python; bản tin dài 70–130 byte, nằm
 gọn trong một gói UDP.
 
@@ -132,14 +142,16 @@ lớp dịch vụ, nên không có vòng phụ thuộc.
 
 \begin{lydo}[Tại sao phân lớp như vậy]
 (1) \emph{Kiểm thử được}: \file{parking\_state}, \file{json\_scan}, \file{parking\_update},
-\file{rfid\_session} chỉ cần hai macro critical section và hàm đọc đồng hồ — thay bằng
+\file{rfid\_session}, \file{payment} chỉ cần hai macro critical section và hàm đọc đồng hồ — thay bằng
 hai tệp header giả là chạy được trên máy tính. (2) \emph{Thay đổi cục bộ}: đổi màn hình
 khác chỉ sửa \file{lcd\_display}; đổi giao thức mạng chỉ sửa \file{udp\_server}.
 Việc ghi flash nằm riêng trong \file{parking\_persist}: \file{rfid\_session} chỉ đưa ra
 một ``ảnh chụp'' trạng thái (\code{rfid\_store\_t}) nên vẫn kiểm thử được trên máy tính.
-(3) \emph{Không vòng phụ thuộc} (Hình~\ref{fig:deps}): \file{udp\_server} là nơi duy
-nhất ``điều phối'' — nhận bản tin, gọi nghiệp vụ, rồi ra lệnh cho servo, còi và đánh
-thức màn hình.
+(3) \emph{Không vòng phụ thuộc} (Hình~\ref{fig:deps}): \file{udp\_server} là nơi
+``điều phối'' bản tin — nhận bản tin, gọi nghiệp vụ, rồi ra lệnh cho servo, còi và đánh
+thức màn hình; \file{sepay\_client} làm đúng việc đó cho kết quả thanh toán. Phần đọc
+JSON của SePay và dựng chuỗi QR nằm trong \file{payment}, không gọi mạng, nên kiểm thử
+được trên máy tính.
 \end{lydo}
 
 % ---------------------------------------------------------------------
@@ -155,6 +167,7 @@ thức màn hình.
 \code{esp\_timer} (hệ thống) & cao & 3584 B & hẹn giờ & Gọi hàm đóng thanh chắn khi hết 3\,s \\
 \code{lcd\_display} & 4 & 4096 B & thông báo tác vụ / 1\,s / 120\,ms & Vẽ lại màn hình khi dữ liệu đổi \\
 \code{lcd\_animation} & 3 & 3072 B & mỗi khung (100\,ms) & Ảnh động trang trí \\
+\code{sepay} & 3 & 8192 B & mỗi 1\,s; mỗi 3\,s khi có xe đang thanh toán & Hỏi API SePay qua HTTPS, hoàn tất thanh toán và mở cổng ra; chỉ tạo khi có token SePay \\
 \code{mdns} & 1 & 4096 B & gói mDNS & Trả lời \code{parking.local} \\
 \bottomrule
 \end{tabularx}
@@ -182,7 +195,8 @@ Hệ thống dùng \textbf{ba cơ chế đồng bộ} cho ba loại tình huốn
 \begin{lydo}[Tại sao đặt ưu tiên như vậy]
 Ưu tiên phản ánh mức độ quan trọng với người dùng: nhận bản tin và điều khiển thanh
 chắn (5) liên quan trực tiếp đến xe đang chờ ở cổng; màn hình thông tin (4) quan
-trọng hơn ảnh động trang trí (3); mDNS (1) chỉ trả lời truy vấn tên, chậm vài mili
+trọng hơn ảnh động trang trí (3); tác vụ SePay (3) chờ mạng Internet hàng trăm mili
+giây mỗi lần nên không được chen trước việc điều khiển cổng; mDNS (1) chỉ trả lời truy vấn tên, chậm vài mili
 giây không ảnh hưởng. Khi CPU bận, ảnh động chậm đi chứ thông tin không bị trễ.
 \end{lydo}
 

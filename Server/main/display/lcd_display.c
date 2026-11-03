@@ -13,12 +13,14 @@
 #include "esp_lcd_panel_ops.h"
 #include "esp_lcd_panel_st7789.h"
 #include "esp_log.h"
+#include "qrcode.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "freertos/semphr.h"
 #include "sdkconfig.h"
 
 #include "../parking/parking_state.h"
+#include "../parking/payment.h"
 #include "../parking/rfid_session.h"
 #include "lcd_display.h"
 #include "kaoruko_gif.h"
@@ -171,7 +173,17 @@ static void draw_notice(const rfid_notice_t *notice)
     char line[RFID_CARD_ID_MAX + 5];
     snprintf(line, sizeof(line), "ID %s", notice->card_id);
     draw_text(8, 198, line, 1, COLOR_WHITE);
-    if (notice->result == RFID_SCAN_FLOOD)
+    if (notice->result == RFID_SCAN_PAY_TIMEOUT)
+    {
+        draw_text(8, 209, "PAY AT BOOTH", 2, COLOR_ORANGE);
+        draw_text(8, 229, "NO TRANSFER YET - SEE OPERATOR", 1, COLOR_MUTED);
+    }
+    else if (notice->result == RFID_SCAN_PAY_BUSY)
+    {
+        draw_text(8, 209, "PLEASE WAIT", 2, COLOR_ORANGE);
+        draw_text(8, 229, "ANOTHER CAR IS PAYING", 1, COLOR_MUTED);
+    }
+    else if (notice->result == RFID_SCAN_FLOOD)
     {
         draw_text(8, 209, "FLOOD ALARM", 2, COLOR_RED);
         draw_text(8, 229, "ENTRY CLOSED - EXIT STILL OPEN", 1, COLOR_MUTED);
@@ -189,6 +201,57 @@ static void draw_notice(const rfid_notice_t *notice)
                                                        : "NOT CHECKED IN - USE ENTRY GATE",
                   1, COLOR_MUTED);
     }
+}
+
+/* esp_qrcode_generate calls back synchronously; this is where the QR goes on screen. */
+static int qr_top;
+
+static void draw_qr_modules(esp_qrcode_handle_t qr)
+{
+    const int size = esp_qrcode_get_size(qr);
+    const int scale = 156 / (size + 4) > 0 ? 156 / (size + 4) : 1; /* 2-module quiet zone */
+    const int box = (size + 4) * scale;
+    const int left = (width - box) / 2;
+    fill_rect(left, qr_top, box, box, COLOR_WHITE);
+    for (int y = 0; y < size; ++y)
+        for (int x = 0; x < size; ++x)
+            if (esp_qrcode_get_module(qr, x, y))
+                fill_rect(left + (x + 2) * scale, qr_top + (y + 2) * scale, scale, scale, COLOR_BG);
+}
+
+/* VietQR for the exit fee: any Vietnamese banking app can scan it. */
+static void draw_payment_screen(const rfid_payment_t *pay, const rfid_notice_t *notice)
+{
+    fill_rect(0, 0, width, height, COLOR_BG);
+    fill_rect(0, 0, width, 4, COLOR_TEAL);
+    draw_text(54, 9, "SCAN TO PAY", 2, COLOR_WHITE);
+
+    char payload[160];
+    if (vietqr_payload(payload, sizeof(payload), CONFIG_PARKING_PAY_BANK_BIN, CONFIG_PARKING_PAY_ACCOUNT,
+                       pay->fee_vnd, pay->code) > 0)
+    {
+        esp_qrcode_config_t config = ESP_QRCODE_CONFIG_DEFAULT();
+        config.display_func = draw_qr_modules;
+        config.max_qrcode_version = 10;
+        config.qrcode_ecc_level = ESP_QRCODE_ECC_MED;
+        qr_top = 30;
+        esp_qrcode_generate(&config, payload);
+    }
+
+    char line[40];
+    snprintf(line, sizeof(line), "%lu VND", (unsigned long)pay->fee_vnd);
+    draw_text((width - (int)strlen(line) * 12) / 2, 192, line, 2, COLOR_TEAL);
+    snprintf(line, sizeof(line), "NOTE %s  ID %.12s", pay->code, pay->card_id);
+    draw_text(8, 214, line, 1, COLOR_WHITE);
+    /* A second car at the exit gets its answer without taking the QR away from the first. */
+    if (notice->valid && notice->result == RFID_SCAN_PAY_BUSY)
+        draw_text(8, 227, "NEXT CAR: WAIT, ONE IS PAYING", 1, COLOR_ORANGE);
+    else
+    {
+        snprintf(line, sizeof(line), "BIDV %.16s %.12s", CONFIG_PARKING_PAY_ACCOUNT, CONFIG_PARKING_PAY_ACCOUNT_NAME);
+        draw_text(8, 227, line, 1, COLOR_MUTED);
+    }
+    ESP_ERROR_CHECK(lcd_draw_bitmap_locked(0, 0, width, height, framebuffer));
 }
 
 static void draw_parking_screen(const parking_state_t *state, int free_count,
@@ -404,8 +467,10 @@ static void animation_task(void *arg)
         parking_state_get(&state, &free_count);
         rfid_session_get_receipt(&receipt);
         rfid_session_get_notice(&notice);
+        rfid_payment_t pay;
+        rfid_session_get_payment(&pay);
         const bool footer_busy = receipt.valid || notice.valid;
-        if (!state.fire)
+        if (!state.fire && !(pay.active && !pay.expired))
         {
             draw_kaoruko_frame(frame);
             if (!footer_busy)
@@ -469,6 +534,8 @@ static void display_task(void *arg)
     rfid_receipt_t last_receipt = {0};
     rfid_notice_t notice = {0};
     rfid_notice_t last_notice = {0};
+    rfid_payment_t payment = {0};
+    rfid_payment_t last_payment = {0};
     int last_slots[PARKING_SLOT_COUNT] = {-1, -1, -1, -1, -1};
     float last_temperature = -1000.0f;
     float last_water = -1000.0f;
@@ -478,8 +545,11 @@ static void display_task(void *arg)
         parking_state_get(&state, &free_count);
         rfid_session_get_receipt(&receipt);
         rfid_session_get_notice(&notice);
+        rfid_session_get_payment(&payment); /* also expires an unpaid QR */
+        const bool paying = payment.active && !payment.expired;
 
         if (state.fire || first_draw ||
+            memcmp(&payment, &last_payment, sizeof(payment)) != 0 ||
             state.received != last_received ||
             state.fire != last_fire ||
             state.online != last_online ||
@@ -495,8 +565,11 @@ static void display_task(void *arg)
                 draw_fire_alarm_screen(fire_frame);
                 fire_frame = (fire_frame + 1) % 15;
             }
+            else if (paying)
+                draw_payment_screen(&payment, &notice);
             else
                 draw_parking_screen(&state, free_count, &receipt, &notice);
+            last_payment = payment;
 
             memcpy(last_slots, state.slots, sizeof(last_slots));
             last_received = state.received;

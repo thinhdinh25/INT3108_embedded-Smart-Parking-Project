@@ -12,7 +12,9 @@ idf_component_register(
         "parking/rfid_session.c"
         "parking/parking_persist.c"
         "network/network_service.c"
-        "network/wifi_sta.c"
+        "network/wifi.c"
+        "network/sepay_client.c"
+        "parking/payment.c"
         "network/http/http_server.c"
         "network/udp/udp_server.c"
 
@@ -30,6 +32,8 @@ idf_component_register(
         esp_event
         esp_netif
         esp_http_server
+        esp_http_client
+        mbedtls
         esp_lcd
         esp_driver_spi
         esp_driver_gpio

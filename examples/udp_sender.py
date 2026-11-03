@@ -28,8 +28,8 @@ def parse_slots(text):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--host", default="192.168.4.255",
-                        help="server IP or broadcast address (default: hotspot broadcast)")
+    parser.add_argument("--host", default="255.255.255.255",
+                        help="server IP or broadcast address (default: broadcast on the local network)")
     parser.add_argument("--slots", type=parse_slots, default=[1, 0, 0, 1, 0],
                         help="S1..S5 as 0/1, e.g. 1,0,0,1,0")
     parser.add_argument("--water", type=float, default=0.2, help="water level in mm")

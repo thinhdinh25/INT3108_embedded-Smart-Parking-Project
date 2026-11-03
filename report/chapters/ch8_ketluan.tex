@@ -4,18 +4,23 @@
 
 \section{Kết quả đạt được}
 Nhóm đã xây dựng hoàn chỉnh một hệ thống bãi đỗ xe thông minh quy mô mô hình gồm ba
-vi điều khiển, tự vận hành trên mạng Wi-Fi riêng:
+vi điều khiển, cùng kết nối vào mạng Wi-Fi chung của nhóm:
 \begin{itemize}
   \item \textbf{10 use case} (Chương~\ref{chap:usecase}) đều được hiện thực: theo dõi chỗ
         trống tại bãi và trên web, gửi/lấy xe bằng RFID kèm tính phí, từ chối quẹt sai
         cổng hoặc bãi đầy, cảnh báo cháy và mở đường sơ tán, giám sát nước và nhiệt độ,
         điều khiển thanh chắn thủ công, nhật ký vào/ra kèm phí.
+  \item \textbf{Thanh toán VietQR}: cổng ra hiển thị mã VietQR (BIDV) sinh ngay trên chip,
+        máy chủ hỏi SePay mỗi 3\,s và tự mở thanh chắn khi nhận được chuyển khoản đúng mã
+        và đủ tiền; khi không có Internet hoặc trả tiền mặt, người vận hành xác nhận trên
+        trang web.
   \item \textbf{Kiến trúc} phân lớp rõ ràng, không có phụ thuộc vòng; đa tác vụ với
         FreeRTOS và ba cơ chế đồng bộ dùng đúng chỗ; giao tiếp UDP nhẹ, tự phục hồi khi mất gói;
-        tên \code{parking.local} luôn trỏ đúng IP.
+        tên \code{parking.local} luôn trỏ đúng IP; ba bo đều là trạm Wi-Fi nên bật theo
+        thứ tự nào cũng được.
   \item \textbf{Hiệu năng}: màn hình phản ánh thay đổi trong khoảng 0,1\,s; thanh chắn mở
-        khoảng 0,2\,s sau khi quẹt thẻ; firmware dùng 36\% RAM tĩnh, còn 29\% flash ứng dụng.
-  \item \textbf{Chất lượng}: 325 phép kiểm thử tự động đều đạt, chạy cả mã nguồn hai
+        khoảng 0,2\,s sau khi quẹt thẻ; firmware dùng 37\% RAM tĩnh, còn 28\% flash ứng dụng.
+  \item \textbf{Chất lượng}: 384 phép kiểm thử tự động đều đạt, chạy cả mã nguồn hai
         client trên phần cứng giả lập.
   \item \textbf{Bền vững}: quẹt thẻ không bị mất (ACK và gửi lại), dữ liệu gửi xe giữ được qua mất điện, giờ thực không cần Internet.
   \item \textbf{Giám sát chủ động}: phát hiện Sensor Client mất kết nối sau 3\,s thay vì
@@ -71,8 +76,13 @@ nguồn và hướng dẫn:
   \item Trang web dùng HTTP (không mã hóa) trên mạng WPA2: người trong cùng mạng Wi-Fi có
         thể nghe được mã PIN. HTTPS cần chứng chỉ và thêm $\approx$ 40\,KB RAM cho TLS.
   \item Bản tin UDP không được ký: thiết bị đã vào được mạng Wi-Fi có thể gửi bản tin giả
-        (thẻ giả, báo cháy giả). Nhóm chấp nhận đánh đổi này vì mạng là mạng riêng có
-        WPA2 và giao thức đơn giản dễ gỡ lỗi hơn.
+        (thẻ giả, báo cháy giả). Nhóm chấp nhận đánh đổi này vì mạng là mạng Wi-Fi riêng của
+        nhóm có WPA2 và giao thức đơn giản dễ gỡ lỗi hơn.
+  \item Bãi phụ thuộc vào router/điểm phát Wi-Fi chung: router hỏng thì các bo không nói
+        chuyện được với nhau; router bật chế độ cô lập thiết bị sẽ chặn gói broadcast.
+  \item Token SePay có toàn quyền đọc giao dịch của tài khoản (SePay không giới hạn quyền
+        token) và nằm trong flash của máy chủ: ai đọc được flash là lấy được token.
+        Mỗi lúc chỉ một xe được thanh toán ở cổng ra.
   \item Nếu chưa có trình duyệt nào gửi giờ sau khi mất điện, thời gian mất điện chưa
         được tính vào thời gian gửi xe (được bù ngay khi trình duyệt kết nối).
 \end{itemize}
@@ -84,7 +94,6 @@ nguồn và hướng dẫn:
   \item Ghép thẻ với ô đỗ: ô đầu tiên chuyển sang có xe sau khi quẹt vào thuộc về thẻ đó.
   \item Ký bản tin UDP bằng HMAC kèm số thứ tự chống phát lại; HTTPS cho trang quản trị.
   \item Module RTC DS3231 để có giờ thực ngay cả khi chưa có trình duyệt kết nối.
-  \item Kết nối MQTT lên đám mây để quản lý nhiều bãi, thống kê doanh thu, đặt chỗ trước,
-        thanh toán bằng mã QR.
+  \item Kết nối MQTT lên đám mây để quản lý nhiều bãi, thống kê doanh thu, đặt chỗ trước.
   \item Bổ sung OTA cho máy chủ (bảng phân vùng hai khe ứng dụng, cần flash 4\,MB).
 \end{itemize}

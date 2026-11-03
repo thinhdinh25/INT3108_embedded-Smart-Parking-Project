@@ -25,13 +25,16 @@ môi trường cảnh báo sự cố và mọi thông tin được hiển thị 
         vào, cùng thẻ đó quẹt ở cổng ra mở thanh chắn ra; thanh chắn tự đóng sau 3 giây;
         quẹt sai cổng hoặc bãi đầy bị từ chối và thông báo rõ trên màn hình.
   \item \textbf{Tính phí tự động}: 5.000\,VNĐ mỗi giờ, làm tròn lên, tối thiểu 1 giờ;
-        hiển thị hóa đơn khi xe ra.
+        hiển thị mã VietQR ở cổng ra, tự mở thanh chắn khi nhận được chuyển khoản
+        (kiểm tra qua SePay) và hiển thị hóa đơn khi xe ra.
   \item \textbf{An toàn}: phát hiện lửa — bật còi, hiển thị cảnh báo, \emph{mở cả hai
         thanh chắn} để sơ tán; theo dõi mực nước và nhiệt độ.
   \item \textbf{Giám sát và điều khiển từ xa}: trang web tại \code{http://parking.local}
         dùng được trên mọi điện thoại, không cần cài ứng dụng, có nhật ký xe vào/ra.
-  \item \textbf{Hoạt động độc lập}: tự tạo mạng Wi-Fi riêng, không cần Internet hay
-        router; tự phục hồi khi mất kết nối.
+  \item \textbf{Triển khai đơn giản}: cả ba bo cùng kết nối vào mạng Wi-Fi chung của
+        nhóm (router hoặc điểm phát có Internet); tự phục hồi khi mất kết nối. Mất
+        Internet thì mọi chức năng vẫn chạy, chỉ việc xác nhận chuyển khoản chuyển sang
+        người vận hành.
 \end{enumerate}
 
 \section{Ý nghĩa}
@@ -50,15 +53,16 @@ khi không có phần cứng.
 
 \section{Phạm vi}
 Hệ thống là \textbf{mô hình} quy mô phòng thí nghiệm: 5 chỗ đỗ, 2 cổng, xe mô hình,
-thẻ RFID MIFARE. Thanh toán điện tử, nhận dạng biển số và lưu trữ đám mây nằm ngoài
-phạm vi và được nêu ở phần hướng phát triển (Chương~\ref{chap:ketluan}).
+thẻ RFID MIFARE. Thanh toán điện tử chỉ gồm chuyển khoản qua mã VietQR tới một tài
+khoản BIDV (xác nhận qua SePay hoặc người vận hành); cổng thanh toán thẻ, nhận dạng
+biển số và lưu trữ đám mây nằm ngoài phạm vi và được nêu ở phần hướng phát triển (Chương~\ref{chap:ketluan}).
 
 \section{Kết quả đạt được (tóm tắt)}
 \begin{itemize}
   \item Ba bo mạch hoạt động phối hợp, 10 use case (Chương~\ref{chap:usecase}) đều
         được hiện thực và có phép kiểm thử tương ứng.
-  \item Firmware máy chủ 1,08\,MB, dùng 36\% RAM tĩnh; còn 29\% phân vùng ứng dụng.
-  \item 325 phép kiểm thử tự động đều đạt (Chương~\ref{chap:kiemthu}).
+  \item Firmware máy chủ 1,11\,MB, dùng 37\% RAM tĩnh; còn 28\% phân vùng ứng dụng.
+  \item 384 phép kiểm thử tự động đều đạt (Chương~\ref{chap:kiemthu}).
 \end{itemize}
 
 \section{Cấu trúc báo cáo}

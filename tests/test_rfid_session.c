@@ -365,6 +365,87 @@ static void test_revenue_stats(void)
     CHECK(w.revenue_vnd == 0 && w.entries == 0);
 }
 
+static void test_qr_payment(void)
+{
+    rfid_payment_t pay;
+    rfid_notice_t n;
+    rfid_receipt_t r;
+    rfid_log_entry_t log[1];
+    rfid_day_stats_t before, after;
+    rfid_session_enable_payment(180);
+
+    /* Exit scan starts a payment: barrier stays closed, the car is still inside. */
+    CHECK(scan("PAY1", RFID_GATE_IN, clock_s()) == RFID_SCAN_ENTERED);
+    const uint64_t t0 = clock_s();
+    rfid_session_get_stats(&before, NULL);
+    rfid_event_t e = card("PAY1", RFID_GATE_OUT);
+    e.seq = 4242;
+    CHECK(rfid_session_scan(&e, SEC(t0 + 3700)) == RFID_SCAN_AWAITING_PAYMENT);
+    rfid_session_get_payment(&pay);
+    CHECK(pay.active && !pay.expired && strcmp(pay.card_id, "PAY1") == 0);
+    CHECK(pay.fee_vnd == 10000 && pay.duration_s == 3700);
+    CHECK(strlen(pay.code) == RFID_PAY_CODE_LEN && strncmp(pay.code, "PK", 2) == 0);
+    bool code_ok = true;
+    for (const char *c = pay.code; *c; ++c)
+        code_ok &= strchr("ABCDEFGHJKMNPQRSTUVWXYZ23456789", *c) != NULL || (c - pay.code) < 2;
+    CHECK(code_ok);
+    char code[RFID_PAY_CODE_LEN + 1];
+    strcpy(code, pay.code);
+
+    /* Scanning again shows the same QR (same code and fee) later on. */
+    CHECK(scan("PAY1", RFID_GATE_OUT, t0 + 3900) == RFID_SCAN_AWAITING_PAYMENT);
+    rfid_session_get_payment(&pay);
+    CHECK(strcmp(pay.code, code) == 0 && pay.fee_vnd == 10000);
+
+    /* Another car at the exit must wait. */
+    CHECK(scan("PAY2", RFID_GATE_IN, t0) == RFID_SCAN_ENTERED);
+    CHECK(scan("PAY2", RFID_GATE_OUT, t0 + 3901) == RFID_SCAN_PAY_BUSY);
+    fake_time_us = (int64_t)(SEC(t0 + 3901) - (uint64_t)(parking_clock_now_us() - fake_time_us));
+    rfid_session_get_notice(&n);
+    CHECK(n.valid && n.result == RFID_SCAN_PAY_BUSY);
+
+    /* A transfer with another code does nothing; the right one completes the exit. */
+    CHECK(!rfid_session_payment_done("PKXXXXXX"));
+    CHECK(rfid_session_payment_done(code));
+    rfid_session_get_payment(&pay);
+    CHECK(!pay.active);
+    rfid_session_get_receipt(&r);
+    CHECK(r.valid && strcmp(r.card_id, "PAY1") == 0 && r.fee_vnd == 10000);
+    rfid_session_get_log(log, 1);
+    CHECK(log[0].result == RFID_SCAN_EXITED && strcmp(log[0].card_id, "PAY1") == 0 && log[0].fee_vnd == 10000);
+    rfid_session_get_stats(&after, NULL);
+    CHECK(after.revenue_vnd == before.revenue_vnd + 10000 && after.exits == before.exits + 1);
+    CHECK(!rfid_session_payment_done(code)); /* a second transfer does not exit twice */
+
+    /* No transfer in 180 s: the TFT says pay at the booth, but a late transfer still counts. */
+    const uint64_t t1 = clock_s();
+    CHECK(scan("PAY2", RFID_GATE_OUT, t1) == RFID_SCAN_AWAITING_PAYMENT);
+    rfid_session_get_payment(&pay);
+    strcpy(code, pay.code);
+    fake_time_us += (int64_t)SEC(181);
+    rfid_session_get_payment(&pay);
+    CHECK(pay.active && pay.expired);
+    rfid_session_get_notice(&n);
+    CHECK(n.valid && n.result == RFID_SCAN_PAY_TIMEOUT && strcmp(n.card_id, "PAY2") == 0);
+    /* Once it has expired, another car may start paying; PAY2 then pays cash at the booth. */
+    CHECK(scan("PAY3", RFID_GATE_IN, clock_s()) == RFID_SCAN_ENTERED);
+    CHECK(rfid_session_pay_cash("PAY2"));
+    CHECK(!rfid_session_pay_cash("PAY2") && !rfid_session_pay_cash("NOBODY"));
+    rfid_session_get_log(log, 1);
+    CHECK(strcmp(log[0].card_id, "PAY2") == 0 && log[0].result == RFID_SCAN_EXITED);
+
+    /* Cash for a car that never scanned out charges the fee up to now. */
+    fake_time_us += (int64_t)SEC(7200);
+    CHECK(rfid_session_pay_cash("PAY3"));
+    rfid_session_get_receipt(&r);
+    CHECK(r.valid && strcmp(r.card_id, "PAY3") == 0 && r.fee_vnd == 10000);
+
+    /* Payment off again: exits open at once, as before. */
+    rfid_session_enable_payment(0);
+    CHECK(scan("PAY4", RFID_GATE_IN, clock_s()) == RFID_SCAN_ENTERED);
+    CHECK(scan("PAY4", RFID_GATE_OUT, clock_s()) == RFID_SCAN_EXITED);
+}
+
 int main(void)
 {
     test_fee();
@@ -377,5 +458,6 @@ int main(void)
     test_offline_and_flood();
     test_retry_dedupe();
     test_revenue_stats();
+    test_qr_payment();
     return TEST_REPORT("rfid_session");
 }

@@ -27,7 +27,7 @@
 \end{itemize}
 
 \begin{lydo}[Tại sao không ký (xác thực) gói UDP]
-Mạng \code{ESP32-Parking} là mạng riêng của bãi, được bảo vệ bằng WPA2; chỉ thiết bị
+Ba bo nằm trong mạng Wi-Fi riêng của nhóm, được bảo vệ bằng WPA2; chỉ thiết bị
 biết mật khẩu Wi-Fi mới gửi được gói tin. Ở quy mô mô hình, nhóm ưu tiên giao thức đơn
 giản, đọc được trực tiếp trong log và dễ giả lập bằng script. Các thao tác nhạy cảm từ
 trình duyệt (mở cổng, đặt giờ) vẫn cần mã PIN. Ký gói bằng mã xác thực (HMAC) được để
@@ -55,16 +55,17 @@ Chung & — & Khóa lạ, khóa lặp, dữ liệu thừa sau \code{\}}, chuỗi
 
 \begin{table}[H]
 \centering\small
-\caption[API HTTP của máy chủ (12 route)]{API HTTP của máy chủ (12 route); mọi lệnh POST cần header \code{X-Parking-Key} đúng mã PIN, sai thì trả 401}\label{tab:api}
+\caption[API HTTP của máy chủ (13 route)]{API HTTP của máy chủ (13 route); mọi lệnh POST cần header \code{X-Parking-Key} đúng mã PIN, sai thì trả 401}\label{tab:api}
 \begin{tabularx}{\linewidth}{@{}lp{4.4cm}X@{}}
 \toprule
 \textbf{PT} & \textbf{Đường dẫn} & \textbf{Kết quả} \\ \midrule
 GET & \code{/}, \code{/style.css} & Trang web nhúng trong firmware \\
 GET & \code{/api/parking} & \code{received}, \code{online}, \code{slots}, \code{free}, \code{total}, \code{temperature\_c}, \code{water\_mm}, \code{fire}, \code{flood} \\
 GET & \code{/api/barrier} & \code{\{"in\_open":bool,"out\_open":bool\}} \\
-GET & \code{/api/rfid} & \code{now\_s}, \code{fee\_per\_hour}, \code{today}/\code{week} (doanh thu, lượt vào, lượt ra), \code{parked[]} (thẻ, giờ vào, phí tạm tính), \code{log[]} (10 sự kiện mới nhất) \\
+GET & \code{/api/rfid} & \code{now\_s}, \code{fee\_per\_hour}, \code{today}/\code{week} (doanh thu, lượt vào, lượt ra), \code{parked[]} (thẻ, giờ vào, phí tạm tính), \code{payment} (lượt thanh toán đang chờ: \code{\{"card","fee","code","expired"\}} hoặc \code{null}), \code{log[]} (10 sự kiện mới nhất) \\
 POST & \code{/api/barrier/}\allowbreak\code{<cổng>/<lệnh>} & Cổng \code{in}, \code{out}, \code{all}; lệnh \code{open}, \code{close}. Lỗi 500 nếu bị từ chối (ví dụ đóng khi có cháy) \\
 POST & \code{/api/time} & Thân là giờ Unix (giây) từ trình duyệt; máy chủ đặt đồng hồ bãi và lưu NVS \\
+POST & \code{/api/payment/confirm} & Thân là mã thẻ; người vận hành xác nhận đã nhận tiền (chuyển khoản hoặc tiền mặt): xe ra như bình thường. Dùng được cả cho xe chưa quẹt ra (thu phí đến hiện tại) \\
 \bottomrule
 \end{tabularx}
 \end{table}
@@ -197,6 +198,120 @@ hình đi qua nhưng không đủ để xe sau ``đi ké''. \textbf{Nhật ký 1
 hình điện thoại và tốn dưới 1\,KB RAM.
 \end{lydo}
 
+\subsection{Thanh toán VietQR qua SePay}\label{sec:vietqr}
+Khi thanh toán QR được bật, quẹt thẻ ở cổng ra \emph{không} mở cổng ngay: máy chủ chốt
+phí tại thời điểm quẹt, tạo một \textbf{mã thanh toán} và vẽ mã VietQR lên TFT. Mọi ứng
+dụng ngân hàng Việt Nam quét được mã này, số tiền và nội dung chuyển khoản đã điền sẵn.
+Thanh chắn ra chỉ mở khi máy chủ thấy giao dịch khớp (qua SePay) hoặc người vận hành bấm
+\code{Confirm paid} trên trang web (Hình~\ref{fig:seq-pay}).
+
+\paragraph{Chuỗi VietQR.} Hàm \code{vietqr\_payload()} (\file{parking/payment.c}) dựng
+chuỗi theo chuẩn VietQR của NAPAS, vốn là định dạng EMVCo: mỗi trường gồm mã 2 chữ số,
+độ dài 2 chữ số và giá trị; trường 38 và 62 chứa các trường con theo cùng cách
+(Bảng~\ref{tab:vietqr}).
+\begin{table}[H]
+\centering\small
+\caption{Cấu trúc chuỗi VietQR do máy chủ sinh}\label{tab:vietqr}
+\begin{tabularx}{\linewidth}{@{}llX@{}}
+\toprule
+\textbf{Mã} & \textbf{Trường} & \textbf{Giá trị} \\ \midrule
+00 & Phiên bản định dạng & \code{01} \\
+01 & Kiểu mã & \code{12}: mã động, dùng một lần cho một số tiền \\
+38 & Thông tin người nhận & 00: \code{A000000727} (định danh NAPAS); 01: \{00: mã BIN ngân hàng \code{970418} (BIDV), 01: số tài khoản\}; 02: \code{QRIBFTTA} (chuyển nhanh tới tài khoản) \\
+53 & Tiền tệ & \code{704} (VNĐ) \\
+54 & Số tiền & Phí đã chốt, ví dụ \code{10000} \\
+58 & Quốc gia & \code{VN} \\
+62 & Dữ liệu bổ sung & 08: nội dung chuyển khoản = mã thanh toán, ví dụ \code{PK7XK2QM} \\
+63 & Mã kiểm tra & CRC16-CCITT (đa thức \code{0x1021}, giá trị đầu \code{0xFFFF}) tính trên toàn bộ chuỗi kể cả \code{6304}, ghi 4 chữ số hex in hoa \\
+\bottomrule
+\end{tabularx}
+\end{table}
+Hàm được kiểm chứng từng byte với một mã VietQR mẫu đã công bố (kết thúc bằng
+\code{6304AB76}) và với giá trị kiểm tra chuẩn của CRC16-CCITT (\code{0x29B1} cho chuỗi
+\code{"123456789"}). BIN phải đủ 6 chữ số và số tài khoản chỉ gồm chữ/số; nếu sai, máy
+chủ tắt thanh toán QR ngay khi khởi động thay vì hiển thị một mã không quét được.
+
+\paragraph{Mã thanh toán và lượt thanh toán.} Mã gồm \code{PK} và 6 ký tự lấy từ 31 chữ in hoa
+và chữ số, đã bỏ \code{I}, \code{L}, \code{O}, \code{0}, \code{1} vì dễ nhầm khi người lái
+phải gõ tay. Mỗi lúc chỉ có \textbf{một lượt thanh
+toán} ở cổng ra, vì chỉ có một làn ra và một màn hình:
+\begin{itemize}[nosep]
+  \item Quẹt lại cùng thẻ: hiện lại đúng mã QR cũ (phí và mã không đổi), đếm lại 180\,s.
+  \item Thẻ khác quẹt ra khi lượt trước chưa hết hạn: \code{RFID\_SCAN\_PAY\_BUSY},
+        màn hình QR vẫn giữ cho xe thứ nhất, dòng cuối báo \code{NEXT CAR: WAIT, ONE IS PAYING}; nhật ký \code{WAIT · PAYING}.
+  \item Quá 180\,s chưa có tiền: TFT báo \code{PAY AT BOOTH / NO TRANSFER YET - SEE
+        OPERATOR} trong 30\,s; xe khác được bắt đầu thanh toán, nhưng chuyển khoản đến
+        muộn vẫn hoàn tất lượt cũ nếu chưa bị thay thế.
+  \item Hoàn tất (giao dịch khớp hoặc người vận hành xác nhận) đi qua đúng đường ra bình
+        thường: hóa đơn 60\,s, nhật ký \code{OUT}, doanh thu được cộng tại thời điểm thanh
+        toán, thanh chắn ra mở 3\,s. Một xe không thể ra hai lần.
+\end{itemize}
+Trang web nhận lượt đang chờ qua trường \code{payment} của \code{/api/rfid} và hiện băng
+rôn vàng \code{WAITING FOR PAYMENT} (thẻ, phí, mã) cùng nút \code{Confirm paid} trong mục 04.
+
+\paragraph{Màn hình thanh toán.} Mã QR được sinh bằng thành phần \code{espressif/qrcode}
+(thư viện qrcodegen của Nayuki), mức sửa lỗi M, phiên bản tối đa 10, mỗi mô-đun
+$\approx$ 3 điểm ảnh, viền trắng 2 mô-đun. Bên dưới là \code{SCAN TO PAY}, phí (VNĐ),
+\code{NOTE <mã>  ID <thẻ>} và \code{BIDV <số tài khoản> <tên>}. Thứ tự ưu tiên hiển thị:
+màn hình cháy > màn hình thanh toán > màn hình thường. Việc sinh QR không cần mạng.
+
+\begin{figure}[H]
+\centering
+\mmd[0.8][0.62]{seq_pay}
+\caption{Biểu đồ tuần tự thanh toán VietQR ở cổng ra, xác nhận tự động qua SePay}\label{fig:seq-pay}
+\end{figure}
+
+\paragraph{Kiểm tra chuyển khoản qua SePay.} SePay đọc biến động số dư của tài khoản
+nhận và cho truy vấn qua API. Tác vụ \code{sepay} (\file{network/sepay\_client.c}, stack
+8\,KB, ưu tiên 3) chỉ được tạo khi có token. Khi một lượt thanh toán bắt đầu, tác vụ gửi
+\code{GET} tới \url{https://my.sepay.vn/userapi/transactions/list} với tham số
+\code{account\_number=\ldots{}\&limit=1} (header \code{Authorization: Bearer <token>}) để ghi lại id giao dịch mới nhất; sau đó
+cứ 3\,s gọi lại với \code{since\_id=<id+1>\&limit=20}, nên chỉ giao dịch \emph{sau} lúc hiện QR
+được xét. Hàm \code{sepay\_has\_payment()} tìm giao dịch có \code{transaction\_content}
+chứa mã (không phân biệt hoa thường, phòng khi ngân hàng đổi kiểu chữ của nội dung) và
+\code{amount\_in} $\ge$ phí. TLS dùng bộ chứng chỉ gốc của ESP-IDF; với
+\code{CONFIG\_MBEDTLS\_DYNAMIC\_BUFFER=y}, bộ đệm TLS chỉ được cấp phát trong lúc gửi yêu
+cầu — cần thiết vì RAM đã chật bên cạnh framebuffer 115\,KB. Lỗi mạng hoặc lỗi HTTP chỉ
+ghi cảnh báo và thử lại ở chu kỳ sau.
+
+\begin{table}[H]
+\centering\small
+\caption{Cấu hình thanh toán (\code{idf.py menuconfig → Parking QR payment (SePay)})}\label{tab:payconfig}
+\begin{tabularx}{\linewidth}{@{}lX@{}}
+\toprule
+\textbf{Tham số} & \textbf{Ý nghĩa} \\ \midrule
+\code{PARKING\_PAY\_BANK\_BIN} & Mã BIN ngân hàng nhận, mặc định \code{970418} (BIDV) \\
+\code{PARKING\_PAY\_ACCOUNT} & Số tài khoản nhận; để trống = tắt thanh toán, cổng ra mở ngay như trước \\
+\code{PARKING\_PAY\_ACCOUNT\_NAME} & Tên chủ tài khoản, hiển thị trên TFT \\
+\code{PARKING\_SEPAY\_TOKEN} & API token SePay; để trống = người vận hành xác nhận trên trang web \\
+\code{PARKING\_PAY\_TIMEOUT\_S} & Thời gian chờ chuyển khoản, mặc định 180\,s \\
+\code{PARKING\_PAY\_POLL\_MS} & Chu kỳ hỏi SePay, mặc định 3000\,ms \\
+\bottomrule
+\end{tabularx}
+\end{table}
+Các giá trị này chỉ nằm trong \file{Server/sdkconfig} (bị \file{.gitignore} bỏ qua).
+Token SePay có toàn quyền đọc giao dịch của tài khoản (SePay không cho giới hạn quyền
+token) nên tuyệt đối không được commit.
+
+\begin{lydo}[Tại sao hỏi vòng SePay thay vì webhook]
+SePay hỗ trợ webhook (gọi tới một URL khi có tiền vào), nhưng ESP32-C3 nằm sau router
+(NAT) nên không có địa chỉ mà Internet gọi tới được; dùng webhook sẽ phải thêm một máy
+chủ trung gian trên Internet hoặc mở cổng trên router. Hỏi vòng chỉ cần kết nối
+\emph{đi ra}, và chỉ chạy khi có xe đang thanh toán. Chu kỳ 3\,s cho độ trễ vài giây,
+đủ nhanh với người đang chờ ở cổng, và thấp hơn rất nhiều so với giới hạn 2–3 yêu
+cầu/giây cho mỗi token của SePay. Truy vấn \code{since\_id} giữ câu trả lời ở vài giao
+dịch mới nhất nên bộ đệm nhận chỉ cần 6\,KB.
+\end{lydo}
+
+\begin{lydo}[Tại sao vẫn cho người vận hành xác nhận tay]
+Thanh toán tự động phụ thuộc Internet, SePay và việc có token. Khi một trong ba thiếu
+— hoặc người lái trả tiền mặt — bãi vẫn phải cho xe ra. Mã QR vẫn hiển thị vì không cần
+mạng; người vận hành thấy giao dịch trong ứng dụng ngân hàng và bấm \code{Confirm paid}
+(\code{POST /api/payment/confirm}, cần mã PIN quản trị). Lệnh này cũng dùng được cho xe
+chưa quẹt ra (tính phí đến thời điểm xác nhận), nên một đường xử lý chung phục vụ cả
+chuyển khoản lẫn tiền mặt.
+\end{lydo}
+
 \subsection{Sensor Client: lọc nhiễu và gửi theo thay đổi}
 \begin{figure}[H]
 \centering
@@ -254,8 +369,8 @@ Hỏi vòng không giữ trạng thái kết nối trên máy chủ: mỗi yêu 
 giải phóng ngay — phù hợp với giới hạn socket và RAM, và đơn giản khi nhiều trình duyệt
 cùng xem. Với dữ liệu thay đổi theo giây, độ trễ thêm tối đa 1\,s là chấp nhận được.
 Trang web là HTML/CSS/JavaScript thuần, nhúng trong firmware bằng
-\code{EMBED\_TXTFILES}: không cần phân vùng tệp, không phụ thuộc CDN (điện thoại kết nối vào
-điểm truy cập không có Internet).
+\code{EMBED\_TXTFILES}: không cần phân vùng tệp, không phụ thuộc CDN (trang vẫn mở được
+khi router mất Internet).
 \end{lydo}
 
 % ---------------------------------------------------------------------
@@ -284,13 +399,14 @@ Mất một gói \code{rfid\_event} & gửi lại sau 300\,ms chờ ACK & $\appr
 \begin{tabularx}{\linewidth}{@{}Xr@{}}
 \toprule
 \textbf{Hạng mục} & \textbf{Kích thước} \\ \midrule
-DRAM tĩnh dùng / tổng (mã IRAM 81\,444 + \code{.data} 13\,792 + \code{.bss} 21\,504) & 116\,740 / 321\,296 B (36,3\%) \\
+DRAM tĩnh dùng / tổng (mã IRAM + \code{.data} + \code{.bss}) & 118\,400 / 321\,296 B (36,9\%) \\
 Framebuffer màn hình (heap, DMA) & 115\,200 B \\
 2 bộ đệm ảnh động (heap, DMA) & 36\,864 B \\
-Stack các tác vụ của ứng dụng & $\approx$ 19\,KB \\
+Stack các tác vụ của ứng dụng & $\approx$ 19\,KB (+ 8\,KB tác vụ \code{sepay} khi có token) \\
+Bộ đệm TLS khi gọi SePay (heap, chỉ tồn tại trong lúc gửi yêu cầu) & cấp phát động \\
 Bảng phiên, hóa đơn, thông báo, nhật ký, 16 \code{seq} gần nhất & $<$ 1\,KB \\ \midrule
-Ảnh firmware & 1\,094\,496 B \\
-Phân vùng ứng dụng (\code{factory}) & 1\,536\,000 B (dùng 71,3\%) \\
+Ảnh firmware & 1\,111\,968 B \\
+Phân vùng ứng dụng (\code{factory}) & 1\,536\,000 B (dùng 72,4\%) \\
 \bottomrule
 \end{tabularx}
 \end{table}
@@ -299,7 +415,7 @@ Phân vùng ứng dụng (\code{factory}) & 1\,536\,000 B (dùng 71,3\%) \\
 Bảng phân vùng mặc định chỉ có 1\,MB cho ứng dụng và đã đầy 98\% trước khi thêm mDNS.
 Flash 2\,MB đủ chỗ cho phân vùng 1,5\,MB có sẵn trong ESP-IDF
 (\code{partitions\_singleapp\_large.csv}), được khai báo trong \file{sdkconfig.defaults}
-để mọi thành viên build ra cùng cấu hình; còn 29\% dự phòng cho tính năng mới.
+để mọi thành viên build ra cùng cấu hình; sau khi thêm HTTPS và mã QR vẫn còn 28\% dự phòng.
 \end{lydo}
 
 \subsection{Độ tin cậy và khả năng chịu lỗi}
@@ -315,6 +431,9 @@ Bản tin sai định dạng / độc hại & Bị từ chối, trạng thái c�
 Xe vào không quẹt thẻ (đi theo xe trước) & Trang web cảnh báo lệch số thẻ / số ô có xe; khi IR báo đủ 5 ô thì từ chối thẻ mới \\
 Socket UDP lỗi & Đóng socket, chờ 1\,s, tạo lại \\
 Máy chủ mất Wi-Fi & Tự kết nối lại; nhận IP (có thể mới) → thông báo lại \code{parking.local} \\
+Router mất Internet & Mọi chức năng tại bãi vẫn chạy; mã QR vẫn hiển thị (sinh trên chip); người vận hành xem giao dịch trong ứng dụng ngân hàng và bấm \code{Confirm paid} \\
+SePay trả lỗi / hết thời gian chờ & Ghi cảnh báo, thử lại sau 3\,s; thanh chắn ra vẫn đóng cho tới khi khớp giao dịch hoặc người vận hành xác nhận \\
+Không có chuyển khoản sau 180\,s & TFT báo \code{PAY AT BOOTH} 30\,s; xe khác được thanh toán; chuyển khoản đến muộn vẫn hoàn tất \\
 Client mất Wi-Fi & Sensor Client bỏ qua lần gửi, tự kết nối lại; trang web báo OFFLINE \\
 DHT11 đọc lỗi & Giữ giá trị hợp lệ gần nhất \\
 Có cháy khi người vận hành bấm đóng & Lệnh đóng bị từ chối; thanh chắn giữ mở \\
@@ -337,14 +456,20 @@ Lỗi khởi tạo phần cứng & Fail-fast: in lỗi và khởi động lại 
   gói UDP'').
 \item \textbf{Xác thực API}: mọi lệnh thay đổi trạng thái (mở/đóng cổng, đặt giờ) cần mã
   PIN quản trị; so sánh mã PIN không dừng sớm để không lộ qua thời gian phản hồi.
-\item \textbf{Bí mật ngoài mã nguồn}: mật khẩu Wi-Fi và mã PIN nằm trong
-  \file{sdkconfig} (menuconfig) và \file{secrets.h}, cả hai bị \file{.gitignore} bỏ qua;
-  kho mã chỉ chứa giá trị demo.
+\item \textbf{Bí mật ngoài mã nguồn}: mật khẩu Wi-Fi, mã PIN, số tài khoản và token
+  SePay nằm trong \file{sdkconfig} (menuconfig) và \file{secrets.h}, cả hai bị
+  \file{.gitignore} bỏ qua; kho mã chỉ chứa giá trị demo. Token SePay đặc biệt nhạy cảm
+  vì SePay không cho giới hạn quyền của API token: ai có token đều đọc được toàn bộ giao
+  dịch của tài khoản.
+\item \textbf{Kết nối ra Internet}: chỉ có yêu cầu HTTPS từ máy chủ tới SePay, chứng
+  chỉ máy chủ được kiểm tra bằng bộ chứng chỉ gốc của ESP-IDF; máy chủ không mở cổng nào
+  ra Internet (nằm sau NAT của router). Thanh toán chỉ được công nhận khi giao dịch
+  \emph{mới} (sau thời điểm hiện QR) có nội dung chứa đúng mã và số tiền $\ge$ phí.
 \end{itemize}
 
 \subsection{Khả năng bảo trì, kiểm thử và mở rộng}
 \begin{itemize}
-\item Lớp nghiệp vụ độc lập phần cứng: 325 phép kiểm thử chạy trên máy tính trong vài giây.
+\item Lớp nghiệp vụ độc lập phần cứng: 384 phép kiểm thử chạy trên máy tính trong vài giây.
 \item Hai client được kiểm thử bằng chính mã nguồn \file{.ino} trên phần cứng giả lập,
   kèm kiểm tra hợp đồng giao tiếp với bộ đọc JSON thật của máy chủ.
 \item Số chỗ đỗ là hằng số \code{PARKING\_SLOT\_COUNT}; số phiên tối đa bằng số chỗ.
@@ -359,15 +484,17 @@ Lỗi khởi tạo phần cứng & Fail-fast: in lỗi và khởi động lại 
 3 bo mạch, máy chủ trung tâm & 1 bo lớn & Đủ chân, đặt cảm biến gần nơi cần đo, cô lập lỗi; đổi lại cần mạng \\
 FreeRTOS trên máy chủ & Vòng lặp Arduino & Nhiều việc song song có ưu tiên; đổi lại phải đồng bộ cẩn thận \\
 UDP broadcast + JSON & TCP, MQTT, nhị phân & Nhẹ, dễ gỡ lỗi; mất gói được bù bằng nhắc lại (cảm biến) hoặc ACK và gửi lại (quẹt thẻ) \\
-Gói UDP không ký, ACK + \code{seq} cho quẹt thẻ & Ký HMAC, TLS & Đơn giản, dễ gỡ lỗi; dựa vào WPA2 của mạng riêng; quẹt thẻ vẫn không bị mất \\
+Gói UDP không ký, ACK + \code{seq} cho quẹt thẻ & Ký HMAC, TLS & Đơn giản, dễ gỡ lỗi; dựa vào WPA2 của mạng Wi-Fi riêng của nhóm; quẹt thẻ vẫn không bị mất \\
 Gửi theo thay đổi + nhắc lại 1\,s & Chỉ gửi định kỳ & Độ trễ $\approx$ 0,1\,s; vẫn tự sửa khi mất gói \\
-Điểm truy cập trên RFID Client + mDNS & AP trên máy chủ, router & Dành RAM máy chủ cho màn hình; tên cố định dù IP đổi \\
+Wi-Fi chung + mDNS + broadcast \code{255.255.}\allowbreak\code{255.255} & AP trên RFID Client, AP trên máy chủ & Máy chủ có Internet cho SePay, không tốn RAM chạy AP; điện thoại người vận hành ở sẵn trong mạng; tên cố định dù IP đổi; đổi lại phụ thuộc router và phải tắt cô lập thiết bị \\
 Bộ đọc JSON tự viết & cJSON & Không cấp phát, chỉ đúng lược đồ; đổi lại phải tự kiểm thử kỹ \\
 Hẹn giờ một lần cho thanh chắn & Tác vụ hỏi vòng & Chính xác, không đánh thức CPU vô ích \\
 Vẽ màn hình theo sự kiện & Hỏi vòng 500\,ms & Phản hồi ngay, ít lần thức \\
 Tiền xử lý ảnh động trên máy tính & Xử lý trên chip mỗi khung & Bớt CPU và 1,2\,KB RAM; dữ liệu nhỏ hơn \\
 Lưu phiên/nhật ký vào NVS sau mỗi lần quẹt và mỗi 5 phút & Chỉ giữ trong RAM; ghi mỗi giây & Không mất dữ liệu khi mất điện; NVS tự rải lượt ghi, $\approx$ 300 lần ghi/ngày là rất nhỏ so với tuổi thọ flash \\
-Giờ thực do trình duyệt cung cấp & SNTP, RTC DS3231 & Mạng không có Internet nên SNTP không dùng được; không cần thêm phần cứng \\
+Giờ thực do trình duyệt cung cấp & SNTP, RTC DS3231 & Không cần thêm phần cứng; đồng hồ bãi không phụ thuộc Internet (nay mạng có Internet nên SNTP có thể bổ sung sau) \\
+Thanh toán VietQR, hỏi vòng SePay & Webhook SePay, cổng thanh toán, chỉ tiền mặt & QR sinh trên chip, không cần mạng; máy chủ sau NAT không nhận được webhook; hỏi vòng 3\,s dưới xa giới hạn 2–3 yêu cầu/giây của SePay \\
+Cho phép người vận hành xác nhận tay & Chỉ tự động & Bãi vẫn thu tiền khi mất Internet, khi không có token hoặc khi trả tiền mặt; cần mã PIN \\
 \bottomrule
 \end{longtable}
 
@@ -445,11 +572,11 @@ xe), vùng chân dùng cho ảnh động nhỏ, hóa đơn hoặc thông báo.
 
 \subsection{Kịch bản demo}
 \begin{enumerate}
-\item Bật RFID Client, máy chủ, Sensor Client; mở \code{http://parking.local} trên điện thoại.
+\item Bật máy chủ, RFID Client, Sensor Client (thứ tự bất kỳ); điện thoại ở cùng mạng Wi-Fi chung mở \code{http://parking.local}.
 \item Đặt xe mô hình vào ô S2: ô S2 trên TFT chuyển đỏ ngay, trên web hiện hình xe trong $\le$ 1\,s.
 \item Quẹt thẻ ở cổng vào: thanh chắn vào mở rồi tự đóng sau 3\,s; web có dòng \code{IN}.
 \item Quẹt lại thẻ đó ở cổng vào: màn hình báo \code{WRONG GATE – ALREADY INSIDE - USE EXIT GATE}.
-\item Quẹt thẻ ở cổng ra: hóa đơn hiện trên TFT, thanh chắn ra mở; web có dòng \code{OUT} kèm phí.
+\item Quẹt thẻ ở cổng ra: TFT hiện mã VietQR; quét bằng ứng dụng ngân hàng và chuyển khoản; vài giây sau hóa đơn hiện trên TFT, thanh chắn ra mở; web có dòng \code{OUT} kèm phí.
 \item Đưa bật lửa gần cảm biến lửa: còi kêu, màn hình DANGER, hai thanh chắn mở và không đóng được từ web.
 \item Tắt lửa: còi tắt, thanh chắn đóng, màn hình trở lại bình thường.
 \end{enumerate}
