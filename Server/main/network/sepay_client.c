@@ -3,6 +3,7 @@
 #include <string.h>
 
 #include "esp_crt_bundle.h"
+#include "esp_heap_caps.h"
 #include "esp_http_client.h"
 #include "esp_log.h"
 #include "freertos/FreeRTOS.h"
@@ -49,7 +50,9 @@ static bool sepay_get(const char *query)
     body[len] = '\0';
     esp_http_client_cleanup(client);
     if (status != 200)
-        ESP_LOGW(TAG, "SePay request failed (HTTP %d)", status);
+        ESP_LOGW(TAG, "SePay request failed (HTTP %d), heap free %u B, largest block %u B", status,
+                 (unsigned)heap_caps_get_free_size(MALLOC_CAP_8BIT),
+                 (unsigned)heap_caps_get_largest_free_block(MALLOC_CAP_8BIT));
     return status == 200;
 }
 
