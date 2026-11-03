@@ -3,12 +3,12 @@
 #include "Arduino.h"
 /* Every packet passed to endPacket() is recorded in fake::udp_sent; tests queue incoming
  * datagrams in fake::udp_inbox. */
-namespace fake { inline std::deque<std::string> udp_inbox; }
+namespace fake { inline std::deque<std::string> udp_inbox; inline IPAddress last_udp_dest; }
 struct WiFiUDP {
     std::string pending, current;
     uint16_t port = 0;
     void begin(uint16_t) {}
-    int beginPacket(IPAddress, uint16_t p) { pending.clear(); port = p; return 1; }
+    int beginPacket(IPAddress ip, uint16_t p) { pending.clear(); fake::last_udp_dest = ip; port = p; return 1; }
     size_t write(const uint8_t *data, size_t len) { pending.append((const char *)data, len); return len; }
     int endPacket() { fake::udp_sent.push_back(pending); return 1; }
     int parsePacket() {

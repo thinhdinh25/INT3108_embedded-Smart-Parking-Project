@@ -45,9 +45,11 @@ int main()
     setup();
 
     /* First loop sends a full snapshot that the server parser accepts. */
+    CHECK(serverIP == IPAddress(192, 168, 100, 255));
     loop();
     parking_state_t s;
     CHECK(fake::udp_sent.size() == 1);
+    CHECK(fake::last_udp_dest == IPAddress(192, 168, 100, 255));
     CHECK(last_packet(&s));
     CHECK(s.slots[0] == 0 && s.slots[4] == 0 && !s.fire && s.water_mm == 0.0f);
 
@@ -66,6 +68,7 @@ int main()
     CHECK(fake::udp_sent.empty()); /* still inside the debounce window */
     run_for(30);
     CHECK(fake::udp_sent.size() == 1);
+    CHECK(fake::last_udp_dest == IPAddress(192, 168, 100, 255));
     CHECK(last_packet(&s) && s.slots[0] == 1 && s.slots[1] == 0);
 
     /* A 30 ms glitch on S5 is filtered out. */

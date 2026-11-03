@@ -12,6 +12,9 @@ static const char *TAG = "MAIN";
 
 void app_main(void)
 {
+    // Start the local screen first while the 115.2 KB contiguous DMA heap block is untouched.
+    ESP_ERROR_CHECK(lcd_display_start());
+
     // Initialize NVS
     esp_err_t ret = nvs_flash_init();
 
@@ -27,9 +30,7 @@ void app_main(void)
 
     // Bring back cars still inside and the log from before a power cut.
     parking_persist_load();
-
-    // Start the local screen before Wi-Fi consumes system memory.
-    ESP_ERROR_CHECK(lcd_display_start());
+    lcd_display_notify();
 
     ESP_ERROR_CHECK(buzzer_start());
 

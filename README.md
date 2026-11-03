@@ -131,7 +131,7 @@ every 5 s.
 All three boards join one shared Wi-Fi (your router or phone hotspot, with
 Internet for SePay); no board runs a hotspot:
 
-- SSID `ESP32-Parking`, password `12345678` by default (see Secrets below)
+- SSID `Parking`, password `12345678` by default (see Secrets below)
 - Every board gets its address by DHCP. The router must not isolate its
   clients (no "AP isolation"), or the broadcasts never reach the server.
 - Dashboard: [http://parking.local](http://parking.local) (mDNS, re-announced

@@ -46,7 +46,7 @@ menu "Parking network and security"
 
 config PARKING_WIFI_SSID
     string "Shared Wi-Fi SSID (server and both clients join it; needs Internet for SePay)"
-    default "ESP32-Parking"
+    default "Parking"
 
 config PARKING_WIFI_PASSWORD
     string "Shared Wi-Fi password"
@@ -66,15 +66,15 @@ config PARKING_PAY_BANK_BIN
 
 config PARKING_PAY_ACCOUNT
     string "Account number that receives the money (empty = payment off)"
-    default ""
+    default "0918400370"
 
 config PARKING_PAY_ACCOUNT_NAME
     string "Account holder name shown on the TFT (no accents)"
-    default ""
+    default "SMART PARKING"
 
 config PARKING_SEPAY_TOKEN
     string "SePay API token (empty = operator confirms transfers on the dashboard)"
-    default ""
+    default "UIEWBITOFAKX36UFKDOTL1NJV32M4HMA5SPAVI4XQURLGQ918CZYGZW9RZOBJWXJ"
     help
         Created in my.sepay.vn > Cau hinh > API Access. It has full access to the SePay
         account, so keep it only in the git-ignored sdkconfig.

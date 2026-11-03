@@ -81,6 +81,8 @@ int main()
     fake::now_ms = 10000;
     setup();
     loop(); /* first loop reads the DHT11 (28.0 C) and sends it on its own */
+    CHECK(udpAddress == IPAddress(192, 168, 100, 255));
+    CHECK(fake::last_udp_dest == IPAddress(192, 168, 100, 255));
     CHECK(scans().empty());
     float temperature = 0;
     const std::string &climate = fake::udp_sent.back();

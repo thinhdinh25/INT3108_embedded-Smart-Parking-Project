@@ -7,7 +7,7 @@
  * Initialize the Wi-Fi station (client) and start the HTTP and UDP services.
  *
  * ESP32 connects to the RFID Client hotspot and answers mDNS as parking.local:
- *   SSID: ESP32-Parking
+ *   SSID: Parking
  *   Password: 12345678
  * UDP requests are received on port 3333.
  */

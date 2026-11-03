@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 #include "esp_crt_bundle.h"
@@ -19,7 +20,7 @@
 #define BODY_SIZE 6144 /* since_id keeps replies to the few newest transactions */
 
 static const char *TAG = "SEPAY";
-static char body[BODY_SIZE];
+static char *body;
 
 /* GET the transaction list with extra query parameters into `body`; true on HTTP 200. */
 static bool sepay_get(const char *query)
@@ -119,6 +120,9 @@ esp_err_t sepay_client_start(void)
         ESP_LOGW(TAG, "QR payment on, confirmed by the operator (no SePay token for auto-check)");
         return ESP_OK;
     }
+    body = malloc(BODY_SIZE);
+    if (!body)
+        return ESP_ERR_NO_MEM;
     /* TLS needs a deep stack for the handshake. */
     if (xTaskCreate(sepay_task, "sepay", 8192, NULL, 3, NULL) != pdPASS)
         return ESP_ERR_NO_MEM;
