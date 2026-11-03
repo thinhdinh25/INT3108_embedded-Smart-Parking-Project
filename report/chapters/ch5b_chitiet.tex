@@ -265,7 +265,7 @@ màn hình cháy > màn hình thanh toán > màn hình thường. Việc sinh QR
 nhận và cho truy vấn qua API. Tác vụ \code{sepay} (\file{network/sepay\_client.c}, stack
 8\,KB, ưu tiên 3) chỉ được tạo khi có token. Khi một lượt thanh toán bắt đầu, tác vụ gửi
 \code{GET} tới \url{https://my.sepay.vn/userapi/transactions/list} với tham số
-\code{account\_number=\ldots{}\&limit=1} (header \code{Authorization: Bearer <token>}) để ghi lại id giao dịch mới nhất; sau đó
+\code{limit=1} (header \code{Authorization: Bearer <token>}) để ghi lại id giao dịch mới nhất; sau đó
 cứ 3\,s gọi lại với \code{since\_id=<id+1>\&limit=20}, nên chỉ giao dịch \emph{sau} lúc hiện QR
 được xét. Hàm \code{sepay\_has\_payment()} tìm giao dịch có \code{transaction\_content}
 chứa mã (không phân biệt hoa thường, phòng khi ngân hàng đổi kiểu chữ của nội dung) và
@@ -281,7 +281,7 @@ ghi cảnh báo và thử lại ở chu kỳ sau.
 \toprule
 \textbf{Tham số} & \textbf{Ý nghĩa} \\ \midrule
 \code{PARKING\_PAY\_BANK\_BIN} & Mã BIN ngân hàng nhận, mặc định \code{970418} (BIDV) \\
-\code{PARKING\_PAY\_ACCOUNT} & Số tài khoản nhận; để trống = tắt thanh toán, cổng ra mở ngay như trước \\
+\code{PARKING\_PAY\_ACCOUNT} & Số tài khoản nhận ghi vào mã QR. Với BIDV cá nhân phải là số \emph{tài khoản ảo (VA)} tạo trên SePay, vì SePay không nhận giao dịch chuyển thẳng vào số tài khoản chính; để trống = tắt thanh toán, cổng ra mở ngay như trước \\
 \code{PARKING\_PAY\_ACCOUNT\_NAME} & Tên chủ tài khoản, hiển thị trên TFT \\
 \code{PARKING\_SEPAY\_TOKEN} & API token SePay; để trống = người vận hành xác nhận trên trang web \\
 \code{PARKING\_PAY\_TIMEOUT\_S} & Thời gian chờ chuyển khoản, mặc định 180\,s \\

@@ -67,6 +67,10 @@ config PARKING_PAY_BANK_BIN
 config PARKING_PAY_ACCOUNT
     string "Account number that receives the money (empty = payment off)"
     default ""
+    help
+        The number put in the QR. SePay only sees transfers to a personal BIDV
+        account when they go to a virtual account (VA): enter the VA number from
+        my.sepay.vn (Bank accounts > VA), not the main account number.
 
 config PARKING_PAY_ACCOUNT_NAME
     string "Account holder name shown on the TFT (no accents)"

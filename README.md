@@ -193,6 +193,9 @@ The repository only holds demo values. Real ones stay out of Git:
   bank BIN (BIDV `970418`), receiving account, holder name, SePay API token.
   They are stored in the git-ignored `Server/sdkconfig`. The SePay token has
   full access to the SePay account, so never commit it.
+  For a personal BIDV account, SePay only sees transfers sent to a virtual
+  account (VA): create one on my.sepay.vn and enter the VA number as the
+  receiving account, not the main account number.
 - Clients: copy `secrets.example.h` to `secrets.h` next to each sketch and
   edit it (`secrets.h` is git-ignored).
 

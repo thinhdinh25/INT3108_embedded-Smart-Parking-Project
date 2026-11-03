@@ -15,7 +15,8 @@
 #include "../parking/rfid_session.h"
 #include "sepay_client.h"
 
-#define SEPAY_URL "https://my.sepay.vn/userapi/transactions/list?account_number=" CONFIG_PARKING_PAY_ACCOUNT
+/* No account_number filter: for a BIDV VA it holds the main account, and the note code already picks the transfer. */
+#define SEPAY_URL "https://my.sepay.vn/userapi/transactions/list"
 #define BODY_SIZE 6144 /* since_id keeps replies to the few newest transactions */
 
 static const char *TAG = "SEPAY";
@@ -25,7 +26,7 @@ static char body[BODY_SIZE];
 static bool sepay_get(const char *query)
 {
     char url[192];
-    snprintf(url, sizeof(url), SEPAY_URL "&%s", query);
+    snprintf(url, sizeof(url), SEPAY_URL "?%s", query);
     esp_http_client_config_t config = {
         .url = url,
         .crt_bundle_attach = esp_crt_bundle_attach,
