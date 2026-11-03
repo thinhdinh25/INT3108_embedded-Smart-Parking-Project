@@ -517,61 +517,33 @@ khiển thanh chắn, cảm biến và nhật ký vào/ra kèm giá gửi xe.
 \end{figure}
 
 \subsection{Các màn hình TFT}
-\newcommand{\tftframe}[1]{%
-\begin{tikzpicture}[x=0.0146cm,y=-0.0146cm,font=\tiny]
-\fill[black] (0,0) rectangle (240,240);
-#1
-\draw[gray] (0,0) rectangle (240,240);
-\end{tikzpicture}}
-\newcommand{\tfttop}{%
-\fill[cyan!70!blue] (0,0) rectangle (240,4);
-\node[white,anchor=west,font=\tiny\bfseries] at (10,18) {PARKSENSE};
-\node[gray!60,anchor=west,font=\fontsize{4}{4}\selectfont] at (10,44) {FREE SPACES};
-\node[white,anchor=west,font=\scriptsize\bfseries] at (10,64) {3/5};
-\fill[gray!25!black] (8,87) rectangle (68,127);
-\fill[gray!25!black] (75,87) rectangle (135,127);
-\node[white,anchor=west,font=\fontsize{4}{4}\selectfont] at (12,110) {28.0};
-\node[white,anchor=west,font=\fontsize{4}{4}\selectfont] at (79,110) {0.2};
-\fill[pink!50] (144,40) rectangle (240,136);
-\foreach \i/\c in {0/red,1/green,2/green,3/red,4/green}{
-  \fill[gray!25!black] (8+\i*46,147) rectangle (51+\i*46,190);
-  \fill[\c] (8+\i*46,147) rectangle (11+\i*46,190);}
-\fill[gray!25!black] (0,194) rectangle (240,240);}
 \begin{figure}[H]
 \centering
-\setlength{\tabcolsep}{3pt}\begin{tabular}{cccc}
-\tftframe{\tfttop
-  \fill[orange!80] (90,205) rectangle (130,235);}
-&
-\tftframe{\tfttop
-  \node[white,anchor=west,font=\fontsize{4}{4}\selectfont] at (8,201) {ID A1B2C3D4};
-  \node[white,anchor=west,font=\fontsize{5}{5}\selectfont] at (8,226) {1H 01M};
-  \node[cyan,anchor=west,font=\scriptsize\bfseries] at (126,222) {10000};}
-&
-\tftframe{\tfttop
-  \node[white,anchor=west,font=\fontsize{4}{4}\selectfont] at (8,200) {ID 5512AB09};
-  \node[red,anchor=west,font=\fontsize{6}{6}\selectfont\bfseries] at (8,215) {WRONG GATE};
-  \node[gray!60,anchor=west,font=\fontsize{3.5}{3.5}\selectfont] at (8,232) {ALREADY INSIDE - USE EXIT GATE};}
-&
-\tftframe{\fill[red] (0,0) rectangle (240,8); \fill[red] (0,232) rectangle (240,240);
-  \fill[red!40!black] (16,16) rectangle (224,224);
-  \node[white,font=\scriptsize\bfseries] at (120,40) {DANGER};
-  \fill[red] (100,90) rectangle (140,150); \fill[orange] (108,105) rectangle (132,150); \fill[yellow] (114,125) rectangle (126,150);
-  \node[yellow,font=\fontsize{5}{5}\selectfont\bfseries] at (120,182) {FIRE DETECTED};
-  \node[white,font=\fontsize{5}{5}\selectfont\bfseries] at (120,208) {EVACUATE NOW};}
-\\[2pt]
-\small (a) Bình thường & \small (b) Hóa đơn khi ra & \small (c) Quẹt sai cổng & \small (d) Có cháy \\
+\setlength{\tabcolsep}{3pt}
+\begin{tabular}{ccc}
+\includegraphics[width=0.3\linewidth]{photos/tft_main.png} &
+\includegraphics[width=0.3\linewidth]{photos/tft_full.png} &
+\includegraphics[width=0.3\linewidth]{photos/tft_flood.png} \\
+\footnotesize (a) Bình thường & \footnotesize (b) Bãi đầy & \footnotesize (c) Ngập, quẹt vào bị từ chối \\[4pt]
+\includegraphics[width=0.3\linewidth]{photos/tft_offline.png} &
+\includegraphics[width=0.3\linewidth]{photos/tft_thanks.png} &
+\includegraphics[width=0.3\linewidth]{photos/tft_receipt.png} \\
+\footnotesize (d) Cảm biến mất kết nối & \footnotesize (e) Cảm ơn sau khi trả tiền & \footnotesize (f) Hóa đơn ở chân màn hình \\
 \end{tabular}
-\caption{Bốn trạng thái màn hình TFT $240\times240$ (mô phỏng bố cục theo mã nguồn \file{lcd\_display.c})}\label{fig:tft}
+\caption{Các màn hình TFT $240\times240$, kết xuất từ chính mã \file{lcd\_display.c} biên dịch trên máy tính}\label{fig:tft}
 \end{figure}
-Trên màn hình bình thường: hàng trên là số chỗ trống, hai ô nhiệt độ và mực nước,
-ảnh động $96\times96$ ở góc phải, hàng giữa là 5 ô S1–S5 với vạch xanh (trống)/đỏ (có
-xe), vùng chân dùng cho ảnh động nhỏ, hóa đơn hoặc thông báo.
+Màn hình bình thường dùng hết chiều ngang: thẻ \code{FREE SPACES} với số chỗ trống cỡ lớn, đổi
+màu xanh/cam/đỏ theo mức đầy; hai thẻ nhiệt độ và mực nước xếp chồng bên phải (thẻ nước chuyển
+đỏ khi ngập); một dòng trạng thái cho người lái (\code{ENTRY OPEN}, \code{LOT FULL},
+\code{FLOOD - NO ENTRY}, \code{SENSOR OFFLINE}); 5 ô S1–S5 với vạch màu ở cạnh trên; vùng chân dành
+cho ảnh động nhỏ, hóa đơn hoặc thông báo. Khi một lượt trả tiền hoàn tất (SePay hoặc
+\emph{Confirm paid}), màn hình \code{THANK YOU} hiện 5\,s trong lúc thanh chắn mở, sau đó hóa đơn
+vẫn ở chân màn hình thêm khoảng một phút.
 
 \begin{figure}[H]
 \centering
 \includegraphics[width=0.42\linewidth]{photos/tft_live.jpg}
-\caption{Màn hình TFT thật trên mô hình khi 4 ô có xe: \code{FREE SPACES 1/5}, S1 trống (xanh), S2–S5 có xe (đỏ), nhiệt độ 27,2\,°C, mực nước 0,0\,mm}\label{fig:tft-live}
+\caption{Màn hình TFT thật trên mô hình (bố cục cũ, khi còn ảnh động Kaoruko) khi 4 ô có xe: \code{FREE SPACES 1/5}, S1 trống (xanh), S2–S5 có xe (đỏ), nhiệt độ 27,2\,°C, mực nước 0,0\,mm}\label{fig:tft-live}
 \end{figure}
 
 \subsection{Kịch bản demo}

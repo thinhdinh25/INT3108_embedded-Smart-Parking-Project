@@ -13,6 +13,7 @@
 #include "esp_lcd_panel_ops.h"
 #include "esp_lcd_panel_st7789.h"
 #include "esp_log.h"
+#include "esp_timer.h"
 #include "qrcode.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
@@ -45,6 +46,7 @@
 #define GIF_PIXELS ((size_t)CLAUDE_WIDTH * CLAUDE_HEIGHT)
 #endif
 #define CLAUDE_Y 194
+#define THANKS_US (5 * 1000000LL) /* thank-you screen after a paid exit */
 
 static const char *TAG = "LCD_DISPLAY";
 static esp_lcd_panel_handle_t panel;
@@ -266,6 +268,77 @@ static void draw_payment_screen(const rfid_payment_t *pay, const rfid_notice_t *
     ESP_ERROR_CHECK(lcd_draw_bitmap_locked(0, 0, width, height, framebuffer));
 }
 
+/* Bottom 46 px: a rejection notice (5 s) first, otherwise the exit receipt. */
+static void draw_footer(const rfid_receipt_t *receipt, const rfid_notice_t *notice)
+{
+    fill_rect(0, 194, width, 46, COLOR_PANEL);
+    if (notice->valid)
+        draw_notice(notice);
+    else if (receipt->valid)
+    {
+        char line[RFID_CARD_ID_MAX + 5];
+        char duration[16], fee[16];
+        uint64_t total_minutes = ((uint64_t)receipt->duration_seconds + 59U) / 60U;
+        uint64_t hours = total_minutes / 60U;
+        uint64_t minutes = total_minutes % 60U;
+        snprintf(line, sizeof(line), "ID %s", receipt->card_id);
+        draw_text(8, 198, line, 1, COLOR_WHITE);
+        draw_text(8, 211, "PARK TIME", 1, COLOR_MUTED);
+        snprintf(duration, sizeof(duration), "%lluH %02lluM",
+                 (unsigned long long)hours, (unsigned long long)minutes);
+        int duration_scale = strlen(duration) <= 8 ? 2 : 1;
+        draw_text(8, 223, duration, duration_scale, COLOR_WHITE);
+
+        draw_text(126, 198, "FEE VND", 1, COLOR_MUTED);
+        snprintf(fee, sizeof(fee), "%u", (unsigned)receipt->fee_vnd);
+        int fee_scale = strlen(fee) <= 5 ? 3 : (strlen(fee) <= 8 ? 2 : 1);
+        draw_text(126, fee_scale == 3 ? 209 : 216, fee, fee_scale, COLOR_TEAL);
+    }
+
+}
+
+static void format_duration(char *out, size_t out_size, uint32_t seconds)
+{
+    uint64_t total_minutes = ((uint64_t)seconds + 59U) / 60U;
+    snprintf(out, out_size, "%lluH %02lluM", (unsigned long long)(total_minutes / 60U),
+             (unsigned long long)(total_minutes % 60U));
+}
+
+/* Full screen for a few seconds after the fee is paid, while the exit barrier opens. */
+static void draw_thanks_screen(const rfid_receipt_t *receipt)
+{
+    fill_rect(0, 0, width, height, COLOR_BG);
+    fill_rect(0, 0, width, 4, COLOR_GREEN);
+
+    /* Tick in a green disc, built from square steps like the rest of the UI. */
+    fill_rect(92, 22, 56, 56, COLOR_GREEN);
+    fill_rect(86, 28, 68, 44, COLOR_GREEN);
+    for (int i = 0; i < 8; ++i)
+        fill_rect(100 + i * 2, 46 + i * 2, 6, 6, COLOR_BG);
+    for (int i = 0; i < 12; ++i)
+        fill_rect(114 + i * 2, 60 - i * 2, 6, 6, COLOR_BG);
+
+    draw_text(39, 92, "THANK YOU", 3, COLOR_WHITE);
+    draw_text(72, 122, "PAYMENT RECEIVED", 1, COLOR_GREEN);
+
+    fill_rect(8, 140, width - 16, 52, COLOR_PANEL);
+    char fee[16], duration[16];
+    snprintf(fee, sizeof(fee), "%u VND", (unsigned)receipt->fee_vnd);
+    format_duration(duration, sizeof(duration), receipt->duration_seconds);
+    draw_text(16, 148, "PAID", 1, COLOR_MUTED);
+    draw_text(16, 162, fee, 2, COLOR_TEAL);
+    draw_text(140, 148, "PARK TIME", 1, COLOR_MUTED);
+    draw_text(140, 162, duration, 2, COLOR_WHITE);
+
+    char line[RFID_CARD_ID_MAX + 5];
+    snprintf(line, sizeof(line), "ID %s", receipt->card_id);
+    draw_text((width - (int)strlen(line) * 6) / 2, 204, line, 1, COLOR_MUTED);
+    draw_text(30, 220, "GATE OPENING - SAFE TRIP", 1, COLOR_WHITE);
+    ESP_ERROR_CHECK(lcd_draw_bitmap_locked(0, 0, width, height, framebuffer));
+}
+
+#if CONFIG_PARKING_LCD_KAORUKO
+/* Layout with the 96x96 Kaoruko animation in the top-right corner (GIF_X, GIF_Y). */
 static void draw_parking_screen(const parking_state_t *state, int free_count,
                                 const rfid_receipt_t *receipt, const rfid_notice_t *notice)
 {
@@ -317,39 +390,80 @@ static void draw_parking_screen(const parking_state_t *state, int free_count,
         draw_text(x + 4, 172, !state->online ? "----" : occupied ? "BUSY" : "FREE", 1, color);
     }
 
-#if !CONFIG_PARKING_LCD_KAORUKO
-    /* The Kaoruko corner, without the GIF. */
-    fill_rect(GIF_X, GIF_Y, GIF_WIDTH - 8, GIF_HEIGHT, COLOR_PANEL);
-    draw_text(GIF_X + 29, GIF_Y + 18, "P", 6, COLOR_TEAL);
-    draw_text(GIF_X + 7, GIF_Y + 74, "SMART PARK", 1, COLOR_MUTED);
-#endif
-    fill_rect(0, 194, width, 46, COLOR_PANEL);
-    /* A rejection notice (5 s) takes the footer first; the exit receipt shows again after it. */
-    if (notice->valid)
-        draw_notice(notice);
-    else if (receipt->valid)
-    {
-        char line[RFID_CARD_ID_MAX + 5];
-        char duration[16], fee[16];
-        uint64_t total_minutes = ((uint64_t)receipt->duration_seconds + 59U) / 60U;
-        uint64_t hours = total_minutes / 60U;
-        uint64_t minutes = total_minutes % 60U;
-        snprintf(line, sizeof(line), "ID %s", receipt->card_id);
-        draw_text(8, 198, line, 1, COLOR_WHITE);
-        draw_text(8, 211, "PARK TIME", 1, COLOR_MUTED);
-        snprintf(duration, sizeof(duration), "%lluH %02lluM",
-                 (unsigned long long)hours, (unsigned long long)minutes);
-        int duration_scale = strlen(duration) <= 8 ? 2 : 1;
-        draw_text(8, 223, duration, duration_scale, COLOR_WHITE);
-
-        draw_text(126, 198, "FEE VND", 1, COLOR_MUTED);
-        snprintf(fee, sizeof(fee), "%u", (unsigned)receipt->fee_vnd);
-        int fee_scale = strlen(fee) <= 5 ? 3 : (strlen(fee) <= 8 ? 2 : 1);
-        draw_text(126, fee_scale == 3 ? 209 : 216, fee, fee_scale, COLOR_TEAL);
-    }
-
+    draw_footer(receipt, notice);
     ESP_ERROR_CHECK(lcd_draw_bitmap_locked(0, 0, width, height, framebuffer));
 }
+#else
+/* Full-width layout: availability and sensors on top, an entry status bar, bays, footer. */
+static void draw_parking_screen(const parking_state_t *state, int free_count,
+                                const rfid_receipt_t *receipt, const rfid_notice_t *notice)
+{
+    fill_rect(0, 0, width, height, COLOR_BG);
+    fill_rect(0, 0, width, 4, COLOR_TEAL);
+    draw_text(10, 11, "PARKSENSE", 2, COLOR_WHITE);
+    char price[16];
+    snprintf(price, sizeof(price), "%u VND/H", (unsigned)PARKING_FEE_PER_HOUR_VND);
+    draw_text(width - 8 - (int)strlen(price) * 6, 15, price, 1, COLOR_MUTED);
+    fill_rect(8, 32, width - 16, 1, COLOR_LINE);
+
+    /* Free spaces: the number people read from the lane, coloured by how full the lot is. */
+    const bool stale = state->received && !state->online;
+    const uint16_t free_color = stale ? COLOR_MUTED : free_count == 0 ? COLOR_RED
+                                : free_count == 1 ? COLOR_ORANGE : COLOR_GREEN;
+    fill_rect(8, 38, 116, 68, COLOR_PANEL);
+    fill_rect(8, 38, 3, 68, free_color);
+    draw_text(18, 44, "FREE SPACES", 1, COLOR_MUTED);
+    char count[4];
+    snprintf(count, sizeof(count), "%d", free_count);
+    draw_text(18, 58, count, 6, free_color);
+    draw_text(58, 79, "/5", 3, COLOR_MUTED);
+
+    /* Sensor cards stacked on the right. */
+    char temperature[16] = "--.-";
+    char water[16] = "--.-";
+    if (state->temperature_received)
+        format_tenths(temperature, sizeof(temperature), state->temperature_c);
+    if (state->received)
+        format_tenths(water, sizeof(water), state->water_mm);
+    fill_rect(130, 38, 102, 32, COLOR_PANEL);
+    draw_text(136, 42, "TEMP C", 1, COLOR_MUTED);
+    draw_text(136, 53, temperature, 2, COLOR_WHITE);
+    fill_rect(130, 74, 102, 32, state->flood ? COLOR_DARK_RED : COLOR_PANEL);
+    draw_text(136, 78, "WATER MM", 1, COLOR_MUTED);
+    draw_text(136, 89, water, 2, state->flood ? COLOR_RED : COLOR_WHITE);
+
+    /* One status line for drivers: flood matters most, then a silent sensor, then full. */
+    const char *status = "ENTRY OPEN";
+    uint16_t status_color = COLOR_GREEN;
+    if (state->flood)
+        status = "FLOOD - NO ENTRY", status_color = COLOR_RED;
+    else if (stale)
+        status = "SENSOR OFFLINE", status_color = COLOR_ORANGE;
+    else if (!state->received)
+        status = "WAITING SENSORS", status_color = COLOR_MUTED;
+    else if (free_count == 0)
+        status = "LOT FULL", status_color = COLOR_RED;
+    fill_rect(8, 112, width - 16, 26, COLOR_PANEL);
+    fill_rect(8, 112, 3, 26, status_color);
+    draw_text((width - (int)strlen(status) * 12) / 2, 118, status, 2, status_color);
+
+    for (int i = 0; i < PARKING_SLOT_COUNT; ++i)
+    {
+        int x = 8 + i * 46;
+        bool occupied = state->slots[i] != 0;
+        const uint16_t color = !state->online ? COLOR_MUTED : occupied ? COLOR_RED : COLOR_GREEN;
+
+        fill_rect(x, 144, 43, 46, COLOR_PANEL);
+        fill_rect(x, 144, 43, 3, color);
+        char slot_label[3] = {'S', (char)('1' + i), '\0'};
+        draw_text(x + 10, 153, slot_label, 2, COLOR_WHITE);
+        draw_text(x + 10, 176, !state->online ? "----" : occupied ? "BUSY" : "FREE", 1, color);
+    }
+
+    draw_footer(receipt, notice);
+    ESP_ERROR_CHECK(lcd_draw_bitmap_locked(0, 0, width, height, framebuffer));
+}
+#endif
 
 static void draw_flame(int center_x, int bottom_y, int frame, int scale)
 {
@@ -561,6 +675,8 @@ static void display_task(void *arg)
     int last_slots[PARKING_SLOT_COUNT] = {-1, -1, -1, -1, -1};
     float last_temperature = -1000.0f;
     float last_water = -1000.0f;
+    int64_t thanks_until_us = 0;
+    bool thanks_shown = false;
 
     for (;;)
     {
@@ -569,6 +685,11 @@ static void display_task(void *arg)
         rfid_session_get_notice(&notice);
         rfid_session_get_payment(&payment); /* also expires an unpaid QR */
         const bool paying = payment.active && !payment.expired;
+        const int64_t now_us = esp_timer_get_time();
+        /* A new receipt means a car just paid and is leaving: thank them first. */
+        if (receipt.valid && memcmp(&receipt, &last_receipt, sizeof(receipt)) != 0)
+            thanks_until_us = now_us + THANKS_US;
+        const bool thanks = receipt.valid && now_us < thanks_until_us;
 
         if (state.fire || first_draw ||
             memcmp(&payment, &last_payment, sizeof(payment)) != 0 ||
@@ -580,7 +701,8 @@ static void display_task(void *arg)
             state.temperature_c != last_temperature ||
             state.water_mm != last_water ||
             memcmp(&receipt, &last_receipt, sizeof(receipt)) != 0 ||
-            memcmp(&notice, &last_notice, sizeof(notice)) != 0)
+            memcmp(&notice, &last_notice, sizeof(notice)) != 0 ||
+            thanks != thanks_shown)
         {
             if (state.received && state.fire)
             {
@@ -589,6 +711,8 @@ static void display_task(void *arg)
             }
             else if (paying)
                 draw_payment_screen(&payment, &notice);
+            else if (thanks)
+                draw_thanks_screen(&receipt);
             else
                 draw_parking_screen(&state, free_count, &receipt, &notice);
             last_payment = payment;
@@ -602,6 +726,7 @@ static void display_task(void *arg)
             last_water = state.water_mm;
             memcpy(&last_receipt, &receipt, sizeof(receipt));
             memcpy(&last_notice, &notice, sizeof(notice));
+            thanks_shown = thanks;
             first_draw = false;
         }
 
