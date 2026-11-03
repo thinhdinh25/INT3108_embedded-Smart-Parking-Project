@@ -65,7 +65,7 @@ config PARKING_PAY_BANK_BIN
     default "970418"
 
 config PARKING_PAY_ACCOUNT
-    string "Account number in the QR (empty = no QR, operator confirms payment)"
+    string "96247V4VYM"
     default ""
     help
         The number put in the QR. SePay only sees transfers to a personal BIDV
@@ -77,7 +77,7 @@ config PARKING_PAY_ACCOUNT_NAME
     default "SMART PARKING"
 
 config PARKING_SEPAY_TOKEN
-    string "SePay API token (empty = operator confirms transfers on the dashboard)"
+    string "EVDQCLT9TKNH3GZEGUTDSAMXZYHWRAS25JD90IRZDX0OYRI1TQI7KXPVPKOEACLH"
     default ""
     help
         Created in my.sepay.vn > Cau hinh > API Access. It has full access to the SePay
