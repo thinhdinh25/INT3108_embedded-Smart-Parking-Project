@@ -4,9 +4,8 @@
 #include <WiFiUdp.h>
 #include <ArduinoOTA.h>
 #include <DHT.h>
-#include "packet_auth.h"
 
-// --- CẤU HÌNH WIFI & UDP --- (mật khẩu và khóa ký gói tin nằm trong secrets.h)
+// --- CẤU HÌNH WIFI & UDP --- (mật khẩu Wi-Fi nằm trong secrets.h)
 #if __has_include("secrets.h")
 #include "secrets.h"
 #else
@@ -49,6 +48,7 @@ const unsigned long COOLDOWN_TIME = 2000; // Thời gian chờ đọc lại cùn
 // --- GỬI LẠI SỰ KIỆN QUẸT THẺ ĐẾN KHI MÁY CHỦ XÁC NHẬN (ACK) ---
 // A lost datagram no longer loses a scan: each one is resent every ACK_TIMEOUT until the
 // server answers with an ACK carrying the same sequence number (it acts on each scan once).
+// Numbers start at a random value each boot, so they rarely repeat what the server just saw.
 #define PACKET_MAX 176
 #define MAX_PENDING 4
 const unsigned long ACK_TIMEOUT = 300;
@@ -61,13 +61,14 @@ struct PendingScan {
   char packet[PACKET_MAX];
 };
 PendingScan pending[MAX_PENDING];
+uint32_t nextSeq = 1;
 
 // Khai báo hàm nguyên mẫu
 void formatCardUID(const byte *buffer, byte bufferSize, char *out);
 bool canReadUID(const char *uid, unsigned long now);
 void sendUDPRfid(const char *uid, const char *gate);
 void handleDHT11();
-void sendSigned(const char *json, PendingScan *retry);
+void sendJson(const char *json, PendingScan *retry, uint32_t seq);
 void serviceAcks();
 void setupOTA();
 
@@ -99,7 +100,7 @@ void setup() {
   Serial.println(WiFi.softAPIP());
 
   // 3. Khởi tạo cổng UDP & OTA
-  seq_begin();
+  nextSeq = ESP.random() | 1;  // hardware RNG; odd, so never 0
   udp.begin(udpPort);
   setupOTA();
 
@@ -216,53 +217,40 @@ void handleDHT11() {
     currentTemperatureC = t;
     char json[48];
     snprintf(json, sizeof(json), "{\"type\":\"climate\",\"temperature_c\":%.1f}", t);
-    sendSigned(json, nullptr);
+    sendJson(json, nullptr, 0);
   }
 }
 
-// Signs and broadcasts json; with retry set, keeps it there until the server ACKs it.
-void sendSigned(const char *json, PendingScan *retry) {
+// Broadcasts json; with retry set, keeps it there until the server ACKs it.
+void sendJson(const char *json, PendingScan *retry, uint32_t seq) {
   if (!(WiFi.getMode() & WIFI_AP)) {
     Serial.println(F("-> [Lỗi UDP] WiFi Hotspot chưa sẵn sàng!"));
     return;
   }
-  char packet[PACKET_MAX];
-  uint32_t seq = seq_take();
-  int length = auth_seal(UDP_KEY, seq, json, packet, sizeof(packet));
-  if (length == 0) {
-    Serial.println(F("-> [UDP] Payload formatting failed"));
-    return;
-  }
+  int length = strlen(json);
   udp.beginPacket(udpAddress, udpPort);
-  udp.write(reinterpret_cast<const uint8_t*>(packet), length);
+  udp.write(reinterpret_cast<const uint8_t*>(json), length);
   udp.endPacket();
   if (retry) {
     retry->seq = seq;
     retry->tries = 1;
     retry->sentAt = millis();
     retry->length = length;
-    memcpy(retry->packet, packet, length);
+    memcpy(retry->packet, json, length);
   }
 }
 
-// Clears scans the server has ACKed and resends the rest. Other traffic on the port
-// (the Sensor Client's broadcasts, forged packets) fails the tag check and is ignored.
+// Clears scans the server has ACKed ({"type":"rfid_ack","seq":N}) and resends the rest.
+// Other traffic on the port (the Sensor Client's broadcasts) does not match and is ignored.
 void serviceAcks() {
   char in[PACKET_MAX];
-  int size;
-  while ((size = udp.parsePacket()) > 0) {
+  while (udp.parsePacket() > 0) {
     int n = udp.read(reinterpret_cast<uint8_t*>(in), sizeof(in) - 1);
-    if (n != 27) continue;  // 24-byte header + "ACK"
-    in[n] = '\0';
-    char seqHex[9];
-    memcpy(seqHex, in + 16, 8);
-    seqHex[8] = '\0';
-    unsigned long seq = strtoul(seqHex, nullptr, 16);
-    char expected[32];
-    if (strcmp(in + 24, "ACK") != 0 || auth_seal(UDP_KEY, seq, "ACK", expected, sizeof(expected)) != 27 ||
-        memcmp(expected, in, 27) != 0) continue;
+    in[n > 0 ? n : 0] = '\0';
     for (PendingScan &p : pending) {
-      if (p.seq == seq) p.seq = 0;
+      char expected[48];
+      snprintf(expected, sizeof(expected), "{\"type\":\"rfid_ack\",\"seq\":%lu}", (unsigned long)p.seq);
+      if (p.seq != 0 && strcmp(in, expected) == 0) p.seq = 0;
     }
   }
 
@@ -284,23 +272,25 @@ void serviceAcks() {
 
 // Send an RFID scan using the server's request format; it is retried until ACKed.
 void sendUDPRfid(const char *uid, const char *gate) {
-  // Server format: {"type":"rfid_event","card_id":"A1B2C3D4","gate":"in","temperature_c":28.5}
-  char payload[144];
+  // Server format: {"type":"rfid_event","card_id":"A1B2C3D4","gate":"in","temperature_c":28.5,"seq":7}
+  uint32_t seq = nextSeq++;
+  if (nextSeq == 0) nextSeq = 1;  // 0 means "free slot" and is rejected by the server
+  char payload[PACKET_MAX];
   int length = snprintf(payload, sizeof(payload),
-                        "{\"type\":\"rfid_event\",\"card_id\":\"%s\",\"gate\":\"%s\",\"temperature_c\":%.1f}",
-                        uid, gate, currentTemperatureC);
+                        "{\"type\":\"rfid_event\",\"card_id\":\"%s\",\"gate\":\"%s\",\"temperature_c\":%.1f,\"seq\":%lu}",
+                        uid, gate, currentTemperatureC, (unsigned long)seq);
   if (length < 0 || length >= sizeof(payload)) {
     Serial.println(F("-> [UDP RFID] Payload formatting failed"));
     return;
   }
 
-  // Reuse a free slot, or the oldest one if four scans are somehow still unanswered.
+  // Reuse a free slot, or the one sent longest ago if four scans are still unanswered.
   PendingScan *slot = &pending[0];
   for (PendingScan &p : pending) {
     if (p.seq == 0) { slot = &p; break; }
-    if (p.seq < slot->seq) slot = &p;
+    if (p.sentAt < slot->sentAt) slot = &p;
   }
-  sendSigned(payload, slot);
+  sendJson(payload, slot, seq);
   Serial.print(F("-> [UDP RFID] Đã gửi: "));
   Serial.println(payload);
 }

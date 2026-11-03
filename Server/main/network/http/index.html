@@ -31,6 +31,11 @@
             <span>Fire sensor is active · evacuate the parking area</span>
         </section>
 
+        <section class="fire-alert" id="flood-alert" role="alert" hidden>
+            <strong>FLOOD WARNING</strong>
+            <span id="flood-alert-text">Water level is high · entry is closed, exit still works</span>
+        </section>
+
         <section class="fire-alert lot-alert" id="lot-alert" role="status" hidden>
             <strong>CHECK THE LOT</strong>
             <span id="lot-alert-text"></span>
@@ -107,6 +112,10 @@
                 <span class="capacity" id="fee-rate">-- VND / HOUR</span>
             </div>
             <p class="log-note">Every started hour is billed, minimum one hour.</p>
+            <div class="revenue-stats" aria-label="Revenue">
+                <div class="revenue-stat"><span>TODAY</span><strong id="today-vnd">--</strong><small id="today-visits"></small></div>
+                <div class="revenue-stat"><span>LAST 7 DAYS</span><strong id="week-vnd">--</strong><small id="week-visits"></small></div>
+            </div>
             <h3 class="log-subtitle">Inside now</h3>
             <table class="log-table">
                 <thead><tr><th>Card</th><th>Entered</th><th>Fee so far</th></tr></thead>
@@ -214,7 +223,12 @@
             document.getElementById('total-spaces').textContent = data.total;
             document.getElementById('available-spaces').textContent = available;
             document.getElementById('occupied-spaces').textContent = data.total - available;
-            occupiedBays = data.received ? data.total - available : null;
+            // Stale bays must not raise a mismatch warning.
+            occupiedBays = data.online ? data.total - available : null;
+            spaceList.classList.toggle('stale', data.received && !data.online);
+            document.getElementById('flood-alert').hidden = !data.flood;
+            if (data.flood) document.getElementById('flood-alert-text').textContent =
+                `Water level ${Number(data.water_mm).toFixed(1)} mm · entry is closed, exit still works`;
             document.getElementById('capacity').textContent = `${available} / ${data.total} FREE`;
             document.getElementById('temperature-value').textContent = data.temperature_received ? Number(data.temperature_c).toFixed(1) : '--';
             document.getElementById('water-value').textContent = data.received ? Number(data.water_mm).toFixed(1) : '--';
@@ -239,7 +253,8 @@
                 bay.append(number, body, status);
                 return bay;
             }));
-            dataState.innerHTML = `<span aria-hidden="true">●</span> ${data.received ? 'LIVE / SENSOR' : 'WAITING FOR DATA'}`;
+            dataState.innerHTML = `<span aria-hidden="true">●</span> ${!data.received ? 'WAITING FOR DATA' : data.online ? 'LIVE / SENSOR' : 'SENSOR OFFLINE · LAST KNOWN STATE'}`;
+            dataState.classList.toggle('is-stale', data.received && !data.online);
         }
 
         async function refreshParking() {
@@ -270,7 +285,7 @@
                 `${cardsInside} card(s) checked in but ${occupiedBays} bay(s) occupied · a car may have entered without a card or a sensor is blocked`;
         }
 
-        const EVENT_LABELS = { in: 'IN', out: 'OUT', full: 'REJECTED · FULL', wrong_gate: 'REJECTED · WRONG GATE' };
+        const EVENT_LABELS = { in: 'IN', out: 'OUT', full: 'REJECTED · FULL', wrong_gate: 'REJECTED · WRONG GATE', flood: 'REJECTED · FLOOD' };
         const vnd = n => `${Number(n).toLocaleString('vi-VN')} VND`;
         const duration = s => `${Math.floor(s / 3600)}h ${String(Math.floor(s / 60) % 60).padStart(2, '0')}m`;
         // Show server times relative to its own "now", so they are right even before the clock is set.
@@ -295,6 +310,11 @@
                 const data = await response.json();
                 document.getElementById('fee-rate').textContent = `${vnd(data.fee_per_hour)} / HOUR`;
                 checkLot(data.parked.length);
+                const visits = s => `${s.in} in · ${s.out} out`;
+                document.getElementById('today-vnd').textContent = vnd(data.today.vnd);
+                document.getElementById('today-visits').textContent = visits(data.today);
+                document.getElementById('week-vnd').textContent = vnd(data.week.vnd);
+                document.getElementById('week-visits').textContent = visits(data.week);
                 const parked = data.parked.map(car => row([car.card, clock(data.now_s, car.in_s), vnd(car.fee)]));
                 document.getElementById('parked-list').replaceChildren(...(parked.length ? parked : [emptyRow('No cars inside', 3)]));
                 const events = data.log.map(e => row([

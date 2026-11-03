@@ -205,7 +205,7 @@ static void test_persistence_and_clock(void)
     /* Never-set clock: times count from the first boot. */
     fake_time_us = (int64_t)SEC(50000);
     CHECK(scan("KEEP", RFID_GATE_IN, 49900) == RFID_SCAN_ENTERED);
-    CHECK(rfid_session_check_seq(7) == PACKET_NEW);
+    CHECK(rfid_session_check_seq(7));
     rfid_session_snapshot(&saved);
     CHECK(saved.clock_us == (int64_t)SEC(50000) && !saved.clock_synced);
 
@@ -214,7 +214,7 @@ static void test_persistence_and_clock(void)
     rfid_session_restore(&saved);
     CHECK(parking_clock_now_us() == (int64_t)SEC(50001));
     CHECK(rfid_session_get_active(active, RFID_MAX_ACTIVE) == 1 && strcmp(active[0].card_id, "KEEP") == 0);
-    CHECK(rfid_session_check_seq(7) == PACKET_DUPLICATE); /* replay window survives too */
+    CHECK(!rfid_session_check_seq(7)); /* seen scans survive too, so a retry is not re-applied */
 
     /* A browser sets Unix time: every stored time moves with the clock, durations stay right. */
     const uint64_t T = 1700000000ULL;
@@ -259,6 +259,112 @@ static void test_persistence_and_clock(void)
     CHECK(rfid_session_get_active(active, RFID_MAX_ACTIVE) == 2);
 }
 
+static void test_retry_dedupe(void)
+{
+    /* A retried scan (same seq) is acted on once; the last 16 seqs are remembered. */
+    CHECK(rfid_session_check_seq(1000));
+    CHECK(!rfid_session_check_seq(1000));
+    CHECK(rfid_session_check_seq(1001));
+    for (uint32_t s = 2000; s < 2016; ++s)
+        rfid_session_check_seq(s);
+    CHECK(rfid_session_check_seq(1000)); /* pushed out: a much later reuse is a new scan */
+}
+
+static uint64_t clock_s(void)
+{
+    return (uint64_t)parking_clock_now_us() / 1000000ULL;
+}
+
+static void test_offline_and_flood(void)
+{
+    parking_state_t st, lot = {.water_mm = 0};
+    int free_count;
+
+    /* The sensor counts as online for 3 s after its last update. */
+    fake_time_us = (int64_t)SEC(100000);
+    parking_state_update(&lot);
+    fake_time_us = (int64_t)SEC(100000) + 2999999;
+    parking_state_get(&st, &free_count);
+    CHECK(st.online);
+    fake_time_us = (int64_t)SEC(100003);
+    parking_state_get(&st, &free_count);
+    CHECK(st.received && !st.online);
+
+    /* Flood alarm: on at 20 mm, stays on down to 15 mm (hysteresis). */
+    const float levels[] = {19.9f, 20.0f, 17.0f, 15.1f, 15.0f};
+    const bool expected[] = {false, true, true, true, false};
+    bool hysteresis_ok = true;
+    for (int i = 0; i < 5; ++i)
+    {
+        lot.water_mm = levels[i];
+        parking_state_update(&lot);
+        parking_state_get(&st, &free_count);
+        hysteresis_ok &= st.flood == expected[i] && st.online;
+    }
+    CHECK(hysteresis_ok);
+
+    /* During a flood new cars are refused with a notice, but cars inside can leave. */
+    lot.water_mm = 25.0f;
+    parking_state_update(&lot);
+    CHECK(scan("FLOOD1", RFID_GATE_IN, clock_s()) == RFID_SCAN_FLOOD);
+    rfid_notice_t n;
+    rfid_session_get_notice(&n);
+    CHECK(n.valid && n.result == RFID_SCAN_FLOOD && strcmp(n.card_id, "FLOOD1") == 0);
+    CHECK(scan("OLD", RFID_GATE_OUT, clock_s()) == RFID_SCAN_EXITED);
+    lot.water_mm = 0.0f;
+    parking_state_update(&lot);
+    CHECK(scan("FLOOD1", RFID_GATE_IN, clock_s()) == RFID_SCAN_ENTERED);
+    CHECK(scan("FLOOD1", RFID_GATE_OUT, clock_s()) == RFID_SCAN_EXITED);
+
+    /* A silent sensor whose last report was "all bays taken" does not block entry. */
+    parking_state_t full = {.slots = {1, 1, 1, 1, 1}};
+    parking_state_update(&full);
+    fake_time_us += (int64_t)SEC(10);
+    CHECK(scan("STALE1", RFID_GATE_IN, clock_s()) == RFID_SCAN_ENTERED);
+    CHECK(scan("STALE1", RFID_GATE_OUT, clock_s()) == RFID_SCAN_EXITED);
+    parking_state_update(&lot);
+}
+
+static void test_revenue_stats(void)
+{
+    /* 10:00 local time (UTC+7) on some day. */
+    const uint64_t base = 19700ULL * 86400ULL - 7 * 3600 + 10 * 3600;
+    rfid_day_stats_t t0, w0, t, w;
+    rfid_session_set_clock(base);
+    rfid_session_get_stats(&t0, &w0);
+
+    CHECK(scan("REV1", RFID_GATE_IN, base) == RFID_SCAN_ENTERED);
+    CHECK(scan("REV1", RFID_GATE_OUT, base + 7200) == RFID_SCAN_EXITED); /* 2 h = 10 000 VND */
+    CHECK(scan("REV2", RFID_GATE_IN, base + 60) == RFID_SCAN_ENTERED);
+    CHECK(scan("REV2", RFID_GATE_IN, base + 61) == RFID_SCAN_INVALID_GATE); /* rejections do not count */
+    rfid_session_get_stats(&t, &w);
+    CHECK(t.entries == t0.entries + 2 && t.exits == t0.exits + 1 && t.revenue_vnd == t0.revenue_vnd + 10000);
+    CHECK(w.revenue_vnd == w0.revenue_vnd + 10000);
+
+    /* Next day: today starts empty, the week still has yesterday. REV2 leaves after 1 day. */
+    rfid_session_set_clock(base + 86400);
+    CHECK(scan("REV2", RFID_GATE_OUT, base + 86400) == RFID_SCAN_EXITED); /* 24 h = 120 000 VND */
+    rfid_session_get_stats(&t, &w);
+    CHECK(t.entries == 0 && t.exits == 1 && t.revenue_vnd == 120000);
+    CHECK(w.revenue_vnd == w0.revenue_vnd + 130000 && w.exits == w0.exits + 2);
+
+    /* Stats are part of the saved state. */
+    rfid_store_t saved;
+    rfid_session_snapshot(&saved);
+    uint32_t saved_revenue = 0;
+    for (int i = 0; i < RFID_STATS_DAYS; ++i)
+        saved_revenue += saved.days[i].revenue_vnd;
+    CHECK(saved_revenue >= 130000);
+
+    /* Seven days after the first day, it has left the weekly window. */
+    rfid_session_set_clock(base + 7 * 86400);
+    rfid_session_get_stats(&t, &w);
+    CHECK(t.revenue_vnd == 0 && w.revenue_vnd == 120000);
+    rfid_session_set_clock(base + 8 * 86400);
+    rfid_session_get_stats(&t, &w);
+    CHECK(w.revenue_vnd == 0 && w.entries == 0);
+}
+
 int main(void)
 {
     test_fee();
@@ -268,5 +374,8 @@ int main(void)
     test_rejection_notice();
     test_ir_cross_check();
     test_persistence_and_clock();
+    test_offline_and_flood();
+    test_retry_dedupe();
+    test_revenue_stats();
     return TEST_REPORT("rfid_session");
 }

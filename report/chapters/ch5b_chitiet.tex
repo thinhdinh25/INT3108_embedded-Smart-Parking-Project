@@ -10,31 +10,28 @@
 {"type":"climate","temperature_c":28.0}
 \end{lstlisting}
 
-\paragraph{Ký gói tin.} Mỗi bản tin JSON ở trên được gửi trong một ``phong bì'' có chữ ký;
-máy chủ trả lời mỗi \code{rfid\_event} bằng một gói \code{ACK} cũng được ký:
-\begin{lstlisting}[language={},numbers=none,caption={Định dạng gói UDP (\file{packet\_auth.c})}]
-<tag: 16 hex><seq: 8 hex><JSON>         tag = SipHash-2-4(khoa 16 byte, seq + JSON)
-16af4b44ee606cdf1234abcd{"type":"climate","temperature_c":28.0}
-<tag><seq>ACK                           may chu -> RFID Client, cung seq voi su kien
+\paragraph{Xác nhận sự kiện quẹt thẻ.} Bản tin \code{rfid\_event} có thêm trường \code{seq}
+(số nguyên 32 bit, khác 0) do RFID Client đặt; máy chủ trả lời bằng một gói JSON cùng
+\code{seq}:
+\begin{lstlisting}[language=json,caption={Sự kiện quẹt thẻ và gói xác nhận}]
+{"type":"rfid_event","card_id":"A1B2C3D4","gate":"in","temperature_c":28.0,"seq":305441741}
+{"type":"rfid_ack","seq":305441741}
 \end{lstlisting}
 \begin{itemize}[nosep]
-  \item \textbf{Chữ ký} chứng minh gói đến từ thiết bị biết khóa: đổi bất kỳ byte nào
-        (kể cả \code{seq}) thì chữ ký sai và gói bị bỏ trước khi đọc JSON.
-  \item \textbf{Số thứ tự} \code{seq} chỉ tăng, kể cả qua lần khởi động lại của client
-        (client giữ trước từng khối 65\,536 số trong EEPROM, mỗi khối chỉ ghi flash một
-        lần). Máy chủ giữ một \textbf{cửa sổ chống phát lại} 32 số cho mỗi loại bản tin
-        (giống IPsec): số mới được xử lý, số đã thấy là bản gửi lại (chỉ trả ACK), số
-        cũ hơn cửa sổ là gói bị ghi lại để phát lại và bị bỏ.
+  \item RFID Client gửi lại đúng gói đó mỗi 300\,ms (tối đa 6 lần) cho tới khi nhận được ACK.
+  \item Máy chủ nhớ 16 giá trị \code{seq} gần nhất: gặp lại một \code{seq} đã xử lý là bản
+        gửi lại, chỉ trả ACK chứ không mở cổng lần hai.
+  \item \code{seq} bắt đầu từ một số ngẫu nhiên (bộ sinh số ngẫu nhiên phần cứng của
+        ESP8266) mỗi lần khởi động rồi tăng dần, nên gần như không trùng với số máy chủ
+        vừa thấy; client không cần lưu gì vào flash.
 \end{itemize}
 
-\begin{lydo}[Tại sao SipHash-2-4 thay vì HMAC-SHA256]
-SipHash là hàm băm có khóa (PRF) được thiết kế riêng cho thông điệp ngắn: một gói của nhóm
-chỉ 70–130 byte. Chữ ký 64 bit đủ chống giả mạo trong bối cảnh này (kẻ tấn công phải
-gửi trung bình $2^{63}$ gói để đoán trúng). Thuật toán chỉ khoảng 30 dòng C, giống hệt
-trên ESP32-C3, ESP8266 và Python, nên cả ba nơi dùng chung một định dạng và bộ kiểm thử
-kiểm tra được bằng vector chuẩn của tác giả. HMAC-SHA256 có sẵn trong mbedTLS (máy chủ)
-và BearSSL (ESP8266) nhưng hai thư viện có API khác nhau, phải mô phỏng thêm trong bộ
-kiểm thử, và chữ ký dài gấp bốn.
+\begin{lydo}[Tại sao không ký (xác thực) gói UDP]
+Mạng \code{ESP32-Parking} là mạng riêng của bãi, được bảo vệ bằng WPA2; chỉ thiết bị
+biết mật khẩu Wi-Fi mới gửi được gói tin. Ở quy mô mô hình, nhóm ưu tiên giao thức đơn
+giản, đọc được trực tiếp trong log và dễ giả lập bằng script. Các thao tác nhạy cảm từ
+trình duyệt (mở cổng, đặt giờ) vẫn cần mã PIN. Ký gói bằng mã xác thực (HMAC) được để
+lại cho hướng phát triển.
 \end{lydo}
 
 \begin{table}[H]
@@ -44,6 +41,7 @@ kiểm thử, và chữ ký dài gấp bốn.
 \toprule
 \textbf{Trường} & \textbf{Kiểu} & \textbf{Ràng buộc} \\ \midrule
 \code{type} & chuỗi & \code{"parking\_update"}, \code{"rfid\_event"} hoặc \code{"climate"} \\
+\code{seq} & số nguyên & Chỉ trong \code{rfid\_event}; $1 \le x \le 2^{32}-1$, không dấu, không phần thập phân \\
 \code{slots} & mảng & Đúng 5 phần tử, mỗi phần tử 0 (trống) hoặc 1 (có xe) \\
 \code{water\_mm} & số & $0 \le x \le 10\,000$ \\
 \code{fire} & boolean & Tùy chọn (client cũ có thể không gửi); không chấp nhận 0/1 \\
@@ -62,9 +60,9 @@ Chung & — & Khóa lạ, khóa lặp, dữ liệu thừa sau \code{\}}, chuỗi
 \toprule
 \textbf{PT} & \textbf{Đường dẫn} & \textbf{Kết quả} \\ \midrule
 GET & \code{/}, \code{/style.css} & Trang web nhúng trong firmware \\
-GET & \code{/api/parking} & \code{received}, \code{slots}, \code{free}, \code{total}, \code{temperature\_c}, \code{water\_mm}, \code{fire} \\
+GET & \code{/api/parking} & \code{received}, \code{online}, \code{slots}, \code{free}, \code{total}, \code{temperature\_c}, \code{water\_mm}, \code{fire}, \code{flood} \\
 GET & \code{/api/barrier} & \code{\{"in\_open":bool,"out\_open":bool\}} \\
-GET & \code{/api/rfid} & \code{now\_s}, \code{fee\_per\_hour}, \code{parked[]} (thẻ, giờ vào, phí tạm tính), \code{log[]} (10 sự kiện mới nhất) \\
+GET & \code{/api/rfid} & \code{now\_s}, \code{fee\_per\_hour}, \code{today}/\code{week} (doanh thu, lượt vào, lượt ra), \code{parked[]} (thẻ, giờ vào, phí tạm tính), \code{log[]} (10 sự kiện mới nhất) \\
 POST & \code{/api/barrier/}\allowbreak\code{<cổng>/<lệnh>} & Cổng \code{in}, \code{out}, \code{all}; lệnh \code{open}, \code{close}. Lỗi 500 nếu bị từ chối (ví dụ đóng khi có cháy) \\
 POST & \code{/api/time} & Thân là giờ Unix (giây) từ trình duyệt; máy chủ đặt đồng hồ bãi và lưu NVS \\
 \bottomrule
@@ -290,9 +288,9 @@ DRAM tĩnh dùng / tổng (mã IRAM 81\,444 + \code{.data} 13\,792 + \code{.bss}
 Framebuffer màn hình (heap, DMA) & 115\,200 B \\
 2 bộ đệm ảnh động (heap, DMA) & 36\,864 B \\
 Stack các tác vụ của ứng dụng & $\approx$ 19\,KB \\
-Bảng phiên, hóa đơn, thông báo, nhật ký, cửa sổ chống phát lại & $<$ 1\,KB \\ \midrule
-Ảnh firmware & 1\,092\,768 B \\
-Phân vùng ứng dụng (\code{factory}) & 1\,536\,000 B (dùng 71,1\%) \\
+Bảng phiên, hóa đơn, thông báo, nhật ký, 16 \code{seq} gần nhất & $<$ 1\,KB \\ \midrule
+Ảnh firmware & 1\,094\,496 B \\
+Phân vùng ứng dụng (\code{factory}) & 1\,536\,000 B (dùng 71,3\%) \\
 \bottomrule
 \end{tabularx}
 \end{table}
@@ -314,14 +312,15 @@ Flash 2\,MB đủ chỗ cho phân vùng 1,5\,MB có sẵn trong ESP-IDF
 Mất gói UDP cảm biến & Bản tin nhắc lại sau $\le$ 1\,s sửa trạng thái \\
 Mất gói quẹt thẻ hoặc gói ACK & RFID Client gửi lại mỗi 300\,ms (tối đa 6 lần); máy chủ nhận bản sao chỉ trả ACK, không mở cổng hai lần \\
 Bản tin sai định dạng / độc hại & Bị từ chối, trạng thái cũ giữ nguyên, có cảnh báo trong log \\
-Gói không có chữ ký, sai khóa hoặc phát lại & Bị bỏ trước khi đọc JSON \\
 Xe vào không quẹt thẻ (đi theo xe trước) & Trang web cảnh báo lệch số thẻ / số ô có xe; khi IR báo đủ 5 ô thì từ chối thẻ mới \\
 Socket UDP lỗi & Đóng socket, chờ 1\,s, tạo lại \\
 Máy chủ mất Wi-Fi & Tự kết nối lại; nhận IP (có thể mới) → thông báo lại \code{parking.local} \\
 Client mất Wi-Fi & Sensor Client bỏ qua lần gửi, tự kết nối lại; trang web báo OFFLINE \\
 DHT11 đọc lỗi & Giữ giá trị hợp lệ gần nhất \\
 Có cháy khi người vận hành bấm đóng & Lệnh đóng bị từ chối; thanh chắn giữ mở \\
-Máy chủ mất điện, khởi động lại & Thanh chắn về vị trí đóng; phiên, nhật ký, cửa sổ chống phát lại và đồng hồ được khôi phục từ NVS; thời gian mất điện được bù khi trình duyệt gửi giờ thực \\
+Sensor Client im lặng quá 3\,s & TFT và web báo \code{SENSOR OFFLINE}, sơ đồ ô chuyển xám; trạng thái cháy/ngập cuối cùng được giữ (an toàn); dữ liệu cũ không được dùng để từ chối thẻ hay cảnh báo lệch \\
+Nước ngập $\ge$ 20\,mm & Còi kêu, chặn xe vào, xe trong bãi vẫn ra; tắt khi $\le$ 15\,mm \\
+Máy chủ mất điện, khởi động lại & Thanh chắn về vị trí đóng; phiên, nhật ký, các \code{seq} đã xử lý và đồng hồ được khôi phục từ NVS; thời gian mất điện được bù khi trình duyệt gửi giờ thực \\
 Lỗi khởi tạo phần cứng & Fail-fast: in lỗi và khởi động lại \\
 \bottomrule
 \end{tabularx}
@@ -333,19 +332,19 @@ Lỗi khởi tạo phần cứng & Fail-fast: in lỗi và khởi động lại 
   khi xử lý dữ liệu ngoài; mã thẻ giới hạn ký tự nên không thể chèn mã vào JSON hay
   HTML; trang web chèn dữ liệu bằng \code{textContent}, không dùng \code{innerHTML}
   cho dữ liệu từ máy chủ; mạng dùng WPA2.
-\item \textbf{Xác thực bản tin}: mọi gói UDP được ký bằng SipHash-2-4 với khóa 16 byte
-  dùng chung; gói giả (thẻ giả, báo cháy giả) và gói ghi lại để phát lại đều bị bỏ.
-  Biết mật khẩu Wi-Fi \emph{không} đủ để điều khiển hệ thống.
+\item \textbf{Bản tin UDP} không được ký: thiết bị đã vào được mạng Wi-Fi (biết mật khẩu
+  WPA2) có thể gửi bản tin giả. Đây là đánh đổi có chủ đích (xem hộp ``Tại sao không ký
+  gói UDP'').
 \item \textbf{Xác thực API}: mọi lệnh thay đổi trạng thái (mở/đóng cổng, đặt giờ) cần mã
   PIN quản trị; so sánh mã PIN không dừng sớm để không lộ qua thời gian phản hồi.
-\item \textbf{Bí mật ngoài mã nguồn}: mật khẩu Wi-Fi, khóa và mã PIN nằm trong
+\item \textbf{Bí mật ngoài mã nguồn}: mật khẩu Wi-Fi và mã PIN nằm trong
   \file{sdkconfig} (menuconfig) và \file{secrets.h}, cả hai bị \file{.gitignore} bỏ qua;
   kho mã chỉ chứa giá trị demo.
 \end{itemize}
 
 \subsection{Khả năng bảo trì, kiểm thử và mở rộng}
 \begin{itemize}
-\item Lớp nghiệp vụ độc lập phần cứng: 318 phép kiểm thử chạy trên máy tính trong vài giây.
+\item Lớp nghiệp vụ độc lập phần cứng: 325 phép kiểm thử chạy trên máy tính trong vài giây.
 \item Hai client được kiểm thử bằng chính mã nguồn \file{.ino} trên phần cứng giả lập,
   kèm kiểm tra hợp đồng giao tiếp với bộ đọc JSON thật của máy chủ.
 \item Số chỗ đỗ là hằng số \code{PARKING\_SLOT\_COUNT}; số phiên tối đa bằng số chỗ.
@@ -360,7 +359,7 @@ Lỗi khởi tạo phần cứng & Fail-fast: in lỗi và khởi động lại 
 3 bo mạch, máy chủ trung tâm & 1 bo lớn & Đủ chân, đặt cảm biến gần nơi cần đo, cô lập lỗi; đổi lại cần mạng \\
 FreeRTOS trên máy chủ & Vòng lặp Arduino & Nhiều việc song song có ưu tiên; đổi lại phải đồng bộ cẩn thận \\
 UDP broadcast + JSON & TCP, MQTT, nhị phân & Nhẹ, dễ gỡ lỗi; mất gói được bù bằng nhắc lại (cảm biến) hoặc ACK và gửi lại (quẹt thẻ) \\
-Ký gói bằng SipHash + số thứ tự & HMAC-SHA256, TLS & Cùng một mã 30 dòng trên 3 nền tảng, kiểm thử được; chữ ký 64 bit \\
+Gói UDP không ký, ACK + \code{seq} cho quẹt thẻ & Ký HMAC, TLS & Đơn giản, dễ gỡ lỗi; dựa vào WPA2 của mạng riêng; quẹt thẻ vẫn không bị mất \\
 Gửi theo thay đổi + nhắc lại 1\,s & Chỉ gửi định kỳ & Độ trễ $\approx$ 0,1\,s; vẫn tự sửa khi mất gói \\
 Điểm truy cập trên RFID Client + mDNS & AP trên máy chủ, router & Dành RAM máy chủ cho màn hình; tên cố định dù IP đổi \\
 Bộ đọc JSON tự viết & cJSON & Không cấp phát, chỉ đúng lược đồ; đổi lại phải tự kiểm thử kỹ \\

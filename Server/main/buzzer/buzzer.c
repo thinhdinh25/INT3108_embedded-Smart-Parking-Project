@@ -22,8 +22,8 @@ esp_err_t buzzer_start(void)
     return gpio_set_level(BUZZER_GPIO, 1);
 }
 
-void buzzer_set_fire(bool fire_detected)
+void buzzer_set_alarm(bool alarm)
 {
-    /* Active-low buzzer: LOW sounds when fire is detected. */
-    gpio_set_level(BUZZER_GPIO, fire_detected ? 0 : 1);
+    /* Active-low buzzer: LOW sounds. */
+    gpio_set_level(BUZZER_GPIO, alarm ? 0 : 1);
 }

@@ -1,13 +1,12 @@
 /* Runs the real RFIDClient sketch against fake RC522 readers, DHT11, clock and UDP:
  * UID formatting, entry/exit gate tagging, the 2 s re-read cooldown, retries until the
- * server ACKs, periodic temperature, and that the server accepts every signed packet. */
+ * server ACKs, periodic temperature, and that the server accepts every packet. */
 #include "Arduino.h"
 #include "../RFIDClient/RFIDClient.ino"
 
 #include <set>
 
 extern "C" {
-#include "packet_auth.h"
 #include "parking_update.h"
 #include "rfid_session.h"
 }
@@ -36,12 +35,10 @@ static std::vector<std::pair<uint32_t, rfid_event_t>> scans()
     std::set<uint32_t> seen;
     for (const std::string &p : fake::udp_sent)
     {
-        uint32_t seq;
         rfid_event_t e;
         memset(&e, 0, sizeof(e));
-        const char *json = packet_auth_open(p.c_str(), p.size(), UDP_KEY, &seq);
-        if (json && rfid_event_parse_json(json, &e) && seen.insert(seq).second)
-            out.push_back({seq, e});
+        if (rfid_event_parse_json(p.c_str(), &e) && seen.insert(e.seq).second)
+            out.push_back({e.seq, e});
     }
     return out;
 }
@@ -60,8 +57,8 @@ static int copies_of(uint32_t seq)
     int n = 0;
     for (const std::string &p : fake::udp_sent)
     {
-        uint32_t s;
-        n += packet_auth_open(p.c_str(), p.size(), UDP_KEY, &s) && s == seq;
+        rfid_event_t e;
+        n += rfid_event_parse_json(p.c_str(), &e) && e.seq == seq;
     }
     return n;
 }
@@ -69,9 +66,7 @@ static int copies_of(uint32_t seq)
 /* The server's reply, signed with the same key. */
 static void server_ack(uint32_t seq)
 {
-    char ack[32];
-    size_t len = packet_auth_seal(UDP_KEY, seq, "ACK", ack, sizeof(ack));
-    fake::udp_inbox.push_back(std::string(ack, len));
+    fake::udp_inbox.push_back("{\"type\":\"rfid_ack\",\"seq\":" + std::to_string(seq) + "}");
 }
 
 static void ack_all()
@@ -89,8 +84,7 @@ int main()
     CHECK(scans().empty());
     float temperature = 0;
     const std::string &climate = fake::udp_sent.back();
-    const char *json = packet_auth_open(climate.c_str(), climate.size(), UDP_KEY, nullptr);
-    CHECK(json && climate_parse_json(json, &temperature) && temperature == 28.0f);
+    CHECK(climate_parse_json(climate.c_str(), &temperature) && temperature == 28.0f);
 
     /* Card on the entry reader: upper-case hex UID, gate "in", current temperature. */
     rfid_event_t e;
@@ -173,11 +167,9 @@ int main()
     delay(300);
     loop();
     CHECK(copies_of(seq) == 2);
-    /* ...an ACK signed with another key is ignored... */
-    uint8_t wrong_key[16] = {0};
-    char forged[32];
-    size_t forged_len = packet_auth_seal(wrong_key, seq, "ACK", forged, sizeof(forged));
-    fake::udp_inbox.push_back(std::string(forged, forged_len));
+    /* ...an ACK for another scan, or other traffic on the port, is ignored... */
+    server_ack(seq + 1);
+    fake::udp_inbox.push_back("{\"type\":\"parking_update\",\"slots\":[0,0,0,0,0],\"water_mm\":0}");
     delay(300);
     loop();
     CHECK(copies_of(seq) == 3);
@@ -202,6 +194,20 @@ int main()
         loop();
     }
     CHECK(copies_of(lost) == 6);
+
+    /* Sequence numbers start from the hardware RNG and go up by one per scan. */
+    remove_cards();
+    delay(2500);
+    fake::udp_sent.clear();
+    present(0, {0x10, 0x20, 0x30, 0x40});
+    loop();
+    remove_cards();
+    delay(2500);
+    present(1, {0x10, 0x20, 0x30, 0x40});
+    loop();
+    auto last2 = scans();
+    CHECK(last2.size() == 2 && last2[1].first == last2[0].first + 1);
+    CHECK((last2[0].first & 0xFFFF0000u) == (fake::esp_random & 0xFFFF0000u));
 
     return TEST_REPORT("rfid_client");
 }

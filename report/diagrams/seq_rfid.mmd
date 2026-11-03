@@ -9,9 +9,9 @@ sequenceDiagram
   rect rgb(232, 245, 233)
   Note over U,L: Gửi xe
   U->>C: Quẹt thẻ ở cổng vào
-  C->>S: rfid_event gate=in, ký SipHash, seq = n (UDP)
-  S->>S: Kiểm tra chữ ký, seq n chưa dùng
-  S-->>C: ACK n (cũng ký) → client ngừng gửi lại
+  C->>S: rfid_event gate=in, seq = n (UDP)
+  S-->>C: rfid_ack seq = n → client ngừng gửi lại
+  S->>S: seq n chưa có trong 16 seq gần nhất → xử lý
   S->>R: rfid_session_scan()
   R-->>S: ENTERED, lưu giờ vào, nhật ký IN
   S->>S: Lưu phiên + nhật ký vào NVS
@@ -23,7 +23,7 @@ sequenceDiagram
   Note over C,S: Gói tin bị mất
   C-xS: rfid_event gate=out, seq = n+1
   C->>S: Sau 300 ms chưa có ACK → gửi lại bản giống hệt
-  S-->>C: ACK n+1
+  S-->>C: rfid_ack seq = n+1
   end
   rect rgb(225, 236, 250)
   Note over U,L: Lấy xe

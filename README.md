@@ -41,6 +41,14 @@ The full technical report (Vietnamese, LaTeX source and PDF) is in
   and every 5 minutes, so a power cut loses nothing. The operator's browser
   sets the real time (the lot has no internet), and downtime is added back.
 - Temperature is sent every 5 s on its own, not only with card scans.
+- Sensor watchdog: if the Sensor Client is silent for 3 s, the TFT shows
+  `SENSOR OFFLINE` with grey bays and the dashboard marks the data as last
+  known state. Stale data never blocks entry or raises the lot warning.
+- Flood alarm: at 20 mm water (off again at 15 mm) the buzzer sounds, the TFT
+  and dashboard warn, and entry scans are refused (`FLOOD ALARM`); cars inside
+  can still leave.
+- Revenue statistics: today's and the last 7 days' revenue and in/out counts
+  (UTC+7 days), saved in NVS with the sessions.
 - Cross-check with the IR sensors: when all 5 bays are occupied a new card is
   refused, and the dashboard warns when cards inside and occupied bays differ
   for more than 15 s.
@@ -140,7 +148,7 @@ Sensor update (Sensor Client, every 1 s). Slot `1` means occupied, `0` free:
 RFID scan (RFID Client, per card read; `gate` is `in` or `out`):
 
 ```json
-{"type":"rfid_event","card_id":"A1B2C3D4","gate":"in","temperature_c":28.0}
+{"type":"rfid_event","card_id":"A1B2C3D4","gate":"in","temperature_c":28.0,"seq":305441741}
 ```
 
 Temperature (RFID Client, every 5 s):
@@ -149,14 +157,11 @@ Temperature (RFID Client, every 5 s):
 {"type":"climate","temperature_c":28.0}
 ```
 
-Every datagram is signed: `<tag:16 hex><seq:8 hex><json>`, where
-tag = SipHash-2-4(16-byte key, seq hex + json). The server drops packets with a
-wrong tag before parsing, and keeps a 32-entry anti-replay window per message
-type, so a recorded packet cannot be played back. `seq` keeps growing across
-client reboots (blocks are reserved in EEPROM). The server ACKs every
-`rfid_event` with a signed `<tag><seq>ACK`; the RFID Client resends an
-unacknowledged scan every 300 ms (up to 6 times), and the server acts on each
-`seq` once.
+Datagrams are plain JSON (not signed; the network is a private WPA2 hotspot).
+The server ACKs every `rfid_event` with `{"type":"rfid_ack","seq":N}`; the RFID
+Client resends an unacknowledged scan every 300 ms (up to 6 times). The server
+remembers the last 16 `seq` values and acts on each scan once. `seq` starts
+from the ESP8266 hardware RNG at boot and counts up.
 
 The server parsers are strict: unknown keys, duplicate keys, wrong types or
 trailing data reject the datagram. `fire` must be a JSON boolean and may be
@@ -167,9 +172,9 @@ HTTP API:
 | Method | Path | Result |
 | --- | --- | --- |
 | GET | `/` , `/style.css` | Dashboard |
-| GET | `/api/parking` | Slots, free count, temperature, water, fire |
+| GET | `/api/parking` | Slots, free count, temperature, water, fire, flood, sensor `online` |
 | GET | `/api/barrier` | `{"in_open":…,"out_open":…}` |
-| GET | `/api/rfid` | Price per hour, cars inside (entry time, fee so far), last 10 RFID events (in/out/rejected, duration, fee) |
+| GET | `/api/rfid` | Price per hour, today / 7-day revenue and visits, cars inside (entry time, fee so far), last 10 RFID events (in/out/rejected, duration, fee) |
 | POST | `/api/barrier/{in,out,all}/{open,close}` | Move barriers manually |
 | POST | `/api/time` | Body: Unix seconds. Sets the parking clock |
 
@@ -181,12 +186,10 @@ asks for it once and remembers it); a wrong or missing PIN returns 401.
 The repository only holds demo values. Real ones stay out of Git:
 
 - Server: `idf.py menuconfig` → *Parking network and security*: Wi-Fi SSID
-  and password, `PARKING_UDP_KEY` (32 hex digits), admin PIN (default `2468`).
+  and password, admin PIN (default `2468`).
   They are stored in the git-ignored `Server/sdkconfig`.
 - Clients: copy `secrets.example.h` to `secrets.h` next to each sketch and
-  edit it (`secrets.h` is git-ignored). The 16-byte key must be the same on all
-  three boards, otherwise the server logs `Dropping unsigned UDP packet`.
-  Generate one with `python3 -c "import secrets; print(secrets.token_hex(16))"`.
+  edit it (`secrets.h` is git-ignored).
 
 ## Setup and run
 
@@ -228,10 +231,8 @@ python examples/udp_rfid_sender.py A1B2C3D4 --gate out
 python examples/udp_sender.py --slots 1,0,0,1,0 --fire
 ```
 
-The simulators sign with the demo key and a time-based `seq`. Do not mix them
-with the real client of the same type: after simulating RFID scans the real
-RFID Client's `seq` looks old and is dropped until NVS is erased
-(`idf.py -p PORT erase-flash flash`).
+The RFID simulator uses a random `seq` per run, so it can run next to the real
+RFID Client.
 
 ### 4. Tests (no hardware needed)
 
@@ -239,11 +240,10 @@ RFID Client's `seq` looks old and is dropped until NVS is erased
 make -C tests
 ```
 
-Runs 318 checks on the host: packet signing (SipHash reference vectors,
-tampering, replay window), the server JSON parsers, RFID sessions/fees/log/
-notices/persistence/clock, the animation frame data, and both ESP8266 sketches
+Runs 325 checks on the host: the server JSON parsers, RFID sessions/fees/log/
+notices/persistence/clock/flood/offline/revenue stats/retry dedupe, the animation frame data, and both ESP8266 sketches
 compiled against a fake Arduino layer (`tests/arduino/`), with every client
-packet checked and parsed by the real server code.
+packet parsed by the real server code.
 
 ## Repository layout
 
@@ -255,10 +255,10 @@ Server/main/
   display/              ST7789 UI, fire screen, LZSS-compressed GIF frames
   network/              Wi-Fi station, mDNS, HTTP dashboard/API, UDP receiver
   parking/              Shared state, JSON parsers, RFID sessions and fees,
-                        packet signing, NVS persistence
+                        NVS persistence
 SensorClient/           Sensor Client: ESP8266 IR / flame / water sender
 RFIDClient/             RFID Client: ESP8266 hotspot, dual RC522 + DHT11 sender
-  (both)                packet_auth.h (same copy), secrets.example.h
+  (both)                secrets.example.h (copy to secrets.h)
 examples/               Python and ESP-IDF UDP test senders
 tests/                  Host test suite (make -C tests)
 docs/                   Wiring notes

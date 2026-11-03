@@ -22,8 +22,8 @@ bool rfid_event_parse_json(const char *payload, rfid_event_t *event)
     if (!payload || !event || !json_consume_char(&payload, '{'))
         return false;
 
-    bool has_type = false, has_id = false, has_gate = false, has_temp = false;
-    for (int field = 0; field < 4; ++field)
+    bool has_type = false, has_id = false, has_gate = false, has_temp = false, has_seq = false;
+    for (int field = 0; field < 5; ++field)
     {
         char key[20], value[RFID_CARD_ID_MAX + 1];
         if (!json_parse_string(&payload, key, sizeof(key)) ||
@@ -69,13 +69,19 @@ bool rfid_event_parse_json(const char *payload, rfid_event_t *event)
                 return false;
             has_temp = true;
         }
+        else if (strcmp(key, "seq") == 0)
+        {
+            if (has_seq || !json_parse_uint32(&payload, &event->seq) || event->seq == 0)
+                return false;
+            has_seq = true;
+        }
         else
             return false;
 
         json_skip_ws(&payload);
         if (*payload == ',')
         {
-            if (field == 3)
+            if (field == 4)
                 return false;
             ++payload;
         }
@@ -85,7 +91,7 @@ bool rfid_event_parse_json(const char *payload, rfid_event_t *event)
             return false;
     }
 
-    return has_type && has_id && has_gate && has_temp && json_parse_object_end(&payload);
+    return has_type && has_id && has_gate && has_temp && has_seq && json_parse_object_end(&payload);
 }
 
 uint32_t rfid_fee_for_seconds(uint64_t seconds)
@@ -114,6 +120,30 @@ static void log_event(const rfid_event_t *event, rfid_scan_result_t result, uint
         ++store.log_count;
 }
 
+#define SECONDS_PER_DAY 86400LL
+#define LOCAL_OFFSET_S (7 * 3600LL) /* Vietnam, UTC+7 */
+
+static uint32_t day_of(int64_t clock_us)
+{
+    const int64_t local_s = clock_us / 1000000LL + LOCAL_OFFSET_S;
+    return local_s > 0 ? (uint32_t)(local_s / SECONDS_PER_DAY) : 0;
+}
+
+/* Caller holds session_lock. The bucket for `day`, or the oldest one reset for it. */
+static rfid_day_stats_t *day_bucket(uint32_t day)
+{
+    rfid_day_stats_t *oldest = &store.days[0];
+    for (int i = 0; i < RFID_STATS_DAYS; ++i)
+    {
+        if (store.days[i].day == day)
+            return &store.days[i];
+        if (store.days[i].day < oldest->day)
+            oldest = &store.days[i];
+    }
+    *oldest = (rfid_day_stats_t){.day = day};
+    return oldest;
+}
+
 rfid_scan_result_t rfid_session_scan(const rfid_event_t *event, uint64_t now_us)
 {
     if (!event)
@@ -123,7 +153,7 @@ rfid_scan_result_t rfid_session_scan(const rfid_event_t *event, uint64_t now_us)
     parking_state_t lot;
     int free_bays;
     parking_state_get(&lot, &free_bays);
-    const bool bays_full = lot.received && free_bays == 0;
+    const bool bays_full = lot.online && free_bays == 0; /* stale data must not block entry */
 
     rfid_scan_result_t result = RFID_SCAN_ENTERED;
     portENTER_CRITICAL(&session_lock);
@@ -167,6 +197,10 @@ rfid_scan_result_t rfid_session_scan(const rfid_event_t *event, uint64_t now_us)
         {
             result = RFID_SCAN_INVALID_GATE;
         }
+        else if (lot.flood)
+        {
+            result = RFID_SCAN_FLOOD;
+        }
         else if (free_index < 0 || bays_full)
         {
             result = RFID_SCAN_FULL;
@@ -185,7 +219,20 @@ rfid_scan_result_t rfid_session_scan(const rfid_event_t *event, uint64_t now_us)
     else
         log_event(event, result, now_us, 0, 0);
 
-    if (result == RFID_SCAN_FULL || result == RFID_SCAN_INVALID_GATE)
+    if (result == RFID_SCAN_ENTERED || result == RFID_SCAN_EXITED)
+    {
+        rfid_day_stats_t *day = day_bucket(day_of((int64_t)now_us));
+        if (result == RFID_SCAN_ENTERED)
+            ++day->entries;
+        else
+        {
+            ++day->exits;
+            day->revenue_vnd = day->revenue_vnd > UINT32_MAX - latest_receipt.fee_vnd
+                ? UINT32_MAX : day->revenue_vnd + latest_receipt.fee_vnd;
+        }
+    }
+
+    if (result == RFID_SCAN_FULL || result == RFID_SCAN_INVALID_GATE || result == RFID_SCAN_FLOOD)
     {
         latest_notice.valid = true;
         memcpy(latest_notice.card_id, event->card_id, strlen(event->card_id) + 1);
@@ -253,12 +300,19 @@ size_t rfid_session_get_active(rfid_active_t *out, size_t max)
     return n;
 }
 
-packet_freshness_t rfid_session_check_seq(uint32_t seq)
+bool rfid_session_check_seq(uint32_t seq)
 {
+    bool fresh = true;
     portENTER_CRITICAL(&session_lock);
-    packet_freshness_t freshness = packet_window_check(&store.scan_window, seq);
+    for (int i = 0; i < RFID_RECENT_SEQS; ++i)
+        fresh &= store.recent_seqs[i] != seq;
+    if (fresh)
+    {
+        store.recent_seqs[store.recent_next] = seq;
+        store.recent_next = (store.recent_next + 1) % RFID_RECENT_SEQS;
+    }
     portEXIT_CRITICAL(&session_lock);
-    return freshness;
+    return fresh;
 }
 
 void rfid_session_snapshot(rfid_store_t *out)
@@ -273,7 +327,7 @@ void rfid_session_snapshot(rfid_store_t *out)
 void rfid_session_restore(const rfid_store_t *saved)
 {
     if (!saved || saved->version != RFID_STORE_VERSION || saved->log_next >= RFID_LOG_SIZE ||
-        saved->log_count > RFID_LOG_SIZE)
+        saved->log_count > RFID_LOG_SIZE || saved->recent_next >= RFID_RECENT_SEQS)
         return;
     /* Downtime is unknown, so the clock resumes just after it stopped (on a new whole second,
      * so even second-resolution log times tell old from new) until a browser sets it.
@@ -307,8 +361,38 @@ void rfid_session_set_clock(uint64_t unix_s)
                 store.log[i].at_s = (uint32_t)(shifted(store.log[i].at_s * 1000000ULL, delta) / 1000000ULL);
         latest_receipt.display_until_us = shifted(latest_receipt.display_until_us, delta);
         latest_notice.display_until_us = shifted(latest_notice.display_until_us, delta);
+        for (int i = 0; i < RFID_STATS_DAYS; ++i)
+        {
+            rfid_day_stats_t *day = &store.days[i];
+            const int64_t start_us = ((int64_t)day->day * SECONDS_PER_DAY - LOCAL_OFFSET_S) * 1000000LL;
+            if ((day->entries || day->exits) && (unsynced_from_us == 0 || start_us >= unsynced_from_us))
+                day->day = day_of(start_us + delta);
+        }
         store.clock_synced = true;
         clock_set_this_boot = true;
     }
     portEXIT_CRITICAL(&session_lock);
+}
+
+void rfid_session_get_stats(rfid_day_stats_t *today, rfid_day_stats_t *week)
+{
+    const uint32_t now_day = day_of(parking_clock_now_us());
+    rfid_day_stats_t t = {.day = now_day}, w = {.day = now_day};
+    portENTER_CRITICAL(&session_lock);
+    for (int i = 0; i < RFID_STATS_DAYS; ++i)
+    {
+        const rfid_day_stats_t *d = &store.days[i];
+        if (d->day > now_day || now_day - d->day >= RFID_STATS_DAYS)
+            continue;
+        if (d->day == now_day)
+            t = *d;
+        w.revenue_vnd = w.revenue_vnd > UINT32_MAX - d->revenue_vnd ? UINT32_MAX : w.revenue_vnd + d->revenue_vnd;
+        w.entries += d->entries;
+        w.exits += d->exits;
+    }
+    portEXIT_CRITICAL(&session_lock);
+    if (today)
+        *today = t;
+    if (week)
+        *week = w;
 }

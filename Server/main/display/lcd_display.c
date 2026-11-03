@@ -171,7 +171,12 @@ static void draw_notice(const rfid_notice_t *notice)
     char line[RFID_CARD_ID_MAX + 5];
     snprintf(line, sizeof(line), "ID %s", notice->card_id);
     draw_text(8, 198, line, 1, COLOR_WHITE);
-    if (notice->result == RFID_SCAN_FULL)
+    if (notice->result == RFID_SCAN_FLOOD)
+    {
+        draw_text(8, 209, "FLOOD ALARM", 2, COLOR_RED);
+        draw_text(8, 229, "ENTRY CLOSED - EXIT STILL OPEN", 1, COLOR_MUTED);
+    }
+    else if (notice->result == RFID_SCAN_FULL)
     {
         draw_text(8, 209, "PARKING FULL", 2, COLOR_RED);
         draw_text(8, 229, "NO FREE SPACE - PLEASE WAIT", 1, COLOR_MUTED);
@@ -193,6 +198,11 @@ static void draw_parking_screen(const parking_state_t *state, int free_count,
     fill_rect(0, 0, width, 4, COLOR_TEAL);
 
     draw_text(12, 11, "PARKSENSE", 2, COLOR_WHITE);
+    /* Status tag: flood matters most; a silent sensor means the bays below are stale. */
+    if (state->flood)
+        draw_text(150, 15, "FLOOD-NO ENTRY", 1, COLOR_RED);
+    else if (state->received && !state->online)
+        draw_text(150, 15, "SENSOR OFFLINE", 1, COLOR_ORANGE);
     fill_rect(8, 32, width - 16, 1, COLOR_LINE);
 
     /* Main availability indicator. */
@@ -203,7 +213,7 @@ static void draw_parking_screen(const parking_state_t *state, int free_count,
 
     /* Sensor values. */
     fill_rect(8, 87, 60, 40, COLOR_PANEL);
-    fill_rect(75, 87, 60, 40, COLOR_PANEL);
+    fill_rect(75, 87, 60, 40, state->flood ? COLOR_DARK_RED : COLOR_PANEL);
     draw_text(12, 93, "TEMP C", 1, COLOR_MUTED);
     draw_text(78, 93, "WATER MM", 1, COLOR_MUTED);
 
@@ -224,12 +234,12 @@ static void draw_parking_screen(const parking_state_t *state, int free_count,
         bool occupied = state->slots[i] != 0;
 
         fill_rect(x, 147, 43, 43, COLOR_PANEL);
-        fill_rect(x, 147, 3, 43, occupied ? COLOR_RED : COLOR_GREEN);
+        const uint16_t color = !state->online ? COLOR_MUTED : occupied ? COLOR_RED : COLOR_GREEN;
+        fill_rect(x, 147, 3, 43, color);
 
         char slot_label[3] = {'S', (char)('1' + i), '\0'};
         draw_text(x + 4, 152, slot_label, 1, COLOR_MUTED);
-        draw_text(x + 4, 172, occupied ? "BUSY" : "FREE", 1,
-                  occupied ? COLOR_RED : COLOR_GREEN);
+        draw_text(x + 4, 172, !state->online ? "----" : occupied ? "BUSY" : "FREE", 1, color);
     }
 
     fill_rect(0, 194, width, 46, COLOR_PANEL);
@@ -452,6 +462,8 @@ static void display_task(void *arg)
     bool first_draw = true;
     bool last_received = false;
     bool last_fire = false;
+    bool last_online = false;
+    bool last_flood = false;
     int fire_frame = 0;
     rfid_receipt_t receipt = {0};
     rfid_receipt_t last_receipt = {0};
@@ -470,6 +482,8 @@ static void display_task(void *arg)
         if (state.fire || first_draw ||
             state.received != last_received ||
             state.fire != last_fire ||
+            state.online != last_online ||
+            state.flood != last_flood ||
             memcmp(state.slots, last_slots, sizeof(last_slots)) != 0 ||
             state.temperature_c != last_temperature ||
             state.water_mm != last_water ||
@@ -487,6 +501,8 @@ static void display_task(void *arg)
             memcpy(last_slots, state.slots, sizeof(last_slots));
             last_received = state.received;
             last_fire = state.fire;
+            last_online = state.online;
+            last_flood = state.flood;
             last_temperature = state.temperature_c;
             last_water = state.water_mm;
             memcpy(&last_receipt, &receipt, sizeof(receipt));

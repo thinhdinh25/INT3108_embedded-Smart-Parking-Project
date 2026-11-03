@@ -7,7 +7,7 @@
 /* Initialize the active-low buzzer output and start with the buzzer off. */
 esp_err_t buzzer_start(void);
 
-/* Set the buzzer state from the latest fire sensor reading. */
-void buzzer_set_fire(bool fire_detected);
+/* Sound the buzzer while fire or flood is reported. */
+void buzzer_set_alarm(bool alarm);
 
 #endif

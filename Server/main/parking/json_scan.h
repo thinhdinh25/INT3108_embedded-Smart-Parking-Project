@@ -3,6 +3,7 @@
 
 #include <stdbool.h>
 #include <stddef.h>
+#include <stdint.h>
 
 /* Minimal, allocation-free helpers for the fixed UDP message schemas.
  * Each function advances *p only past what it accepted. */
@@ -13,6 +14,8 @@ bool json_parse_string(const char **p, char *out, size_t out_size);
 /* Number starting with a digit or '-'. Range checks are left to the caller. */
 bool json_parse_number(const char **p, float *value);
 bool json_parse_bool(const char **p, bool *value);
+/* Unsigned decimal integer that fits in 32 bits, no sign, fraction or exponent. */
+bool json_parse_uint32(const char **p, uint32_t *value);
 /* Closing '}' followed only by whitespace. */
 bool json_parse_object_end(const char **p);
 

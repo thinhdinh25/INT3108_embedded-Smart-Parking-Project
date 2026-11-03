@@ -7,8 +7,7 @@
 #include "lwip/inet.h"
 #include "lwip/sockets.h"
 
-#include "sdkconfig.h"
-#include "../parking/packet_auth.h"
+#include <stdio.h>
 #include "../parking/parking_persist.h"
 #include "../parking/parking_state.h"
 #include "../parking/parking_update.h"
@@ -24,11 +23,10 @@
 
 static const char *TAG = "UDP_SERVER";
 
-static void send_ack(int socket_fd, const uint8_t key[16], uint32_t seq,
-                     const struct sockaddr_in *to)
+static void send_ack(int socket_fd, uint32_t seq, const struct sockaddr_in *to)
 {
-    char ack[PACKET_AUTH_HEADER_LEN + 4];
-    size_t len = packet_auth_seal(key, seq, "ACK", ack, sizeof(ack));
+    char ack[48];
+    int len = snprintf(ack, sizeof(ack), "{\"type\":\"rfid_ack\",\"seq\":%lu}", (unsigned long)seq);
     if (sendto(socket_fd, ack, len, 0, (const struct sockaddr *)to, sizeof(*to)) < 0)
         ESP_LOGW(TAG, "RFID ACK failed: errno %d", errno);
 }
@@ -37,13 +35,7 @@ static void udp_server_task(void *arg)
 {
     (void)arg;
 
-    uint8_t key[16];
-    if (!packet_auth_parse_key(CONFIG_PARKING_UDP_KEY, key))
-    {
-        ESP_LOGE(TAG, "PARKING_UDP_KEY must be 32 hex digits; UDP disabled");
-        vTaskDelete(NULL);
-    }
-    packet_window_t sensor_window = {0}, climate_window = {0};
+    bool flood_alarm = false;
     int64_t next_persist_us = esp_timer_get_time() + PERSIST_INTERVAL_US;
 
     for (;;)
@@ -95,21 +87,11 @@ static void udp_server_task(void *arg)
                      inet_ntoa(source_addr.sin_addr),
                      ntohs(source_addr.sin_port), received, buffer);
 
-            /* Unsigned or forged packets are dropped before any parsing. */
-            uint32_t seq;
-            const char *json = packet_auth_open(buffer, (size_t)received, key, &seq);
-            if (!json)
-            {
-                ESP_LOGW(TAG, "Dropping unsigned UDP packet from %s", inet_ntoa(source_addr.sin_addr));
-                continue;
-            }
-
+            const char *json = buffer;
             parking_state_t new_state = {0};
             float temperature_c;
             if (parking_update_parse_json(json, &new_state))
             {
-                if (packet_window_check(&sensor_window, seq) != PACKET_NEW)
-                    continue; /* replayed or out of date */
                 /* The sensor sends every second, so this also keeps the saved clock fresh. */
                 if (esp_timer_get_time() >= next_persist_us)
                 {
@@ -118,7 +100,16 @@ static void udp_server_task(void *arg)
                 }
                 parking_state_update(&new_state);
                 lcd_display_notify();
-                buzzer_set_fire(new_state.fire);
+                parking_state_t lot;
+                int free_bays;
+                parking_state_get(&lot, &free_bays); /* flood is decided there, with hysteresis */
+                if (lot.flood != flood_alarm)
+                {
+                    flood_alarm = lot.flood;
+                    ESP_LOGW(TAG, "Flood alarm %s (water %.1f mm)", flood_alarm ? "ON: entry closed" : "cleared",
+                             (double)lot.water_mm);
+                }
+                buzzer_set_alarm(lot.fire || lot.flood);
                 esp_err_t fire_err = servo_set_fire_alarm(new_state.fire);
                 if (fire_err != ESP_OK)
                     ESP_LOGE(TAG, "Failed to update fire barrier mode: %s", esp_err_to_name(fire_err));
@@ -131,11 +122,8 @@ static void udp_server_task(void *arg)
 
             if (climate_parse_json(json, &temperature_c))
             {
-                if (packet_window_check(&climate_window, seq) == PACKET_NEW)
-                {
-                    parking_state_set_temperature(temperature_c);
-                    lcd_display_notify();
-                }
+                parking_state_set_temperature(temperature_c);
+                lcd_display_notify();
                 continue;
             }
 
@@ -147,10 +135,8 @@ static void udp_server_task(void *arg)
             }
 
             /* ACK every copy so the client stops retrying, but act on each scan once. */
-            packet_freshness_t freshness = rfid_session_check_seq(seq);
-            if (freshness != PACKET_STALE)
-                send_ack(socket_fd, key, seq, &source_addr);
-            if (freshness != PACKET_NEW)
+            send_ack(socket_fd, event.seq, &source_addr);
+            if (!rfid_session_check_seq(event.seq))
                 continue;
 
             rfid_scan_result_t result = rfid_session_scan(&event, (uint64_t)parking_clock_now_us());
@@ -175,6 +161,8 @@ static void udp_server_task(void *arg)
                 ESP_LOGW(TAG, "RFID %s rejected: scanned on wrong reader (%s)",
                          event.card_id, event.gate == RFID_GATE_IN ? "IN" : "OUT");
             }
+            else if (result == RFID_SCAN_FLOOD)
+                ESP_LOGW(TAG, "RFID %s rejected: entry closed by flood alarm", event.card_id);
             else
                 ESP_LOGW(TAG, "RFID active-session capacity reached for %s", event.card_id);
         }

@@ -119,12 +119,18 @@ footer { display: flex; align-items: center; justify-content: center; gap: 8px; 
 
 .log-panel { margin-top: 14px; }
 .log-note { margin: 0 0 12px; color: var(--muted); font-size: 9px; }
+.revenue-stats { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-bottom: 4px; }
+.revenue-stat { display: grid; gap: 3px; padding: 10px 12px; border: 1px solid var(--line); background: #000; }
+.revenue-stat span, .revenue-stat small { color: var(--muted); font-size: 9px; letter-spacing: .6px; }
+.revenue-stat strong { color: var(--terminal); font-size: 18px; font-weight: 600; }
+.bays.stale { opacity: .4; filter: grayscale(1); }
+.sample-badge.is-stale, .sample-badge.is-stale span { border-color: #f5b301; color: #f5b301; }
 .log-subtitle { margin: 14px 0 6px; color: var(--muted); font-size: 9px; font-weight: 700; letter-spacing: .7px; text-transform: uppercase; }
 .log-table { width: 100%; border-collapse: collapse; font-size: 10px; }
 .log-table th { padding: 6px 8px; border-bottom: 1px solid var(--line); color: var(--muted); font-size: 9px; font-weight: 500; text-align: left; }
 .log-table td { padding: 7px 8px; border-bottom: 1px solid #1a1a1a; }
 .log-table .event-in td:nth-child(3) { color: var(--terminal); }
-.log-table .event-full td:nth-child(3), .log-table .event-wrong_gate td:nth-child(3) { color: #f87171; }
+.log-table .event-full td:nth-child(3), .log-table .event-wrong_gate td:nth-child(3), .log-table .event-flood td:nth-child(3) { color: #f87171; }
 .log-empty td { color: var(--muted); text-align: center; }
 
 @media (max-width: 700px) {

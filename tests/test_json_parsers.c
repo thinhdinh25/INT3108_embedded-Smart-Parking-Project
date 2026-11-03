@@ -82,16 +82,18 @@ static void test_parking_update_rejects(void)
 static void test_rfid_event(void)
 {
     rfid_event_t e;
-    CHECK(rfid("{\"type\":\"rfid_event\",\"card_id\":\"a1b2c3d4\",\"gate\":\"in\",\"temperature_c\":28.5}", &e));
+    CHECK(rfid("{\"type\":\"rfid_event\",\"card_id\":\"a1b2c3d4\",\"gate\":\"in\",\"temperature_c\":28.5,\"seq\":7}", &e));
+    CHECK(e.seq == 7);
     CHECK(strcmp(e.card_id, "A1B2C3D4") == 0); /* normalized to upper case */
     CHECK(e.gate == RFID_GATE_IN && e.temperature_c == 28.5f);
 
     CHECK(rfid(" { \"temperature_c\" : -40 , \"gate\" : \"OUT\" , \"card_id\" : \"X-1_2\" , "
-               "\"type\" : \"rfid_event\" } ", &e));
+               "\"seq\" : 4294967295 , \"type\" : \"rfid_event\" } ", &e));
+    CHECK(e.seq == 4294967295u); /* largest 32-bit value is exact (no float rounding) */
     CHECK(e.gate == RFID_GATE_OUT && strcmp(e.card_id, "X-1_2") == 0 && e.temperature_c == -40.0f);
 
     /* 31 characters fit, 32 do not. */
-    CHECK(rfid("{\"type\":\"rfid_event\",\"card_id\":\"0123456789ABCDEF0123456789ABCDE\",\"gate\":\"in\",\"temperature_c\":1}", &e));
+    CHECK(rfid("{\"type\":\"rfid_event\",\"card_id\":\"0123456789ABCDEF0123456789ABCDE\",\"gate\":\"in\",\"temperature_c\":1,\"seq\":1}", &e));
     CHECK(strlen(e.card_id) == RFID_CARD_ID_MAX);
 
     const char *bad[] = {
@@ -111,6 +113,14 @@ static void test_rfid_event(void)
         "{\"type\":\"rfid_event\",\"card_id\":\"A1\",\"card_id\":\"B2\",\"gate\":\"in\",\"temperature_c\":28}",
         "{\"type\":\"rfid_event\",\"card_id\":\"A1\",\"gate\":\"in\",\"temperature_c\":28,\"extra\":1}",
         "{\"type\":\"rfid_event\",\"card_id\":\"A1\",\"gate\":\"in\",\"temperature_c\":28} x",
+        "{\"type\":\"rfid_event\",\"card_id\":\"A1\",\"gate\":\"in\",\"temperature_c\":28}",            /* no seq */
+        "{\"type\":\"rfid_event\",\"card_id\":\"A1\",\"gate\":\"in\",\"temperature_c\":28,\"seq\":0}",
+        "{\"type\":\"rfid_event\",\"card_id\":\"A1\",\"gate\":\"in\",\"temperature_c\":28,\"seq\":-1}",
+        "{\"type\":\"rfid_event\",\"card_id\":\"A1\",\"gate\":\"in\",\"temperature_c\":28,\"seq\":1.5}",
+        "{\"type\":\"rfid_event\",\"card_id\":\"A1\",\"gate\":\"in\",\"temperature_c\":28,\"seq\":1e3}",
+        "{\"type\":\"rfid_event\",\"card_id\":\"A1\",\"gate\":\"in\",\"temperature_c\":28,\"seq\":\"1\"}",
+        "{\"type\":\"rfid_event\",\"card_id\":\"A1\",\"gate\":\"in\",\"temperature_c\":28,\"seq\":4294967296}",
+        "{\"type\":\"rfid_event\",\"card_id\":\"A1\",\"gate\":\"in\",\"temperature_c\":28,\"seq\":1,\"seq\":2}",
     };
     for (size_t i = 0; i < sizeof(bad) / sizeof(bad[0]); ++i)
     {

@@ -246,7 +246,6 @@ HTML/CSS/JavaScript & thuần & Trang web, không framework, không CDN \\
 \file{parking/json\_scan.c} & 81 & Hàm đọc JSON dùng chung, không cấp phát động \\
 \file{parking/parking\_update.c} & 108 & Kiểm tra bản tin \code{parking\_update} và \code{climate} \\
 \file{parking/rfid\_session.c} & 314 & Bản tin RFID, phiên gửi xe, phí, hóa đơn, thông báo, nhật ký, chống lặp, đối chiếu IR, lưu/khôi phục, đặt giờ \\
-\file{parking/packet\_auth.c} & 135 & Ký/kiểm tra gói UDP bằng SipHash-2-4, cửa sổ chống phát lại \\
 \file{parking/parking\_persist.c} & 47 & Lưu/đọc phiên, nhật ký, đồng hồ trong NVS \\
 \file{barrier/servo.c} & 230 & PWM servo, hẹn giờ tự đóng, chế độ cháy \\
 \file{buzzer/buzzer.c} & 29 & Còi tích cực mức thấp \\
@@ -254,7 +253,7 @@ HTML/CSS/JavaScript & thuần & Trang web, không framework, không CDN \\
 \file{display/*\_gif.c} & dữ liệu & Khung ảnh động đã nén LZSS \\
 \file{network/wifi\_sta.c} & 134 & Kết nối Wi-Fi, tự kết nối lại \\
 \file{network/network\_service.c} & 81 & Khởi động mạng, mDNS, cập nhật IP cho mDNS \\
-\file{network/udp/udp\_server.c} & 196 & Kiểm tra chữ ký, điều phối bản tin UDP, gửi ACK \\
+\file{network/udp/udp\_server.c} & 196 & Nhận và điều phối bản tin UDP, gửi ACK \\
 \file{network/http/http\_server.c} & 244 & 12 route HTTP, API JSON, kiểm tra mã PIN \\
 \bottomrule
 \end{tabularx}

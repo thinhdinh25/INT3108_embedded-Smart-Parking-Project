@@ -74,8 +74,8 @@ idf.py -p <CONG> flash monitor   # vi du: -p COM4 hoac -p /dev/cu.usbmodem101
 \end{lstlisting}
 \textbf{Kết quả mong đợi} sau \code{idf.py build}:
 \begin{lstlisting}[language={},numbers=none]
-INT3108_Smart_Parking_Project.bin binary size 0x10aca0 bytes. Smallest app
-partition is 0x177000 bytes. 0x6c360 bytes (29%) free.
+INT3108_Smart_Parking_Project.bin binary size 0x10b360 bytes. Smallest app
+partition is 0x177000 bytes. 0x6bca0 bytes (29%) free.
 Project build complete.
 \end{lstlisting}
 \textbf{Kết quả mong đợi} trên cửa sổ monitor (thoát bằng \code{Ctrl+]}):
@@ -90,19 +90,23 @@ Màn hình TFT hiện giao diện \code{PARKSENSE} với các giá trị \code{-
 chắn về vị trí đóng. Máy chủ sẽ báo \code{Got IP} khi RFID Client (điểm truy cập) đã
 bật ở Bước~5.
 
-\begin{lydo}[Đổi mật khẩu Wi-Fi, khóa ký gói tin và mã PIN trước khi triển khai]
+\begin{lydo}[Đổi mật khẩu Wi-Fi và mã PIN trước khi triển khai]
 Mã nguồn chỉ chứa giá trị \emph{demo}. Giá trị thật không nằm trong Git:
 \begin{itemize}[nosep]
   \item Máy chủ: \code{idf.py menuconfig → Parking network and security}, đặt SSID, mật
-        khẩu Wi-Fi, \code{PARKING\_UDP\_KEY} (32 chữ số hex) và mã PIN quản trị. Giá trị
+        khẩu Wi-Fi và mã PIN quản trị. Giá trị
         được lưu trong \file{Server/sdkconfig}, tệp này bị \file{.gitignore} bỏ qua.
   \item Hai client: sao chép \file{secrets.example.h} thành \file{secrets.h} trong thư mục
         của sketch rồi sửa; \file{secrets.h} cũng bị bỏ qua khi commit. Không có
         \file{secrets.h} thì sketch dùng giá trị demo.
-  \item Khóa 16 byte phải \textbf{giống nhau} trên cả ba bo, nếu không, máy chủ sẽ bỏ mọi
-        gói tin (log \code{Dropping unsigned UDP packet}). Có thể tạo khóa ngẫu nhiên bằng
-        \code{python3 -c "import secrets; print(secrets.token\_hex(16))"}.
+  \item Mật khẩu Wi-Fi phải \textbf{giống nhau} trên cả ba bo.
 \end{itemize}
+\end{lydo}
+
+\begin{lydo}[Nâng cấp từ bản firmware cũ]
+Bản này thêm thống kê doanh thu vào dữ liệu lưu trong NVS nên định dạng lưu đổi
+(\code{RFID\_STORE\_VERSION} 3). Lần khởi động đầu sau khi nạp, máy chủ bỏ qua bản lưu
+cũ: các xe đang gửi phải quẹt vào lại. Các lần sau dữ liệu được giữ bình thường.
 \end{lydo}
 
 \begin{lydo}[Lưu ý khi đã có cấu hình cũ]
@@ -183,11 +187,8 @@ python3 examples/udp_sender.py --host <IP> --slots 1,0,0,1,0         # het chay
 thanh chắn mở/đóng; nhật ký trên web có các dòng \code{IN}, \code{REJECTED · WRONG GATE},
 \code{OUT}. Trên Windows dùng \code{python} thay cho \code{python3}.
 
-Hai script ký gói tin bằng khóa demo (\file{examples/packet\_auth.py}) với số thứ tự
-lấy theo thời gian. Vì vậy \textbf{không chạy giả lập song song với client thật cùng
-loại}: sau khi giả lập RFID, số thứ tự của RFID Client thật nhỏ hơn và bị coi là gói cũ.
-Muốn quay lại client thật thì xóa vùng NVS của máy chủ:
-\code{idf.py -p <CONG> erase-flash flash}.
+Script RFID đặt \code{seq} ngẫu nhiên cho mỗi lần chạy, nên có thể chạy song song với
+RFID Client thật.
 
 \buoc{Chạy bộ kiểm thử tự động}
 Không cần ESP-IDF hay Arduino, chỉ cần trình biên dịch C/C++:
@@ -196,12 +197,11 @@ make -C tests
 \end{lstlisting}
 \textbf{Kết quả mong đợi}:
 \begin{lstlisting}[language={},numbers=none]
-packet_auth              27/27 checks passed
-json_parsers             68/68 checks passed
-rfid_session             94/94 checks passed
+json_parsers             78/78 checks passed
+rfid_session             120/120 checks passed
 gif_frames               89/89 checks passed
-sensor_client            19/19 checks passed
-rfid_client              21/21 checks passed
+sensor_client            15/15 checks passed
+rfid_client              23/23 checks passed
 ALL TESTS PASSED
 \end{lstlisting}
 
@@ -214,8 +214,6 @@ ALL TESTS PASSED
 \code{Failed to connect to ESP32-C3} & Sai cổng; hoặc giữ nút BOOT, bấm RESET, thả BOOT rồi nạp lại. \\
 Biên dịch báo phân vùng đầy & Đang dùng \file{sdkconfig} cũ (1\,MB): làm theo hộp ``Lưu ý khi đã có cấu hình cũ'' ở Bước~4. \\
 Monitor lặp \code{Disconnected ... retrying} & RFID Client chưa bật hoặc sai SSID/mật khẩu; kiểm tra lại Bước~5. \\
-Monitor báo \code{Dropping unsigned UDP packet} & Khóa ký gói tin của client khác máy chủ: so sánh \file{secrets.h} với \code{PARKING\_UDP\_KEY} trong menuconfig. \\
-Quẹt thẻ không mở cổng, log không có dòng RFID & Đã chạy giả lập RFID trước đó (số thứ tự lệch): xóa NVS như ở Bước~10. \\
 Bấm nút trên web không có tác dụng & Sai mã PIN: xóa dữ liệu trang (hoặc mở tab ẩn danh) rồi nhập lại. \\
 Arduino không thấy cổng ESP8266 & Cài driver CH340/CP2102; thử cáp USB khác (cáp chỉ sạc không truyền được dữ liệu). \\
 Thiếu \code{MFRC522.h} hoặc \code{DHT.h} & Cài thư viện như Chương~\ref{chap:caidat}. \\

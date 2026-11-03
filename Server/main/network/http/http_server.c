@@ -58,19 +58,19 @@ static esp_err_t parking_state_get_handler(httpd_req_t *req)
     parking_state_t state = {0};
     int free_count = 0;
     parking_state_get(&state, &free_count);
-    char response[192];
+    char response[224];
     int temperature_tenths = (int)(state.temperature_c * 10.0f + (state.temperature_c >= 0.0f ? 0.5f : -0.5f));
     int water_tenths = (int)(state.water_mm * 10.0f + 0.5f);
     int length = snprintf(response, sizeof(response),
-                          "{\"received\":%s,\"temperature_received\":%s,\"slots\":[%d,%d,%d,%d,%d],\"free\":%d,\"total\":5,\"temperature_c\":%s%d.%d,\"water_mm\":%d.%d,\"fire\":%s}",
-                          state.received ? "true" : "false",
+                          "{\"received\":%s,\"online\":%s,\"temperature_received\":%s,\"slots\":[%d,%d,%d,%d,%d],\"free\":%d,\"total\":5,\"temperature_c\":%s%d.%d,\"water_mm\":%d.%d,\"fire\":%s,\"flood\":%s}",
+                          state.received ? "true" : "false", state.online ? "true" : "false",
                           state.temperature_received ? "true" : "false", state.slots[0],
                           state.slots[1],
                           state.slots[2], state.slots[3], state.slots[4], free_count,
                           temperature_tenths < 0 ? "-" : "", abs(temperature_tenths) / 10,
                           abs(temperature_tenths % 10),
                           water_tenths / 10, water_tenths % 10,
-                          state.fire ? "true" : "false");
+                          state.fire ? "true" : "false", state.flood ? "true" : "false");
     httpd_resp_set_type(req, "application/json");
     return httpd_resp_send(req, response, length);
 }
@@ -82,6 +82,7 @@ static const char *rfid_result_name(rfid_scan_result_t result)
         case RFID_SCAN_ENTERED: return "in";
         case RFID_SCAN_EXITED: return "out";
         case RFID_SCAN_FULL: return "full";
+        case RFID_SCAN_FLOOD: return "flood";
         default: return "wrong_gate";
     }
 }
@@ -94,11 +95,17 @@ static esp_err_t rfid_log_get_handler(httpd_req_t *req)
     const size_t active_count = rfid_session_get_active(active, RFID_MAX_ACTIVE);
     const size_t log_count = rfid_session_get_log(log, RFID_LOG_SIZE);
     const uint32_t now_s = (uint32_t)(parking_clock_now_us() / 1000000LL);
-    char line[160];
+    char line[200];
 
     httpd_resp_set_type(req, "application/json");
-    snprintf(line, sizeof(line), "{\"now_s\":%lu,\"fee_per_hour\":%d,\"parked\":[",
-             (unsigned long)now_s, PARKING_FEE_PER_HOUR_VND);
+    rfid_day_stats_t today, week;
+    rfid_session_get_stats(&today, &week);
+    snprintf(line, sizeof(line),
+             "{\"now_s\":%lu,\"fee_per_hour\":%d,\"today\":{\"vnd\":%lu,\"in\":%u,\"out\":%u},"
+             "\"week\":{\"vnd\":%lu,\"in\":%u,\"out\":%u},\"parked\":[",
+             (unsigned long)now_s, PARKING_FEE_PER_HOUR_VND, (unsigned long)today.revenue_vnd,
+             (unsigned)today.entries, (unsigned)today.exits, (unsigned long)week.revenue_vnd,
+             (unsigned)week.entries, (unsigned)week.exits);
     esp_err_t err = httpd_resp_sendstr_chunk(req, line);
 
     /* card_id is restricted to [A-Z0-9_-] by the parser, so it needs no JSON escaping. */

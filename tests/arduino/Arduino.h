@@ -47,3 +47,7 @@ struct FakeSerial {
     template <typename... A> void printf(const char *, A...) {}
 };
 inline FakeSerial Serial;
+
+namespace fake { inline uint32_t esp_random = 0x1234ABCDu; }
+struct FakeESP { uint32_t random() { return fake::esp_random; } };
+inline FakeESP ESP;

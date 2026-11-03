@@ -72,6 +72,24 @@ bool json_parse_bool(const char **p, bool *value)
     return false;
 }
 
+bool json_parse_uint32(const char **p, uint32_t *value)
+{
+    json_skip_ws(p);
+    const char *s = *p;
+    uint64_t v = 0;
+    while (*s >= '0' && *s <= '9')
+    {
+        v = v * 10 + (uint64_t)(*s++ - '0');
+        if (v > UINT32_MAX)
+            return false;
+    }
+    if (s == *p || *s == '.' || *s == 'e' || *s == 'E')
+        return false;
+    *value = (uint32_t)v;
+    *p = s;
+    return true;
+}
+
 bool json_parse_object_end(const char **p)
 {
     if (!json_consume_char(p, '}'))

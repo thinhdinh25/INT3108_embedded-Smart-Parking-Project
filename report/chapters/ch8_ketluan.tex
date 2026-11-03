@@ -15,10 +15,12 @@ vi điều khiển, tự vận hành trên mạng Wi-Fi riêng:
         tên \code{parking.local} luôn trỏ đúng IP.
   \item \textbf{Hiệu năng}: màn hình phản ánh thay đổi trong khoảng 0,1\,s; thanh chắn mở
         khoảng 0,2\,s sau khi quẹt thẻ; firmware dùng 36\% RAM tĩnh, còn 29\% flash ứng dụng.
-  \item \textbf{Chất lượng}: 318 phép kiểm thử tự động đều đạt, chạy cả mã nguồn hai
+  \item \textbf{Chất lượng}: 325 phép kiểm thử tự động đều đạt, chạy cả mã nguồn hai
         client trên phần cứng giả lập.
-  \item \textbf{An toàn và bền vững}: gói tin có chữ ký và chống phát lại, quẹt thẻ không
-        bị mất, dữ liệu gửi xe giữ được qua mất điện, giờ thực không cần Internet.
+  \item \textbf{Bền vững}: quẹt thẻ không bị mất (ACK và gửi lại), dữ liệu gửi xe giữ được qua mất điện, giờ thực không cần Internet.
+  \item \textbf{Giám sát chủ động}: phát hiện Sensor Client mất kết nối sau 3\,s thay vì
+        hiển thị dữ liệu cũ như dữ liệu thật; cảnh báo ngập có trễ, tự chặn xe vào; thống kê
+        doanh thu, lượt vào/ra theo ngày và 7 ngày.
   \item \textbf{Mô hình thực tế} hoàn chỉnh (Hình~\ref{fig:model}): 5 ô có cảm biến, 2 cổng
         servo, hộp điều khiển trung tâm có màn hình, nguồn có bảo vệ ngược cực.
 \end{itemize}
@@ -29,7 +31,9 @@ lập trình socket, quản lý bộ nhớ hạn chế, xử lý dữ liệu kh�
 phần mềm nhúng không cần phần cứng.
 
 \section{Các hạn chế đã được khắc phục}
-Bản thiết kế đầu tiên có năm hạn chế. Cả năm đều đã được khắc phục trong firmware,
+Bản thiết kế đầu tiên có năm hạn chế. Bốn hạn chế đã được khắc phục hoàn toàn, hạn
+chế về bảo mật được khắc phục ở phía trang web và mật khẩu (bản tin UDP chủ đích không
+ký, xem mục~\ref{sec:conlai}); tất cả được
 kiểm chứng bằng kiểm thử tự động (Bảng~\ref{tab:unittests}) và kịch bản phần cứng
 S15–S21 (Bảng~\ref{tab:systest}):
 
@@ -38,14 +42,13 @@ S15–S21 (Bảng~\ref{tab:systest}):
 \toprule \textbf{Hạn chế} & \textbf{Giải pháp} & \textbf{Kiểm chứng} \\ \midrule \endfirsthead
 \toprule \textbf{Hạn chế} & \textbf{Giải pháp} & \textbf{Kiểm chứng} \\ \midrule \endhead
 Bản tin UDP và API không có xác thực; mật khẩu cố định trong mã nguồn &
-Mọi gói UDP được ký SipHash-2-4 với khóa 16 byte, kèm số thứ tự và cửa sổ chống phát
-lại; lệnh POST cần mã PIN quản trị; mật khẩu, khóa, PIN chuyển ra \file{sdkconfig}
+Lệnh POST cần mã PIN quản trị; mật khẩu Wi-Fi và mã PIN chuyển ra \file{sdkconfig}
 (menuconfig) và \file{secrets.h}, không còn trong Git &
-\file{packet\_auth} (27), hai bộ client; S15, S16, S19 \\ \midrule
+S19 \\ \midrule
 Sự kiện quẹt thẻ có thể mất &
-Máy chủ trả ACK có ký; RFID Client gửi lại sau 300\,ms, tối đa 6 lần; máy chủ nhận ra
-bản gửi lại qua số thứ tự nên không mở cổng hai lần &
-\file{rfid\_client}: gửi lại, ACK giả, bỏ cuộc; S18 \\ \midrule
+Máy chủ trả ACK; RFID Client gửi lại sau 300\,ms, tối đa 6 lần; máy chủ nhận ra
+bản gửi lại qua \code{seq} nên không mở cổng hai lần &
+\file{rfid\_client}: gửi lại, bỏ cuộc; \file{rfid\_session}: chống xử lý trùng; S16, S18 \\ \midrule
 Phiên và nhật ký mất khi khởi động lại; thời gian tính từ lúc khởi động &
 Toàn bộ trạng thái (\code{rfid\_store\_t}) lưu NVS sau mỗi lần quẹt và mỗi 5 phút, khôi
 phục khi khởi động; trình duyệt của người vận hành gửi giờ Unix
@@ -61,25 +64,25 @@ khi số thẻ trong bãi lệch số ô có xe quá 15\,s &
 \bottomrule
 \end{longtable}
 
-\section{Hạn chế còn lại}
+\section{Hạn chế còn lại}\label{sec:conlai}
 Các điểm dưới đây là đánh đổi có chủ đích ở quy mô mô hình, đã được ghi rõ trong mã
 nguồn và hướng dẫn:
 \begin{itemize}
   \item Trang web dùng HTTP (không mã hóa) trên mạng WPA2: người trong cùng mạng Wi-Fi có
         thể nghe được mã PIN. HTTPS cần chứng chỉ và thêm $\approx$ 40\,KB RAM cho TLS.
-  \item Khóa ký gói tin dùng chung cho ba bo: lộ khóa ở một bo thì phải đổi khóa cả ba bo.
-  \item Cửa sổ chống phát lại của bản tin cảm biến chỉ nằm trong RAM: ngay sau khi máy chủ
-        khởi động lại, một gói cảm biến cũ bị phát lại có thể có hiệu lực tới khi gói
-        thật kế tiếp đến ($\le$ 1\,s). Cửa sổ của sự kiện quẹt thẻ được lưu NVS nên
-        không bị ảnh hưởng.
+  \item Bản tin UDP không được ký: thiết bị đã vào được mạng Wi-Fi có thể gửi bản tin giả
+        (thẻ giả, báo cháy giả). Nhóm chấp nhận đánh đổi này vì mạng là mạng riêng có
+        WPA2 và giao thức đơn giản dễ gỡ lỗi hơn.
   \item Nếu chưa có trình duyệt nào gửi giờ sau khi mất điện, thời gian mất điện chưa
         được tính vào thời gian gửi xe (được bù ngay khi trình duyệt kết nối).
-  \item Công cụ giả lập và client thật cùng loại không nên chạy xen kẽ (số thứ tự lệch).
 \end{itemize}
 
 \section{Hướng phát triển}
 \begin{itemize}
-  \item HTTPS cho trang quản trị; mỗi bo một khóa riêng do máy chủ cấp khi ghép cặp.
+  \item Cảm biến IR dưới mỗi thanh chắn: chỉ đóng khi làn xe trống, tránh hạ cần xuống xe.
+  \item Danh sách thẻ đăng ký (vé tháng, khóa thẻ mất) lưu trong NVS, quản lý từ trang web.
+  \item Ghép thẻ với ô đỗ: ô đầu tiên chuyển sang có xe sau khi quẹt vào thuộc về thẻ đó.
+  \item Ký bản tin UDP bằng HMAC kèm số thứ tự chống phát lại; HTTPS cho trang quản trị.
   \item Module RTC DS3231 để có giờ thực ngay cả khi chưa có trình duyệt kết nối.
   \item Kết nối MQTT lên đám mây để quản lý nhiều bãi, thống kê doanh thu, đặt chỗ trước,
         thanh toán bằng mã QR.
