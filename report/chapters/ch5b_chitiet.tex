@@ -154,8 +154,7 @@ Claude & 68$\times$46 & 18 & 112\,608 B & 16\,204 B (6,9$\times$) \\
 \noindent Hai bộ đệm DMA $96\times96$ của ảnh Kaoruko (36\,KB) chính là phần heap mà bắt tay HTTPS
 với SePay cần. Vì ảnh động vốn dừng khi đang hiện mã QR, tác vụ \code{lcd\_animation} trả hai bộ đệm
 này lại trong lúc có xe đang thanh toán và cấp phát lại sau đó; nếu lúc ấy heap chưa đủ thì chỉ bỏ
-qua khung hình. Có thể tắt hẳn ảnh bằng \code{PARKING\_LCD\_KAORUKO} trong menuconfig (góc màn hình
-hiện ô chữ ``P'').
+qua khung hình.
 
 \begin{lydo}[Tại sao tiền xử lý ảnh trên máy tính]
 Ảnh gốc có nền trắng cần xóa và điểm ảnh cần đảo byte. Phiên bản trước làm việc

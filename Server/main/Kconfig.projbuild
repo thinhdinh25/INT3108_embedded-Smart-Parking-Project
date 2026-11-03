@@ -35,13 +35,6 @@ config PARKING_LCD_X_GAP
     range 0 320
     default 0
 
-config PARKING_LCD_KAORUKO
-    bool "Kaoruko GIF on the main screen"
-    default y
-    help
-        The 96x96 animation in the top-right corner. Its two DMA buffers (37 KB) are freed
-        while a car pays, so SePay's HTTPS handshake has the heap. Off: a "P" tile instead.
-
 config PARKING_LCD_Y_GAP
     int "Panel Y offset"
     range 0 320
