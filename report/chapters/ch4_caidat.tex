@@ -23,7 +23,7 @@ Viết tất cả trong một vòng lặp buộc phải chia nhỏ mọi việc 
 tác chậm (vẽ màn hình $\approx$ 23\,ms) cũng làm trễ việc khác. FreeRTOS cho phép mỗi
 việc là một tác vụ có ưu tiên riêng: việc quan trọng (thanh chắn, nhận bản tin)
 luôn chạy trước việc trang trí (ảnh động). Client chỉ làm tuần tự vài việc ngắn
-(đọc cảm biến, gửi gói tin), một vòng lặp không chặn là đủ và đơn giản hơn.
+(đọc cảm biến, gửi gói tin) nên một vòng lặp không chặn là đủ và đơn giản hơn.
 \end{lydo}
 
 \subsection{Trên máy phát triển}
@@ -41,7 +41,7 @@ bản dùng thử (trial) hay giấy phép trả phí:
 \toprule
 \textbf{Phần mềm} & \textbf{Dùng để} & \textbf{Giấy phép} \\ \midrule
 ESP-IDF 6.1 (qua ESP-IDF Installation Manager) & Biên dịch, nạp firmware máy chủ & Apache 2.0 \\
-Visual Studio Code + ESP-IDF extension (tùy chọn) & Soạn thảo, build/flash bằng giao diện & MIT / Apache 2.0 \\
+Visual Studio Code + ESP-IDF extension (tùy chọn) & Soạn thảo, biên dịch/nạp bằng giao diện & MIT / Apache 2.0 \\
 Arduino IDE 2.x & Biên dịch, nạp hai client & AGPL-3.0 \\
 Arduino core ESP8266 & Hỗ trợ bo ESP8266 & LGPL-2.1 \\
 MFRC522, DHT sensor library & Thư viện thiết bị & Unlicense / MIT \\
@@ -59,7 +59,7 @@ Git & Lấy mã nguồn & GPL-2.0 \\
         \url{https://dl.espressif.com/dl/eim/} và cài như ứng dụng thông thường.
   \item Mở EIM, chọn \textbf{ESP-IDF v6.1}, mục tiêu \textbf{esp32c3}, bấm cài đặt.
         EIM tự tải trình biên dịch RISC-V, Python và các công cụ.
-  \item Mở terminal ESP-IDF. Windows: shortcut ``ESP-IDF 6.1 PowerShell'' do EIM tạo.
+  \item Mở terminal ESP-IDF. Windows: lối tắt ``ESP-IDF 6.1 PowerShell'' do EIM tạo.
         macOS/Linux: nạp script kích hoạt do EIM tạo, ví dụ:
 \begin{lstlisting}[style=shell]
 source ~/.espressif/tools/activate_idf_v6.1.sh

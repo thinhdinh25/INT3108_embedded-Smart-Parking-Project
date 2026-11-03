@@ -152,7 +152,7 @@ thức màn hình.
 \toprule
 \textbf{Tác vụ} & \textbf{Ưu tiên} & \textbf{Stack} & \textbf{Đánh thức bởi} & \textbf{Nhiệm vụ} \\ \midrule
 \code{udp\_server} & 5 & 4096 B & gói UDP đến & Kiểm tra bản tin, cập nhật trạng thái, ra lệnh servo/còi/màn hình \\
-\code{httpd} & 5 & 4096 B & request HTTP & Trang web, API \\
+\code{httpd} & 5 & 4096 B & yêu cầu HTTP & Trang web, API \\
 \code{esp\_timer} (hệ thống) & cao & 3584 B & hẹn giờ & Gọi hàm đóng thanh chắn khi hết 3\,s \\
 \code{lcd\_display} & 4 & 4096 B & thông báo tác vụ / 1\,s / 120\,ms & Vẽ lại màn hình khi dữ liệu đổi \\
 \code{lcd\_animation} & 3 & 3072 B & mỗi khung (100\,ms) & Ảnh động trang trí \\
@@ -171,10 +171,10 @@ Hệ thống dùng \textbf{ba cơ chế đồng bộ} cho ba loại tình huốn
 \begin{itemize}
 \item \textbf{Critical section} (\code{portENTER\_CRITICAL}) cho \file{parking\_state} và
   \file{rfid\_session}: vùng bảo vệ chỉ là vài lệnh sao chép cấu trúc nhỏ (vài micro
-  giây). Rẻ hơn mutex; người đọc luôn nhận một bản sao nhất quán.
+  giây). Cách này rẻ hơn mutex; người đọc luôn nhận một bản sao nhất quán.
 \item \textbf{Mutex} cho servo và panel LCD: vùng bảo vệ dài hơn (gửi dữ liệu SPI,
   ghi thanh ghi LEDC) và có thể chờ; mutex không tắt ngắt, cho phép tác vụ khác chạy
-  và có kế thừa ưu tiên chống đảo ưu tiên.
+  và có cơ chế kế thừa ưu tiên để chống đảo ưu tiên.
 \item \textbf{Thông báo tác vụ} (\code{xTaskNotifyGive}/\code{ulTaskNotifyTake}) để
   \file{udp\_server} đánh thức \file{lcd\_display} ngay khi có dữ liệu mới — nhẹ hơn
   semaphore (không cấp phát đối tượng) và thay cho việc hỏi vòng 500\,ms trước đây.

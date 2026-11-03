@@ -3,14 +3,14 @@
 % =====================================================================
 
 Chương này hướng dẫn từ lúc lấy mã nguồn đến lúc hệ thống chạy hoàn chỉnh, kèm kết
-quả mong đợi ở mỗi bước để kiểm tra. Môi trường cần cài trước theo
+quả mong đợi ở mỗi bước để kiểm tra. Môi trường cần được cài đặt trước theo
 Chương~\ref{chap:caidat}. Có hai cách chạy:
 \begin{itemize}
   \item \textbf{Đầy đủ phần cứng}: Bước~1 đến Bước~9.
   \item \textbf{Không cần client} (chỉ có bo máy chủ, dùng máy tính giả lập hai client):
         Bước~1, 2, 4 rồi Bước~10.
 \end{itemize}
-Bộ kiểm thử tự động (không cần phần cứng nào) ở Bước~11.
+Bộ kiểm thử tự động (không cần phần cứng nào) nằm ở Bước~11.
 
 \begin{table}[H]
 \centering\small
@@ -54,9 +54,9 @@ bố trí thiết bị trên mô hình như Hình~\ref{fig:model} và Bảng~\re
 Kiểm tra trước khi cấp nguồn:
 \begin{itemize}
   \item Servo dùng nguồn 5\,V riêng, \textbf{GND nối chung} với ESP32-C3; không cấp
-        servo từ chân 3V3.
+        nguồn cho servo từ chân 3V3.
   \item Màn hình ST7789 dùng 3V3; RC522 dùng 3V3 (không dùng 5\,V).
-  \item Đúng cực jack DC (diode chặn nếu cắm ngược nhưng khi đó hệ thống không lên nguồn);
+  \item Cắm đúng cực jack DC (nếu cắm ngược, diode sẽ chặn nhưng khi đó hệ thống không lên nguồn);
         tụ lọc đặt sát chỗ servo lấy nguồn.
   \item Chỉnh biến trở từng module IR khi đã đặt xe mẫu vào ô: đèn báo sáng khi có xe,
         tắt khi ô trống.
@@ -95,11 +95,11 @@ Mã nguồn chỉ chứa giá trị \emph{demo}. Giá trị thật không nằm 
 \begin{itemize}[nosep]
   \item Máy chủ: \code{idf.py menuconfig → Parking network and security}, đặt SSID, mật
         khẩu Wi-Fi, \code{PARKING\_UDP\_KEY} (32 chữ số hex) và mã PIN quản trị. Giá trị
-        lưu trong \file{Server/sdkconfig}, tệp này bị \file{.gitignore} bỏ qua.
+        được lưu trong \file{Server/sdkconfig}, tệp này bị \file{.gitignore} bỏ qua.
   \item Hai client: sao chép \file{secrets.example.h} thành \file{secrets.h} trong thư mục
         của sketch rồi sửa; \file{secrets.h} cũng bị bỏ qua khi commit. Không có
         \file{secrets.h} thì sketch dùng giá trị demo.
-  \item Khóa 16 byte phải \textbf{giống nhau} trên cả ba bo, nếu không máy chủ bỏ mọi
+  \item Khóa 16 byte phải \textbf{giống nhau} trên cả ba bo, nếu không, máy chủ sẽ bỏ mọi
         gói tin (log \code{Dropping unsigned UDP packet}). Có thể tạo khóa ngẫu nhiên bằng
         \code{python3 -c "import secrets; print(secrets.token\_hex(16))"}.
 \end{itemize}
@@ -107,7 +107,7 @@ Mã nguồn chỉ chứa giá trị \emph{demo}. Giá trị thật không nằm 
 
 \begin{lydo}[Lưu ý khi đã có cấu hình cũ]
 \file{sdkconfig.defaults} chỉ được áp dụng khi chưa có tệp \file{Server/sdkconfig}.
-Nếu máy đã từng build bản cũ, hãy chạy lại \code{idf.py set-target esp32c3} (tạo lại
+Nếu máy đã từng biên dịch bản cũ, hãy chạy lại \code{idf.py set-target esp32c3} (tạo lại
 cấu hình) hoặc chọn trong \code{idf.py menuconfig}: \emph{Compiler options → Optimize for
 performance} và \emph{Partition Table → Single factory app (large), no OTA}. Lần nạp
 đầu sau khi đổi bảng phân vùng phải dùng \code{idf.py flash} (nạp cả bảng phân vùng).
@@ -130,7 +130,7 @@ I (...) SERVER: mDNS: parking.local -> 192.168.4.2
 \end{lstlisting}
 
 \buoc{Nạp Sensor Client}
-Làm như Bước~5 với tệp \file{SensorClient/SensorClient.ino}. \textbf{Kết quả mong đợi}
+Làm tương tự Bước~5 với tệp \file{SensorClient/SensorClient.ino}. \textbf{Kết quả mong đợi}
 trên Serial Monitor: \code{Connected, client IP: 192.168.4.x}, sau đó mỗi giây một dòng
 \code{Sent: \{"type":"parking\_update",...\}}. Màn hình TFT hiện số chỗ trống thật.
 
@@ -149,7 +149,7 @@ chậm hơn vài giây.
 \begin{enumerate}
   \item Trên điện thoại/máy tính, kết nối Wi-Fi \code{ESP32-Parking}, mật khẩu \code{12345678}.
   \item Mở trình duyệt, vào \code{http://parking.local}.
-  \item Lần đầu bấm một nút điều khiển thanh chắn, nhập mã PIN quản trị (mặc định
+  \item Lần đầu bấm một nút điều khiển thanh chắn, cần nhập mã PIN quản trị (mặc định
         \code{2468}). Trình duyệt nhớ mã PIN và từ đó tự gửi giờ thực cho máy chủ mỗi
         lần mở trang, nên giờ vào/ra trong nhật ký là giờ thật.
   \item Nếu thiết bị không mở được tên \code{.local} (một số máy Android cũ), dùng địa chỉ
@@ -166,7 +166,7 @@ Thực hiện kịch bản ở mục~\ref{sec:demo} và đối chiếu với B�
 \begin{enumerate}
   \item Tạo điểm phát Wi-Fi trên điện thoại với tên \code{ESP32-Parking}, mật khẩu
         \code{12345678} (máy chủ sẽ tự kết nối vào), \emph{hoặc} dùng RFID Client nếu có.
-  \item Cho máy tính kết nối cùng Wi-Fi; mở monitor máy chủ để xem IP
+  \item Cho máy tính kết nối cùng mạng Wi-Fi; mở monitor máy chủ để xem IP
         (\code{Got IP: \ldots}).
   \item Giả lập Sensor Client và RFID Client (thay \code{<IP>} bằng IP máy chủ; nếu dùng
         RFID Client làm điểm phát thì có thể bỏ \code{--host}):
@@ -212,16 +212,16 @@ ALL TESTS PASSED
 \toprule \textbf{Hiện tượng} & \textbf{Nguyên nhân và cách khắc phục} \\ \midrule \endhead
 \code{idf.py: command not found} & Chưa mở terminal ESP-IDF; mở shortcut/script kích hoạt do EIM tạo. \\
 \code{Failed to connect to ESP32-C3} & Sai cổng; hoặc giữ nút BOOT, bấm RESET, thả BOOT rồi nạp lại. \\
-Build báo phân vùng đầy & Đang dùng \file{sdkconfig} cũ (1\,MB): làm theo hộp ``Lưu ý khi đã có cấu hình cũ'' ở Bước~4. \\
-Monitor lặp \code{Disconnected ... retrying} & RFID Client chưa bật hoặc sai SSID/mật khẩu; kiểm tra Bước~5. \\
-Monitor báo \code{Dropping unsigned UDP packet} & Khóa ký gói tin của client khác máy chủ: so \file{secrets.h} với \code{PARKING\_UDP\_KEY} trong menuconfig. \\
+Biên dịch báo phân vùng đầy & Đang dùng \file{sdkconfig} cũ (1\,MB): làm theo hộp ``Lưu ý khi đã có cấu hình cũ'' ở Bước~4. \\
+Monitor lặp \code{Disconnected ... retrying} & RFID Client chưa bật hoặc sai SSID/mật khẩu; kiểm tra lại Bước~5. \\
+Monitor báo \code{Dropping unsigned UDP packet} & Khóa ký gói tin của client khác máy chủ: so sánh \file{secrets.h} với \code{PARKING\_UDP\_KEY} trong menuconfig. \\
 Quẹt thẻ không mở cổng, log không có dòng RFID & Đã chạy giả lập RFID trước đó (số thứ tự lệch): xóa NVS như ở Bước~10. \\
 Bấm nút trên web không có tác dụng & Sai mã PIN: xóa dữ liệu trang (hoặc mở tab ẩn danh) rồi nhập lại. \\
-Arduino không thấy cổng ESP8266 & Cài driver CH340/CP2102; thử cáp USB khác (cáp chỉ sạc không truyền dữ liệu). \\
+Arduino không thấy cổng ESP8266 & Cài driver CH340/CP2102; thử cáp USB khác (cáp chỉ sạc không truyền được dữ liệu). \\
 Thiếu \code{MFRC522.h} hoặc \code{DHT.h} & Cài thư viện như Chương~\ref{chap:caidat}. \\
-\code{parking.local} không mở & Thiết bị không hỗ trợ mDNS: dùng IP trong log máy chủ; kiểm tra điện thoại đang ở đúng Wi-Fi \code{ESP32-Parking}. \\
+\code{parking.local} không mở & Thiết bị không hỗ trợ mDNS: dùng IP trong log máy chủ; kiểm tra điện thoại đã kết nối đúng Wi-Fi \code{ESP32-Parking}. \\
 Trang web báo \code{OFFLINE} & Máy chủ mất điện hoặc mất Wi-Fi; xem monitor máy chủ. \\
-Servo rung, bo tự khởi động lại & Cấp servo từ 3V3 hoặc thiếu GND chung; dùng nguồn 5\,V riêng. \\
+Servo rung, bo tự khởi động lại & Cấp nguồn servo từ 3V3 hoặc thiếu GND chung; dùng nguồn 5\,V riêng. \\
 Màn hình trắng hoặc lệch hình & Kiểm tra dây SPI; chỉnh chân/độ lệch trong \code{idf.py menuconfig → Parking TFT display}. \\
 Ô đỗ báo ngược (trống thành có xe) & Chỉnh biến trở trên module IR; kiểm tra thứ tự chân S1–S5. \\
 \bottomrule

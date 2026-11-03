@@ -26,7 +26,7 @@ Wi-Fi, UDP, đầu đọc MFRC522 và DHT11.
 \file{json\_parsers} & Bản tin hợp lệ (mọi thứ tự khóa, khoảng trắng, giới hạn dải); 22 bản tin \code{parking\_update} sai và 16 bản tin \code{rfid\_event} sai đều bị từ chối (thiếu/thừa khóa, khóa lặp, sai kiểu, ngoài dải, ký tự lạ, dữ liệu thừa, chuỗi có ký tự thoát); bản tin \code{climate} hợp lệ và 8 dạng sai & 68/68 \\
 \file{rfid\_session} & Phí theo giờ (biên 0, 3600, 3601\,s, bão hòa); vào/ra, sai cổng; hóa đơn hết hạn đúng 60\,s; bãi đầy, tái sử dụng chỗ; nhiệt độ; nhật ký vòng (thứ tự, chỉ giữ 10); thông báo từ chối 5\,s; IR báo đủ 5 ô thì từ chối thẻ mới; lưu rồi khôi phục sau ``mất điện'' (phiên, nhật ký, cửa sổ chống phát lại, đồng hồ); đặt giờ Unix dời đúng các mốc cũ, lần đặt thứ hai không dời lại; chỉ mốc sau khởi động bị dời khi bù thời gian mất điện; bản lưu hỏng bị bỏ qua & 94/94 \\
 \file{gif\_frames} & 28 khung ảnh động giải nén đủ; nền đã xóa và byte đã đảo đúng; từ chối yêu cầu sai kích thước & 89/89 \\
-\file{sensor\_client} & Chạy \file{SensorClient.ino}: nhắc lại đúng 1 gói/giây; gửi ngay sau 50\,ms khi có xe; lọc nhiễu 30\,ms; thứ tự S1–S5; báo cháy và hết cháy; quy đổi mực nước; mất/có lại Wi-Fi; mọi gói được ký, số thứ tự tăng dần kể cả sau khởi động lại, chỉ 1 lần ghi flash mỗi lần khởi động; mọi gói được máy chủ chấp nhận & 19/19 \\
+\file{sensor\_client} & Chạy \file{SensorClient.ino}: gửi định kỳ đúng 1 gói/giây; gửi ngay sau 50\,ms khi có xe; lọc nhiễu 30\,ms; thứ tự S1–S5; báo cháy và hết cháy; quy đổi mực nước; mất/có lại Wi-Fi; mọi gói được ký, số thứ tự tăng dần kể cả sau khởi động lại, chỉ 1 lần ghi flash mỗi lần khởi động; mọi gói được máy chủ chấp nhận & 19/19 \\
 \file{rfid\_client} & Chạy \file{RFIDClient.ino}: UID hex in hoa; cổng vào/ra; chống lặp 2\,s trên cả hai đầu đọc; UID 10 byte; DHT11 lỗi giữ giá trị cũ; gửi \code{climate} độc lập; chưa có ACK thì gửi lại mỗi 300\,ms, dừng khi có ACK thật, bỏ qua ACK giả, bỏ cuộc sau 6 lần; mọi gói được máy chủ chấp nhận & 21/21 \\ \midrule
 \textbf{Tổng} & & \textbf{318/318} \\
 \bottomrule
@@ -58,8 +58,8 @@ trống. Bài kiểm thử được sửa để tự dọn trạng thái — đ�
 kiểm thử thường xuyên.
 
 \section{Kiểm thử tích hợp bằng công cụ giả lập}
-Các lệnh ở Bước~10 (Chương~\ref{chap:huongdanchay}) gửi bản tin thật tới máy chủ thật;
-dùng để kiểm tra màn hình, thanh chắn, còi, trang web và nhật ký khi chưa có đủ client.
+Các lệnh ở Bước~10 (Chương~\ref{chap:huongdanchay}) gửi bản tin thật tới máy chủ thật,
+được dùng để kiểm tra màn hình, thanh chắn, còi, trang web và nhật ký khi chưa có đủ client.
 
 \section{Kịch bản kiểm thử hệ thống trên phần cứng}
 \begin{longtable}{@{}p{0.9cm}>{\raggedright\arraybackslash}p{5.6cm}>{\raggedright\arraybackslash}p{7.9cm}@{}}
@@ -68,8 +68,8 @@ dùng để kiểm tra màn hình, thanh chắn, còi, trang web và nhật ký 
 \toprule \textbf{\#} & \textbf{Thao tác} & \textbf{Hành vi mong đợi} \\ \midrule \endhead
 S1 & Cấp nguồn RFID Client, rồi máy chủ & Có Wi-Fi \code{ESP32-Parking}; máy chủ báo \code{Got IP} và \code{mDNS: parking.local -> ...}; TFT hiện giao diện; hai thanh chắn đóng \\
 S2 & Cấp nguồn Sensor Client, mở \code{parking.local} & Web hiện sơ đồ 5 ô, \code{LIVE / SENSOR} \\
-S3 & Đặt xe vào ô S2 & TFT đổi ô S2 sang đỏ gần như tức thì; web hiện hình xe ở S2 trong $\le$ 1\,s \\
-S4 & Rê vật nhanh qua cảm biến ($<$ 50\,ms) & Trạng thái không đổi \\
+S3 & Đặt xe vào ô S2 & TFT đổi ô S2 sang màu đỏ gần như tức thì; web hiện hình xe ở S2 trong $\le$ 1\,s \\
+S4 & Đưa vật nhanh qua cảm biến ($<$ 50\,ms) & Trạng thái không đổi \\
 S5 & Quẹt thẻ mới ở cổng vào & Thanh chắn vào mở, tự đóng sau 3\,s; web có dòng \code{IN}; nhiệt độ cập nhật \\
 S6 & Giữ thẻ trên đầu đọc 1\,s & Chỉ một sự kiện được gửi \\
 S7 & Quẹt lại thẻ đó ở cổng vào & Không mở; TFT \code{WRONG GATE – ALREADY INSIDE - USE EXIT GATE} 5\,s; web \code{REJECTED · WRONG GATE} \\
@@ -81,10 +81,10 @@ S12 & Bấm \code{OPEN}/\code{CLOSE}/\code{EMERGENCY} trên web & Thanh chắn t
 S13 & Quẹt thẻ thứ 6 khi đã có 5 xe & Không mở; TFT \code{PARKING FULL} \\
 S14 & Tắt RFID Client rồi bật lại & Máy chủ và Sensor Client tự kết nối lại; \code{parking.local} trỏ đúng IP mới \\
 S15 & Gửi gói UDP rác hoặc JSON không ký từ máy tính & Máy chủ ghi \code{Dropping unsigned UDP packet} và tiếp tục hoạt động \\
-S16 & Ghi lại một gói quẹt thẻ (Wireshark) rồi phát lại & Bị bỏ; cổng không mở \\
+S16 & Ghi lại một gói quẹt thẻ (Wireshark) rồi phát lại & Gói bị bỏ qua; cổng không mở \\
 S17 & Gửi xe, rút điện máy chủ 1 phút, cấp lại, mở web & Xe vẫn trong danh sách; khi trình duyệt gửi giờ, giờ vào đúng và thời gian gửi tính cả lúc mất điện \\
 S18 & Quẹt vào/ra 20 lần liên tiếp khi xung quanh có nhiều mạng Wi-Fi & Mỗi lượt quẹt có đúng một dòng nhật ký, cổng mở đúng một lần; RFID Client không báo \code{Máy chủ không phản hồi} \\
-S19 & Bấm \code{OPEN} trên web ở trình duyệt chưa nhập PIN / nhập sai & Hỏi PIN; sai thì cổng không mở \\
+S19 & Bấm \code{OPEN} trên web ở trình duyệt chưa nhập PIN / nhập sai & Yêu cầu nhập PIN; nhập sai thì cổng không mở \\
 S20 & Đặt một xe vào ô mà không quẹt thẻ & Sau 15\,s web hiện \code{CHECK THE LOT}; khi đủ 5 ô có xe thì thẻ mới bị từ chối \code{FULL} \\
 S21 & Để yên 1 phút không quẹt thẻ & Nhiệt độ trên TFT/web vẫn cập nhật (bản tin \code{climate}) \\
 \bottomrule

@@ -9,9 +9,9 @@ vi điều khiển, tự vận hành trên mạng Wi-Fi riêng:
   \item \textbf{10 use case} (Chương~\ref{chap:usecase}) đều được hiện thực: theo dõi chỗ
         trống tại bãi và trên web, gửi/lấy xe bằng RFID kèm tính phí, từ chối quẹt sai
         cổng hoặc bãi đầy, cảnh báo cháy và mở đường sơ tán, giám sát nước và nhiệt độ,
-        điều khiển thanh chắn thủ công, nhật ký vào/ra kèm giá.
-  \item \textbf{Kiến trúc} phân lớp rõ ràng, không vòng phụ thuộc; đa tác vụ với
-        FreeRTOS và ba cơ chế đồng bộ dùng đúng chỗ; giao tiếp UDP nhẹ, tự sửa khi mất gói;
+        điều khiển thanh chắn thủ công, nhật ký vào/ra kèm phí.
+  \item \textbf{Kiến trúc} phân lớp rõ ràng, không có phụ thuộc vòng; đa tác vụ với
+        FreeRTOS và ba cơ chế đồng bộ dùng đúng chỗ; giao tiếp UDP nhẹ, tự phục hồi khi mất gói;
         tên \code{parking.local} luôn trỏ đúng IP.
   \item \textbf{Hiệu năng}: màn hình phản ánh thay đổi trong khoảng 0,1\,s; thanh chắn mở
         khoảng 0,2\,s sau khi quẹt thẻ; firmware dùng 36\% RAM tĩnh, còn 29\% flash ứng dụng.
@@ -67,7 +67,7 @@ nguồn và hướng dẫn:
 \begin{itemize}
   \item Trang web dùng HTTP (không mã hóa) trên mạng WPA2: người trong cùng mạng Wi-Fi có
         thể nghe được mã PIN. HTTPS cần chứng chỉ và thêm $\approx$ 40\,KB RAM cho TLS.
-  \item Khóa ký gói tin dùng chung cho ba bo: lộ một bo thì phải đổi khóa cả ba.
+  \item Khóa ký gói tin dùng chung cho ba bo: lộ khóa ở một bo thì phải đổi khóa cả ba bo.
   \item Cửa sổ chống phát lại của bản tin cảm biến chỉ nằm trong RAM: ngay sau khi máy chủ
         khởi động lại, một gói cảm biến cũ bị phát lại có thể có hiệu lực tới khi gói
         thật kế tiếp đến ($\le$ 1\,s). Cửa sổ của sự kiện quẹt thẻ được lưu NVS nên

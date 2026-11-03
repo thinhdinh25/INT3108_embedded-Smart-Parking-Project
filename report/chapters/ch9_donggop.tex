@@ -33,7 +33,7 @@ Nguyễn Việt Tiến & Cơ khí: mô hình bãi xe, cơ cấu thanh chắn ser
         bằng giới hạn và thu hồi kết nối.
   \item \textbf{Màn hình ST7789}: driver SPI có DMA, giao diện \code{PARKSENSE}, hóa đơn,
         thông báo quẹt sai cổng, màn hình cháy; nén ảnh động LZSS và tiền xử lý trên máy
-        tính để giảm RAM và CPU.
+        tính để giảm tải RAM và CPU.
   \item \textbf{Giao thức và bảo mật}: định dạng JSON và bộ đọc JSON không cấp phát động;
         ký gói SipHash-2-4, cửa sổ chống phát lại, ACK cho sự kiện quẹt thẻ; mã PIN cho
         API; lưu phiên vào NVS và đồng hồ bãi lấy giờ từ trình duyệt.
@@ -59,14 +59,14 @@ Nguyễn Việt Tiến & Cơ khí: mô hình bãi xe, cơ cấu thanh chắn ser
         DHT11 theo tiêu chí giá, mức logic 3,3\,V và số chân (Bảng~\ref{tab:sensors}).
   \item \textbf{Thiết kế nguồn}: một điểm cấp nguồn qua jack DC trên vách sau; diode
         chống cắm ngược cực; tụ hóa lọc sụt áp khi servo khởi động — nguyên nhân làm
-        ESP32-C3 tự reset ở bản lắp thử đầu tiên; tách nguồn 5\,V cho servo, nối chung GND.
+        ESP32-C3 tự khởi động lại ở bản lắp thử đầu tiên; tách nguồn 5\,V cho servo, nối chung GND.
   \item \textbf{Sơ đồ chân và đi dây}: lập sơ đồ chân ba bo tránh chân strapping và UART
         (Bảng~\ref{tab:pin-srv}, \ref{tab:pin-clients}); gắn 5 module IR và module lửa ở
         mặt ngoài vách để dây không đi qua lòng bãi; đổi chân GPIO client khi phát hiện
         xung đột lúc khởi động (commit \code{Change some client GPIO}); chỉnh biến trở
         từng module IR theo độ phản xạ của xe mẫu.
   \item \textbf{Firmware client}: Sensor Client đọc 5 IR, lửa, mực nước; RFID Client với
-        hai đầu đọc RC522 dùng chung SPI bật/tắt ăng-ten luân phiên để tránh nhiễu chéo,
+        hai đầu đọc RC522 dùng chung SPI, bật/tắt ăng-ten luân phiên để tránh nhiễu chéo,
         DHT11, điểm truy cập Wi-Fi, OTA; logic vào/ra theo cổng ở máy chủ.
   \item \textbf{Báo cáo}: Chương 2, 4 và phần nguồn điện, sơ đồ chân.
 \end{itemize}

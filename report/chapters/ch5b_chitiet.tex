@@ -28,7 +28,7 @@ máy chủ trả lời mỗi \code{rfid\_event} bằng một gói \code{ACK} cũ
 \end{itemize}
 
 \begin{lydo}[Tại sao SipHash-2-4 thay vì HMAC-SHA256]
-SipHash là hàm băm có khóa (PRF) thiết kế riêng cho thông điệp ngắn: một gói của nhóm
+SipHash là hàm băm có khóa (PRF) được thiết kế riêng cho thông điệp ngắn: một gói của nhóm
 chỉ 70–130 byte. Chữ ký 64 bit đủ chống giả mạo trong bối cảnh này (kẻ tấn công phải
 gửi trung bình $2^{63}$ gói để đoán trúng). Thuật toán chỉ khoảng 30 dòng C, giống hệt
 trên ESP32-C3, ESP8266 và Python, nên cả ba nơi dùng chung một định dạng và bộ kiểm thử
@@ -180,7 +180,7 @@ Bộ đệm nhận 256 byte, đọc tối đa 255 byte và luôn kết thúc b�
 
 \subsection{Phiên gửi xe, phí, thông báo và nhật ký}
 \begin{itemize}
-\item \textbf{Phiên}: mảng tĩnh 5 phần tử — bằng số chỗ đỗ, không có nhiều xe hơn số chỗ.
+\item \textbf{Phiên}: mảng tĩnh 5 phần tử — bằng số chỗ đỗ, vì không thể có nhiều xe hơn số chỗ.
   Thời điểm vào lấy từ \code{esp\_timer\_get\_time()} (64 bit, micro giây, không tràn trong
   hơn 290\,000 năm).
 \item \textbf{Phí}: $h=\max(1,\lceil t/3600\rceil)$, phí $=5000\,h$ VNĐ, tính bằng số
@@ -220,7 +220,7 @@ hình điện thoại và tốn dưới 1\,KB RAM.
 \begin{lydo}[Tại sao lọc 50\,ms và gửi theo thay đổi kèm nhắc lại 1\,s]
 Mép xe và bánh xe làm tín hiệu IR bật/tắt liên tục trong vài chục mili giây khi xe
 đang vào chỗ. Nhóm tinh chỉnh thực nghiệm từ 250\,ms xuống \textbf{50\,ms}: đủ lọc nhiễu
-mà cảm giác tức thời. Trước đây trạng thái chỉ được gửi theo chu kỳ 1\,s nên thay đổi
+mà vẫn cho cảm giác tức thời. Trước đây trạng thái chỉ được gửi theo chu kỳ 1\,s nên thay đổi
 có thể trễ đến 1\,s; nay \textbf{gửi ngay khi có thay đổi}, đồng thời vẫn \textbf{nhắc
 lại mỗi giây} để một gói bị mất được sửa ở lần sau. Mỗi cảm biến có bộ đếm riêng.
 \end{lydo}
@@ -252,12 +252,12 @@ nhất 1\,s giữa hai lần đọc và nhiệt độ thay đổi chậm.
 
 \subsection{Trang web}
 \begin{lydo}[Tại sao hỏi vòng 1–2\,s thay vì WebSocket]
-Hỏi vòng không giữ trạng thái kết nối trên máy chủ: mỗi request độc lập, xử lý xong
-giải phóng ngay — phù hợp giới hạn socket và RAM, và đơn giản khi nhiều trình duyệt
+Hỏi vòng không giữ trạng thái kết nối trên máy chủ: mỗi yêu cầu độc lập, xử lý xong
+giải phóng ngay — phù hợp với giới hạn socket và RAM, và đơn giản khi nhiều trình duyệt
 cùng xem. Với dữ liệu thay đổi theo giây, độ trễ thêm tối đa 1\,s là chấp nhận được.
 Trang web là HTML/CSS/JavaScript thuần, nhúng trong firmware bằng
-\code{EMBED\_TXTFILES}: không cần phân vùng tệp, không phụ thuộc CDN (điện thoại kết nối
-hotspot không có Internet).
+\code{EMBED\_TXTFILES}: không cần phân vùng tệp, không phụ thuộc CDN (điện thoại kết nối vào
+điểm truy cập không có Internet).
 \end{lydo}
 
 % ---------------------------------------------------------------------
@@ -377,7 +377,7 @@ Giờ thực do trình duyệt cung cấp & SNTP, RTC DS3231 & Mạng không có
 \subsection{Trang web giám sát}
 Hình~\ref{fig:dashboard} là ảnh chụp trang web thật của hệ thống (chạy với dữ liệu mẫu).
 Sơ đồ bãi là phần chính: 5 ô lớn, ô có xe vẽ hình xe màu đỏ, ô trống hiện chữ P màu
-xanh, làn xe với hướng vào/ra; phía trên là số chỗ trống/có xe/tổng. Bên dưới là điều
+xanh, làn xe với hướng vào/ra; phía trên là số chỗ trống/có xe/tổng. Bên dưới là phần điều
 khiển thanh chắn, cảm biến và nhật ký vào/ra kèm giá gửi xe.
 
 \begin{figure}[H]
@@ -437,6 +437,12 @@ khiển thanh chắn, cảm biến và nhật ký vào/ra kèm giá gửi xe.
 Trên màn hình bình thường: hàng trên là số chỗ trống, hai ô nhiệt độ và mực nước,
 ảnh động $96\times96$ ở góc phải, hàng giữa là 5 ô S1–S5 với vạch xanh (trống)/đỏ (có
 xe), vùng chân dùng cho ảnh động nhỏ, hóa đơn hoặc thông báo.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.42\linewidth]{photos/tft_live.jpg}
+\caption{Màn hình TFT thật trên mô hình khi 4 ô có xe: \code{FREE SPACES 1/5}, S1 trống (xanh), S2–S5 có xe (đỏ), nhiệt độ 27,2\,°C, mực nước 0,0\,mm}\label{fig:tft-live}
+\end{figure}
 
 \subsection{Kịch bản demo}
 \begin{enumerate}
