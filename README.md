@@ -209,7 +209,8 @@ With a receiving account set, an exit scan no longer opens the barrier at once:
 3. With a SePay token, the server polls
    `my.sepay.vn/userapi/transactions/list` every 3 s (only transactions newer
    than the QR) for that note and amount, then opens the exit barrier, prints
-   the receipt and counts the revenue.
+   the receipt and counts the revenue. MoMo and some wallets replace the note,
+   so a transfer of exactly the fee to the receiving account/VA also counts.
 4. No transfer after 180 s: the TFT shows `PAY AT BOOTH`; a late transfer still
    counts. The operator can always press *Confirm paid* on the dashboard (PIN),
    which also covers cash and works without Internet or a token.
@@ -267,7 +268,7 @@ RFID Client.
 make -C tests
 ```
 
-Runs 384 checks on the host: VietQR payload (checked against a published
+Runs 397 checks on the host: VietQR payload (checked against a published
 sample) and SePay response matching, the server JSON parsers, RFID sessions/fees/log/
 notices/persistence/clock/flood/offline/revenue stats/retry dedupe/QR payment, the animation frame data, and both ESP8266 sketches
 compiled against a fake Arduino layer (`tests/arduino/`), with every client
