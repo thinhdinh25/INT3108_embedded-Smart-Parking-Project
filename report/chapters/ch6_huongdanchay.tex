@@ -91,7 +91,7 @@ I (...) SERVER: mDNS: parking.local -> 192.168.1.23
 \end{lstlisting}
 \code{Joining shared Wi-Fi} in tên mạng Wi-Fi chung đã cấu hình; \code{Got IP} là địa chỉ
 do router cấp (ở đây \code{192.168.1.23}, tùy router). Dòng \code{SEPAY} cho biết chế độ
-thanh toán: \code{QR payment off} nếu chưa khai báo tài khoản nhận (cổng ra mở ngay),
+thanh toán: \code{No QR} nếu chưa khai báo tài khoản nhận (cổng ra chờ người vận hành xác nhận),
 \code{confirmed by the operator} nếu có tài khoản nhưng chưa có token SePay. Màn hình TFT
 hiện giao diện \code{PARKSENSE} với các giá trị \code{--.-}; hai thanh chắn về vị trí
 đóng. Nếu chưa thấy \code{Got IP}, kiểm tra router đã bật và SSID/mật khẩu đúng.
@@ -104,7 +104,7 @@ Mã nguồn chỉ chứa giá trị \emph{demo}. Giá trị thật không nằm 
         được lưu trong \file{Server/sdkconfig}, tệp này bị \file{.gitignore} bỏ qua.
   \item Thanh toán QR: \code{idf.py menuconfig → Parking QR payment (SePay)}, đặt số tài
         khoản nhận, tên chủ tài khoản và token SePay (Bảng~\ref{tab:payconfig}). Để trống
-        số tài khoản thì tắt thanh toán. Token SePay có toàn quyền đọc giao dịch của tài
+        số tài khoản thì không có mã QR, người vận hành thu tiền và bấm \emph{Confirm paid}. Token SePay có toàn quyền đọc giao dịch của tài
         khoản, nên \textbf{chỉ} được nhập ở đây (\file{sdkconfig}), không bao giờ ghi vào
         \file{sdkconfig.defaults} hay mã nguồn.
   \item Hai client: sao chép \file{secrets.example.h} thành \file{secrets.h} trong thư mục

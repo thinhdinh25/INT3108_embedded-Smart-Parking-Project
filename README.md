@@ -214,8 +214,9 @@ With a receiving account set, an exit scan no longer opens the barrier at once:
    counts. The operator can always press *Confirm paid* on the dashboard (PIN),
    which also covers cash and works without Internet or a token.
 
-A second car scanning out while one is paying sees `PLEASE WAIT`. Leave the
-account empty to keep the old behaviour (exits open immediately).
+A second car scanning out while one is paying sees `PLEASE WAIT`. The exit
+barrier never opens on a scan alone: with no account set the TFT shows
+`PAY AT BOOTH` and only *Confirm paid* (or a manual barrier command) opens it.
 
 ## Setup and run
 

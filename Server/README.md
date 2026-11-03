@@ -10,7 +10,7 @@ shows the latest parking state on a 1.54-inch ST7789 TFT.
 - Wi-Fi password: `12345678`
 - Device address: assigned by the hotspot's DHCP (printed on the serial log)
 - Dashboard: `http://parking.local` (mDNS hostname `parking`)
-- Sensor update endpoint: UDP `192.168.4.255:3333` (JSON datagrams)
+- Sensor update endpoint: UDP subnet broadcast (e.g. `192.168.1.255`) port 3333 (JSON datagrams)
 - Dashboard data endpoint: `GET /api/parking`
 - Barrier controls: separate IN (GPIO0) and OUT (GPIO1) Open/Close controls, plus emergency commands for both servos
 
@@ -35,7 +35,7 @@ supply ground is also connected to ESP32 GND. Do not connect either servo's 5 V
 lead to an ESP32 GPIO. Verify both GPIO labels on your board before wiring.
 
 Connect both senders to the `Parking` hotspot and send JSON datagrams to
-`192.168.4.255:3333`. Slot value `1` means occupied; `0` means free. The parking
+the subnet broadcast address on port 3333. Slot value `1` means occupied; `0` means free. The parking
 sensor client sends water level in millimeters and `fire` reports whether the
 fire sensor is active:
 

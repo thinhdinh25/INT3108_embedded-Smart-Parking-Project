@@ -134,7 +134,7 @@ bool update_sensor() {
 /******************UDP SECTION BEGIN*********************/
 
 WiFiUDP udp;
-// Broadcast to the subnet learned from WiFi.localIP() at startup (e.g. 192.168.100.44 -> 192.168.100.255).
+// Broadcast of the subnet joined at startup (e.g. 192.168.100.44/24 -> 192.168.100.255).
 IPAddress serverIP(255, 255, 255, 255);
 const uint16_t serverPort = 3333;
 
@@ -185,8 +185,7 @@ void setup() {
     Serial.println();
     Serial.print("Connected, client IP: ");
     Serial.println(WiFi.localIP());
-    serverIP = WiFi.localIP();
-    serverIP[3] = 255;
+    serverIP = WiFi.broadcastIP();  // IP | ~mask: right for any subnet size, not just /24
     Serial.print("UDP broadcast IP: ");
     Serial.println(serverIP);
 

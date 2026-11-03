@@ -1,4 +1,4 @@
-﻿#include <stdio.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
 #include <string.h>
@@ -236,6 +236,12 @@ static void draw_payment_screen(const rfid_payment_t *pay, const rfid_notice_t *
         config.qrcode_ecc_level = ESP_QRCODE_ECC_MED;
         qr_top = 30;
         esp_qrcode_generate(&config, payload);
+    }
+    else
+    {
+        /* No receiving account in menuconfig: the fee is still owed, paid at the booth. */
+        draw_text(42, 90, "PAY AT BOOTH", 2, COLOR_ORANGE);
+        draw_text(36, 120, "OPERATOR OPENS THE GATE", 1, COLOR_MUTED);
     }
 
     char line[40];

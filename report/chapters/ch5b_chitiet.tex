@@ -228,8 +228,9 @@ chuỗi theo chuẩn VietQR của NAPAS, vốn là định dạng EMVCo: mỗi t
 \end{table}
 Hàm được kiểm chứng từng byte với một mã VietQR mẫu đã công bố (kết thúc bằng
 \code{6304AB76}) và với giá trị kiểm tra chuẩn của CRC16-CCITT (\code{0x29B1} cho chuỗi
-\code{"123456789"}). BIN phải đủ 6 chữ số và số tài khoản chỉ gồm chữ/số; nếu sai, máy
-chủ tắt thanh toán QR ngay khi khởi động thay vì hiển thị một mã không quét được.
+\code{"123456789"}). BIN phải đủ 6 chữ số và số tài khoản chỉ gồm chữ/số; nếu sai hoặc để
+trống, máy chủ không vẽ mã QR (tránh một mã không quét được) mà hiện \code{PAY AT BOOTH}; cổng ra
+vẫn chỉ mở khi người vận hành bấm \emph{Confirm paid}.
 
 \paragraph{Mã thanh toán và lượt thanh toán.} Mã gồm \code{PK} và 6 ký tự lấy từ 31 chữ in hoa
 và chữ số, đã bỏ \code{I}, \code{L}, \code{O}, \code{0}, \code{1} vì dễ nhầm khi người lái
@@ -281,7 +282,7 @@ ghi cảnh báo và thử lại ở chu kỳ sau.
 \toprule
 \textbf{Tham số} & \textbf{Ý nghĩa} \\ \midrule
 \code{PARKING\_PAY\_BANK\_BIN} & Mã BIN ngân hàng nhận, mặc định \code{970418} (BIDV) \\
-\code{PARKING\_PAY\_ACCOUNT} & Số tài khoản nhận ghi vào mã QR. Với BIDV cá nhân phải là số \emph{tài khoản ảo (VA)} tạo trên SePay, vì SePay không nhận giao dịch chuyển thẳng vào số tài khoản chính; để trống = tắt thanh toán, cổng ra mở ngay như trước \\
+\code{PARKING\_PAY\_ACCOUNT} & Số tài khoản nhận ghi vào mã QR. Với BIDV cá nhân phải là số \emph{tài khoản ảo (VA)} tạo trên SePay, vì SePay không nhận giao dịch chuyển thẳng vào số tài khoản chính; để trống thì không có mã QR, TFT hiện \code{PAY AT BOOTH} và cổng ra chỉ mở khi người vận hành bấm \emph{Confirm paid} \\
 \code{PARKING\_PAY\_ACCOUNT\_NAME} & Tên chủ tài khoản, hiển thị trên TFT \\
 \code{PARKING\_SEPAY\_TOKEN} & API token SePay; để trống = người vận hành xác nhận trên trang web \\
 \code{PARKING\_PAY\_TIMEOUT\_S} & Thời gian chờ chuyển khoản, mặc định 180\,s \\

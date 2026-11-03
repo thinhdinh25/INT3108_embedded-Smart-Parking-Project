@@ -103,19 +103,16 @@ static void sepay_task(void *arg)
 
 esp_err_t sepay_client_start(void)
 {
-    if (CONFIG_PARKING_PAY_ACCOUNT[0] == '\0')
-    {
-        ESP_LOGW(TAG, "QR payment off: no receiving account in menuconfig, exits open at once");
-        return ESP_OK;
-    }
+    /* The exit barrier opens only once the fee is paid: by SePay, or Confirm paid on the dashboard. */
+    rfid_session_enable_payment(CONFIG_PARKING_PAY_TIMEOUT_S);
     char probe[160];
     if (vietqr_payload(probe, sizeof(probe), CONFIG_PARKING_PAY_BANK_BIN, CONFIG_PARKING_PAY_ACCOUNT, 1000, "PKTEST00") == 0)
     {
-        ESP_LOGE(TAG, "QR payment off: bank BIN must be 6 digits and the account letters/digits only");
+        ESP_LOGE(TAG, "No QR: set a 6-digit bank BIN and the receiving account (letters/digits) in menuconfig; "
+                      "exits wait for Confirm paid on the dashboard");
         return ESP_OK;
     }
     /* The QR needs no network. Without Internet the operator confirms the transfer on the dashboard. */
-    rfid_session_enable_payment(CONFIG_PARKING_PAY_TIMEOUT_S);
     if (CONFIG_PARKING_SEPAY_TOKEN[0] == '\0')
     {
         ESP_LOGW(TAG, "QR payment on, confirmed by the operator (no SePay token for auto-check)");

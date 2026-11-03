@@ -115,8 +115,8 @@ UC10 & Xem nhật ký vào/ra, giá gửi xe và doanh thu & \file{rfid\_session
 \item[Tác nhân] Người lái xe; RFID Client; Người vận hành; SePay; Đồng hồ hệ thống.
 \item[Mô tả] Người lái quẹt cùng thẻ ở cổng ra; hệ thống tính phí, hiển thị mã VietQR,
   chờ chuyển khoản rồi hiển thị hóa đơn và mở cổng ra.
-\item[Tiền điều kiện] Thẻ đang có phiên gửi xe. Thanh toán QR được bật (đã khai báo tài
-  khoản nhận trong menuconfig); nếu không, bỏ qua bước 3–5 và cổng mở ngay như trước.
+\item[Tiền điều kiện] Thẻ đang có phiên gửi xe. Đã khai báo tài khoản nhận trong menuconfig;
+  nếu chưa, TFT hiện \code{PAY AT BOOTH} thay cho mã QR và cổng ra chỉ mở khi người vận hành bấm \emph{Confirm paid}.
 \item[Luồng chính] \begin{enumerate}[nosep,leftmargin=1.3em]
   \item Người lái quẹt thẻ ở đầu đọc cổng ra (\code{"gate":"out"}).
   \item Máy chủ tính thời gian gửi $t$ và phí $\max(1,\lceil t/3600\rceil)\times5000$\,VNĐ,

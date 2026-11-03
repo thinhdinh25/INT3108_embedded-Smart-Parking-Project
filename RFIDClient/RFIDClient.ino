@@ -13,7 +13,7 @@
 #endif
 
 WiFiUDP udp;
-// Địa chỉ broadcast tự động cập nhật theo dải IP nhận được lúc khởi động (VD: 192.168.100.44 -> 192.168.100.255)
+// Broadcast của mạng con lấy lúc khởi động (VD: 192.168.100.44/24 -> 192.168.100.255)
 IPAddress udpAddress(255, 255, 255, 255);
 const unsigned int udpPort = 3333;              // Cổng UDP đích
 
@@ -96,8 +96,7 @@ void setup() {
   }
   Serial.print(F("\nĐã kết nối, IP: "));
   Serial.println(WiFi.localIP());
-  udpAddress = WiFi.localIP();
-  udpAddress[3] = 255;
+  udpAddress = WiFi.broadcastIP();  // IP | ~mask: right for any subnet size, not just /24
   Serial.print(F("UDP broadcast IP: "));
   Serial.println(udpAddress);
 
