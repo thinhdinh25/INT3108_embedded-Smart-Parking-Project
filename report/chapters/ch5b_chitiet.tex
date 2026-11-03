@@ -151,6 +151,9 @@ Claude & 68$\times$46 & 18 & 112\,608 B & 16\,204 B (6,9$\times$) \\
 \bottomrule
 \end{tabular}
 \end{table}
+\noindent Ảnh Kaoruko mặc định \emph{tắt} (\code{PARKING\_LCD\_KAORUKO} trong menuconfig): hai bộ
+đệm DMA $96\times96$ của nó chiếm thêm 24\,KB heap, khiến bắt tay HTTPS với SePay thiếu bộ nhớ.
+Mã nguồn vẫn được giữ; góc màn hình hiện ô chữ ``P'' thay thế.
 
 \begin{lydo}[Tại sao tiền xử lý ảnh trên máy tính]
 Ảnh gốc có nền trắng cần xóa và điểm ảnh cần đảo byte. Phiên bản trước làm việc
@@ -400,14 +403,14 @@ Mất một gói \code{rfid\_event} & gửi lại sau 300\,ms chờ ACK & $\appr
 \begin{tabularx}{\linewidth}{@{}Xr@{}}
 \toprule
 \textbf{Hạng mục} & \textbf{Kích thước} \\ \midrule
-DRAM tĩnh dùng / tổng (mã IRAM + \code{.data} + \code{.bss}) & 98\,624 / 321\,296 B (30,7\%) \\
+DRAM tĩnh dùng / tổng (mã IRAM + \code{.data} + \code{.bss}) & 99\,968 / 321\,296 B (31,1\%) \\
 Framebuffer màn hình (heap, DMA) & 115\,200 B \\
-2 bộ đệm ảnh động (heap, DMA) & 36\,864 B \\
+2 bộ đệm ảnh động (heap, DMA; Kaoruko tắt, bật thì 36\,864 B) & 12\,512 B \\
 Stack các tác vụ của ứng dụng & $\approx$ 19\,KB (+ 8\,KB tác vụ \code{sepay} khi có token) \\
 Bộ đệm TLS khi gọi SePay (heap, chỉ tồn tại trong lúc gửi yêu cầu) & cấp phát động \\
 Bảng phiên, hóa đơn, thông báo, nhật ký, 16 \code{seq} gần nhất & $<$ 1\,KB \\ \midrule
-Ảnh firmware & 1\,111\,968 B \\
-Phân vùng ứng dụng (\code{factory}) & 1\,536\,000 B (dùng 72,4\%) \\
+Ảnh firmware & 1\,223\,104 B \\
+Phân vùng ứng dụng (\code{factory}) & 1\,536\,000 B (dùng 79,6\%) \\
 \bottomrule
 \end{tabularx}
 \end{table}
@@ -416,7 +419,7 @@ Phân vùng ứng dụng (\code{factory}) & 1\,536\,000 B (dùng 72,4\%) \\
 Bảng phân vùng mặc định chỉ có 1\,MB cho ứng dụng và đã đầy 98\% trước khi thêm mDNS.
 Flash 2\,MB đủ chỗ cho phân vùng 1,5\,MB có sẵn trong ESP-IDF
 (\code{partitions\_singleapp\_large.csv}), được khai báo trong \file{sdkconfig.defaults}
-để mọi thành viên build ra cùng cấu hình; sau khi thêm HTTPS và mã QR vẫn còn 28\% dự phòng.
+để mọi thành viên build ra cùng cấu hình; sau khi thêm HTTPS và mã QR vẫn còn 20\% dự phòng.
 \end{lydo}
 
 \subsection{Độ tin cậy và khả năng chịu lỗi}

@@ -73,14 +73,14 @@ idf.py -p <CONG> flash monitor   # vi du: -p COM4 hoac -p /dev/cu.usbmodem101
 \end{lstlisting}
 \textbf{Kết quả mong đợi} sau \code{idf.py build}:
 \begin{lstlisting}[language={},numbers=none]
-INT3108_Smart_Parking_Project.bin binary size 0x10f980 bytes. Smallest app
-partition is 0x177000 bytes. 0x67680 bytes (28%) free.
+INT3108_Smart_Parking_Project.bin binary size 0x12a9c0 bytes. Smallest app
+partition is 0x177000 bytes. 0x4c640 bytes (20%) free.
 Project build complete.
 \end{lstlisting}
 \textbf{Kết quả mong đợi} trên cửa sổ monitor (thoát bằng \code{Ctrl+]}):
 \begin{lstlisting}[language={},numbers=none]
-I (...) LCD_DISPLAY: ST7789 display started at 240x240 with 10-frame Kaoruko animation
-I (...) WIFI_STA: Wi-Fi station started, connecting to SSID=ESP32-Parking...
+I (...) LCD_DISPLAY: ST7789 display started at 240x240 (Kaoruko animation off)
+I (...) WIFI_STA: Wi-Fi station started, connecting to SSID=Parking...
 I (...) HTTP_SERVER: HTTP server listening on port 80
 I (...) UDP_SERVER: UDP server listening on port 3333
 I (...) SEPAY: QR payment on, auto-checked with SePay (timeout 180 s)

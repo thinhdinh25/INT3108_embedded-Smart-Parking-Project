@@ -38,6 +38,12 @@
 #define GIF_WIDTH KAORUKO_WIDTH
 #define GIF_HEIGHT KAORUKO_HEIGHT
 #define GIF_BUFFERS 2
+/* Animation DMA buffers fit the largest enabled GIF; the Claude sprite always uses them. */
+#if CONFIG_PARKING_LCD_KAORUKO
+#define GIF_PIXELS ((size_t)GIF_WIDTH * GIF_HEIGHT)
+#else
+#define GIF_PIXELS ((size_t)CLAUDE_WIDTH * CLAUDE_HEIGHT)
+#endif
 #define CLAUDE_Y 194
 
 static const char *TAG = "LCD_DISPLAY";
@@ -311,6 +317,12 @@ static void draw_parking_screen(const parking_state_t *state, int free_count,
         draw_text(x + 4, 172, !state->online ? "----" : occupied ? "BUSY" : "FREE", 1, color);
     }
 
+#if !CONFIG_PARKING_LCD_KAORUKO
+    /* The Kaoruko corner, without the GIF. */
+    fill_rect(GIF_X, GIF_Y, GIF_WIDTH - 8, GIF_HEIGHT, COLOR_PANEL);
+    draw_text(GIF_X + 29, GIF_Y + 18, "P", 6, COLOR_TEAL);
+    draw_text(GIF_X + 7, GIF_Y + 74, "SMART PARK", 1, COLOR_MUTED);
+#endif
     fill_rect(0, 194, width, 46, COLOR_PANEL);
     /* A rejection notice (5 s) takes the footer first; the exit receipt shows again after it. */
     if (notice->valid)
@@ -382,6 +394,10 @@ static void draw_fire_alarm_screen(int frame)
 
 static void draw_kaoruko_frame(int frame_index)
 {
+#if !CONFIG_PARKING_LCD_KAORUKO
+    (void)frame_index;
+    return;
+#endif
     if (frame_index < 0 || frame_index >= KAORUKO_FRAME_COUNT)
         return;
 
@@ -629,7 +645,7 @@ esp_err_t lcd_display_start(void)
     for (int i = 0; i < GIF_BUFFERS; ++i)
     {
         gif_framebuffer[i] = heap_caps_malloc(
-            (size_t)GIF_WIDTH * GIF_HEIGHT * sizeof(uint16_t),
+            GIF_PIXELS * sizeof(uint16_t),
             MALLOC_CAP_DMA);
 
         if (gif_framebuffer[i] == NULL)
@@ -714,7 +730,11 @@ esp_err_t lcd_display_start(void)
         return ESP_ERR_NO_MEM;
     }
 
+#if CONFIG_PARKING_LCD_KAORUKO
     ESP_LOGI(TAG, "ST7789 display started at %dx%d with %d-frame Kaoruko animation",
              width, height, KAORUKO_FRAME_COUNT);
+#else
+    ESP_LOGI(TAG, "ST7789 display started at %dx%d (Kaoruko animation off)", width, height);
+#endif
     return ESP_OK;
 }
