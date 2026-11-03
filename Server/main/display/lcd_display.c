@@ -1,4 +1,4 @@
-#include <stdio.h>
+﻿#include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
 #include <string.h>
@@ -608,6 +608,31 @@ esp_err_t lcd_display_start(void)
         gpio_set_level(CONFIG_PARKING_LCD_BL_GPIO, 0);
     }
 
+    /* Allocate the 115.2 KB full-screen framebuffer first, before SPI/LCD driver queues
+     * shrink the largest contiguous DRAM region. */
+    framebuffer = heap_caps_calloc(
+        (size_t)width * height,
+        sizeof(uint16_t),
+        MALLOC_CAP_DMA);
+    if (framebuffer == NULL)
+    {
+        ESP_LOGE(TAG, "Unable to allocate LCD framebuffer");
+        return ESP_ERR_NO_MEM;
+    }
+
+    for (int i = 0; i < GIF_BUFFERS; ++i)
+    {
+        gif_framebuffer[i] = heap_caps_malloc(
+            (size_t)GIF_WIDTH * GIF_HEIGHT * sizeof(uint16_t),
+            MALLOC_CAP_DMA);
+
+        if (gif_framebuffer[i] == NULL)
+        {
+            ESP_LOGE(TAG, "Unable to allocate GIF DMA framebuffer %d", i);
+            return ESP_ERR_NO_MEM;
+        }
+    }
+
     spi_bus_config_t bus_config = {
         .sclk_io_num = CONFIG_PARKING_LCD_SCLK_GPIO,
         .mosi_io_num = CONFIG_PARKING_LCD_MOSI_GPIO,
@@ -660,29 +685,6 @@ esp_err_t lcd_display_start(void)
     ESP_RETURN_ON_ERROR(
         esp_lcd_panel_disp_on_off(panel, true),
         TAG, "Turn display on failed");
-
-    framebuffer = heap_caps_calloc(
-        (size_t)width * height,
-        sizeof(uint16_t),
-        MALLOC_CAP_DMA);
-    if (framebuffer == NULL)
-    {
-        ESP_LOGE(TAG, "Unable to allocate LCD framebuffer");
-        return ESP_ERR_NO_MEM;
-    }
-
-    for (int i = 0; i < GIF_BUFFERS; ++i)
-    {
-        gif_framebuffer[i] = heap_caps_malloc(
-            (size_t)GIF_WIDTH * GIF_HEIGHT * sizeof(uint16_t),
-            MALLOC_CAP_DMA);
-
-        if (gif_framebuffer[i] == NULL)
-        {
-            ESP_LOGE(TAG, "Unable to allocate GIF DMA framebuffer %d", i);
-            return ESP_ERR_NO_MEM;
-        }
-    }
 
     lcd_mutex = xSemaphoreCreateMutex();
     if (lcd_mutex == NULL)

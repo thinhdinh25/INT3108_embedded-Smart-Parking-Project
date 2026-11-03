@@ -13,8 +13,8 @@
 #endif
 
 WiFiUDP udp;
-// Broadcast toàn mạng: không cần biết dải IP của Wi-Fi chung hay IP của máy chủ
-const IPAddress udpAddress(255, 255, 255, 255);
+// Địa chỉ broadcast tự động cập nhật theo dải IP nhận được lúc khởi động (VD: 192.168.100.44 -> 192.168.100.255)
+IPAddress udpAddress(255, 255, 255, 255);
 const unsigned int udpPort = 3333;              // Cổng UDP đích
 
 // --- CẤU HÌNH PHẦN CỨNG RC522 ---
@@ -96,6 +96,10 @@ void setup() {
   }
   Serial.print(F("\nĐã kết nối, IP: "));
   Serial.println(WiFi.localIP());
+  udpAddress = WiFi.localIP();
+  udpAddress[3] = 255;
+  Serial.print(F("UDP broadcast IP: "));
+  Serial.println(udpAddress);
 
   // 3. Khởi tạo cổng UDP & OTA
   nextSeq = ESP.random() | 1;  // hardware RNG; odd, so never 0

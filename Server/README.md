@@ -6,7 +6,7 @@ shows the latest parking state on a 1.54-inch ST7789 TFT.
 
 ## Network
 
-- Wi-Fi SSID: `ESP32-Parking`
+- Wi-Fi SSID: `Parking`
 - Wi-Fi password: `12345678`
 - Device address: assigned by the hotspot's DHCP (printed on the serial log)
 - Dashboard: `http://parking.local` (mDNS hostname `parking`)
@@ -34,7 +34,7 @@ on the servos; connect both servo grounds to GND and make sure that the 5 V
 supply ground is also connected to ESP32 GND. Do not connect either servo's 5 V
 lead to an ESP32 GPIO. Verify both GPIO labels on your board before wiring.
 
-Connect both senders to the `ESP32-Parking` hotspot and send JSON datagrams to
+Connect both senders to the `Parking` hotspot and send JSON datagrams to
 `192.168.4.255:3333`. Slot value `1` means occupied; `0` means free. The parking
 sensor client sends water level in millimeters and `fire` reports whether the
 fire sensor is active:

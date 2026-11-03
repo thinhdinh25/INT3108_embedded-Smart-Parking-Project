@@ -36,6 +36,9 @@ template <typename T> T constrain(T v, T lo, T hi) { return v < lo ? lo : (v > h
 struct IPAddress {
     uint8_t b[4];
     IPAddress(int a = 0, int c = 0, int d = 0, int e = 0) : b{(uint8_t)a, (uint8_t)c, (uint8_t)d, (uint8_t)e} {}
+    uint8_t &operator[](int i) { return b[i]; }
+    uint8_t operator[](int i) const { return b[i]; }
+    bool operator==(const IPAddress &o) const { return memcmp(b, o.b, 4) == 0; }
 };
 
 struct FakeSerial {

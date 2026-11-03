@@ -1,6 +1,6 @@
 /*
  * ESP-IDF example: call send_parking_update() after Wi-Fi connects to
- * ESP32-Parking. Add lwip to the component's REQUIRES list.
+ * Parking. Add lwip to the component's REQUIRES list.
  */
 #include <stdio.h>
 #include <stdbool.h>
