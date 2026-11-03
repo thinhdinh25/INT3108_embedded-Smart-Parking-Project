@@ -273,7 +273,7 @@ nhận và cho truy vấn qua API. Tác vụ \code{sepay} (\file{network/sepay\_
 cứ 3\,s gọi lại với \code{since\_id=<id+1>\&limit=20}, nên chỉ giao dịch \emph{sau} lúc hiện QR
 được xét. Hàm \code{sepay\_has\_payment()} tìm giao dịch có \code{transaction\_content}
 chứa mã (không phân biệt hoa thường, phòng khi ngân hàng đổi kiểu chữ của nội dung) và
-\code{amount\_in} $\ge$ phí. TLS dùng bộ chứng chỉ gốc của ESP-IDF; với
+\code{amount\_in} $\ge$ phí. Ví MoMo và một số ví điện tử thay nội dung bằng chữ của riêng họ (đã gặp khi thử thật), nên hàm \code{sepay\_has\_transfer\_to()} còn chấp nhận giao dịch vào đúng tài khoản/VA nhận với số tiền \emph{đúng bằng} phí; vì mỗi lúc chỉ một xe thanh toán và chỉ xét giao dịch sau lúc hiện QR, cách này không nhầm xe. TLS dùng bộ chứng chỉ gốc của ESP-IDF; với
 \code{CONFIG\_MBEDTLS\_DYNAMIC\_BUFFER=y}, bộ đệm TLS chỉ được cấp phát trong lúc gửi yêu
 cầu — cần thiết vì RAM đã chật bên cạnh framebuffer 115\,KB. Lỗi mạng hoặc lỗi HTTP chỉ
 ghi cảnh báo và thử lại ở chu kỳ sau.
@@ -285,9 +285,9 @@ ghi cảnh báo và thử lại ở chu kỳ sau.
 \toprule
 \textbf{Tham số} & \textbf{Ý nghĩa} \\ \midrule
 \code{PARKING\_PAY\_BANK\_BIN} & Mã BIN ngân hàng nhận, mặc định \code{970418} (BIDV) \\
-\code{PARKING\_PAY\_ACCOUNT} & Số tài khoản nhận ghi vào mã QR. Với BIDV cá nhân phải là số \emph{tài khoản ảo (VA)} tạo trên SePay, vì SePay không nhận giao dịch chuyển thẳng vào số tài khoản chính; để trống thì không có mã QR, TFT hiện \code{PAY AT BOOTH} và cổng ra chỉ mở khi người vận hành bấm \emph{Confirm paid} \\
+\code{PARKING\_PAY\_VA} & Số tài khoản nhận ghi vào mã QR. Với BIDV cá nhân phải là số \emph{tài khoản ảo (VA)} tạo trên SePay, vì SePay không nhận giao dịch chuyển thẳng vào số tài khoản chính; để trống thì không có mã QR, TFT hiện \code{PAY AT BOOTH} và cổng ra chỉ mở khi người vận hành bấm \emph{Confirm paid} \\
 \code{PARKING\_PAY\_ACCOUNT\_NAME} & Tên chủ tài khoản, hiển thị trên TFT \\
-\code{PARKING\_SEPAY\_TOKEN} & API token SePay; để trống = người vận hành xác nhận trên trang web \\
+\code{PARKING\_SEPAY\_API\_TOKEN} & API token SePay; để trống = người vận hành xác nhận trên trang web \\
 \code{PARKING\_PAY\_TIMEOUT\_S} & Thời gian chờ chuyển khoản, mặc định 180\,s \\
 \code{PARKING\_PAY\_POLL\_MS} & Chu kỳ hỏi SePay, mặc định 3000\,ms \\
 \bottomrule
@@ -473,7 +473,7 @@ Lỗi khởi tạo phần cứng & Fail-fast: in lỗi và khởi động lại 
 
 \subsection{Khả năng bảo trì, kiểm thử và mở rộng}
 \begin{itemize}
-\item Lớp nghiệp vụ độc lập phần cứng: 384 phép kiểm thử chạy trên máy tính trong vài giây.
+\item Lớp nghiệp vụ độc lập phần cứng: 397 phép kiểm thử chạy trên máy tính trong vài giây.
 \item Hai client được kiểm thử bằng chính mã nguồn \file{.ino} trên phần cứng giả lập,
   kèm kiểm tra hợp đồng giao tiếp với bộ đọc JSON thật của máy chủ.
 \item Số chỗ đỗ là hằng số \code{PARKING\_SLOT\_COUNT}; số phiên tối đa bằng số chỗ.

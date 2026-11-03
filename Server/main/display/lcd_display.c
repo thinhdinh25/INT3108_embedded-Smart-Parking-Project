@@ -233,7 +233,7 @@ static void draw_payment_screen(const rfid_payment_t *pay, const rfid_notice_t *
     draw_text(54, 9, "SCAN TO PAY", 2, COLOR_WHITE);
 
     char payload[160];
-    if (vietqr_payload(payload, sizeof(payload), CONFIG_PARKING_PAY_BANK_BIN, CONFIG_PARKING_PAY_ACCOUNT,
+    if (vietqr_payload(payload, sizeof(payload), CONFIG_PARKING_PAY_BANK_BIN, CONFIG_PARKING_PAY_VA,
                        pay->fee_vnd, pay->code) > 0)
     {
         esp_qrcode_config_t config = ESP_QRCODE_CONFIG_DEFAULT();
@@ -260,7 +260,7 @@ static void draw_payment_screen(const rfid_payment_t *pay, const rfid_notice_t *
         draw_text(8, 227, "NEXT CAR: WAIT, ONE IS PAYING", 1, COLOR_ORANGE);
     else
     {
-        snprintf(line, sizeof(line), "BIDV %.16s %.12s", CONFIG_PARKING_PAY_ACCOUNT, CONFIG_PARKING_PAY_ACCOUNT_NAME);
+        snprintf(line, sizeof(line), "BIDV %.16s %.12s", CONFIG_PARKING_PAY_VA, CONFIG_PARKING_PAY_ACCOUNT_NAME);
         draw_text(8, 227, line, 1, COLOR_MUTED);
     }
     ESP_ERROR_CHECK(lcd_draw_bitmap_locked(0, 0, width, height, framebuffer));

@@ -18,6 +18,10 @@ uint16_t vietqr_crc16(const char *data, size_t len);
  * `code` (any letter case) brought in at least `amount_vnd`. */
 bool sepay_has_payment(const char *body, const char *code, uint32_t amount_vnd);
 
+/* Same response: true if a transaction to `account` (main account_number or VA sub_account)
+ * brought in exactly `amount_vnd`. For wallets like MoMo that replace the transfer note. */
+bool sepay_has_transfer_to(const char *body, const char *account, uint32_t amount_vnd);
+
 /* Largest transaction "id" in the response, so later polls only look at newer ones. */
 bool sepay_latest_id(const char *body, uint32_t *id);
 

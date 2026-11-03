@@ -37,7 +37,7 @@ static bool sepay_get(const char *query)
     esp_http_client_handle_t client = esp_http_client_init(&config);
     if (!client)
         return false;
-    esp_http_client_set_header(client, "Authorization", "Bearer " CONFIG_PARKING_SEPAY_TOKEN);
+    esp_http_client_set_header(client, "Authorization", "Bearer " CONFIG_PARKING_SEPAY_API_TOKEN);
 
     int len = 0, status = 0;
     if (esp_http_client_open(client, 0) == ESP_OK && esp_http_client_fetch_headers(client) >= 0)
@@ -89,7 +89,11 @@ static void sepay_task(void *arg)
 
         char query[48];
         snprintf(query, sizeof(query), "since_id=%lu&limit=20", (unsigned long)newest_before + 1);
-        if (sepay_get(query) && sepay_has_payment(body, pay.code, pay.fee_vnd) &&
+        /* The note identifies the car; MoMo and some wallets drop it, so an exact-fee transfer to
+         * this account after the QR appeared also counts (one car pays at a time). */
+        if (sepay_get(query) &&
+            (sepay_has_payment(body, pay.code, pay.fee_vnd) ||
+             sepay_has_transfer_to(body, CONFIG_PARKING_PAY_VA, pay.fee_vnd)) &&
             rfid_session_payment_done(pay.code))
         {
             ESP_LOGI(TAG, "Payment %s received, opening exit barrier", pay.code);
@@ -109,14 +113,14 @@ esp_err_t sepay_client_start(void)
     /* The exit barrier opens only once the fee is paid: by SePay, or Confirm paid on the dashboard. */
     rfid_session_enable_payment(CONFIG_PARKING_PAY_TIMEOUT_S);
     char probe[160];
-    if (vietqr_payload(probe, sizeof(probe), CONFIG_PARKING_PAY_BANK_BIN, CONFIG_PARKING_PAY_ACCOUNT, 1000, "PKTEST00") == 0)
+    if (vietqr_payload(probe, sizeof(probe), CONFIG_PARKING_PAY_BANK_BIN, CONFIG_PARKING_PAY_VA, 1000, "PKTEST00") == 0)
     {
         ESP_LOGE(TAG, "No QR: set a 6-digit bank BIN and the receiving account (letters/digits) in menuconfig; "
                       "exits wait for Confirm paid on the dashboard");
         return ESP_OK;
     }
     /* The QR needs no network. Without Internet the operator confirms the transfer on the dashboard. */
-    if (CONFIG_PARKING_SEPAY_TOKEN[0] == '\0')
+    if (CONFIG_PARKING_SEPAY_API_TOKEN[0] == '\0')
     {
         ESP_LOGW(TAG, "QR payment on, confirmed by the operator (no SePay token for auto-check)");
         return ESP_OK;

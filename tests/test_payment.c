@@ -87,6 +87,22 @@ static void test_sepay(void)
     CHECK(!sepay_has_payment("{\"transactions\":[]}", "PK3F9A2B", 1));
     CHECK(!sepay_has_payment(NULL, "PK3F9A2B", 1) && !sepay_has_payment(SEPAY_BODY, "", 1));
 
+    /* MoMo replaces the note: matched by the receiving VA and the exact fee instead. */
+    const char *momo =
+        "{\"status\":200,\"messages\":{\"success\":true},\"transactions\":["
+        "{\"id\":\"95776524\",\"account_number\":\"8813315396\",\"sub_account\":\"96247V4VYM\","
+        "\"amount_in\":\"10000.00\",\"transaction_content\":\"154908206647 0918400370 chuyen tien qua MoMo\"},"
+        "{\"id\":\"95776500\",\"account_number\":\"8813315396\",\"sub_account\":null,"
+        "\"amount_in\":\"5000.00\",\"transaction_content\":\"other\"}]}";
+    CHECK(!sepay_has_payment(momo, "PK3F9A2B", 10000));
+    CHECK(sepay_has_transfer_to(momo, "96247V4VYM", 10000));
+    CHECK(!sepay_has_transfer_to(momo, "96247V4VYM", 5000));   /* that 5 000 went to the main account */
+    CHECK(sepay_has_transfer_to(momo, "8813315396", 5000));
+    CHECK(!sepay_has_transfer_to(momo, "96247V4VYM", 15000));  /* not the exact fee */
+    CHECK(!sepay_has_transfer_to(momo, "96247V4VYM", 9000));
+    CHECK(!sepay_has_transfer_to(momo, "OTHERVA", 10000));
+    CHECK(!sepay_has_transfer_to(momo, "", 10000) && !sepay_has_transfer_to(NULL, "96247V4VYM", 10000));
+
     uint32_t id = 0;
     CHECK(sepay_latest_id(SEPAY_BODY, &id) && id == 49690);
     CHECK(!sepay_latest_id("{\"transactions\":[]}", &id));

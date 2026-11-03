@@ -71,7 +71,9 @@ config PARKING_PAY_BANK_BIN
     string "Bank BIN (6 digits, BIDV = 970418)"
     default "970418"
 
-config PARKING_PAY_ACCOUNT
+# Renamed from PARKING_PAY_ACCOUNT / PARKING_SEPAY_TOKEN so values left in older sdkconfig
+# files (the main BIDV account, a revoked token) no longer override these defaults.
+config PARKING_PAY_VA
     string "96247V4VYM"
     default "96247V4VYM"
     help
@@ -83,7 +85,7 @@ config PARKING_PAY_ACCOUNT_NAME
     string "Account holder name shown on the TFT (no accents)"
     default "SMART PARKING"
 
-config PARKING_SEPAY_TOKEN
+config PARKING_SEPAY_API_TOKEN
     string "EVDQCLT9TKNH3GZEGUTDSAMXZYHWRAS25JD90IRZDX0OYRI1TQI7KXPVPKOEACLH"
     default "EVDQCLT9TKNH3GZEGUTDSAMXZYHWRAS25JD90IRZDX0OYRI1TQI7KXPVPKOEACLH"
     help

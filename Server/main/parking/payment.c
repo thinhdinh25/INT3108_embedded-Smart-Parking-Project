@@ -114,6 +114,41 @@ bool sepay_has_payment(const char *body, const char *code, uint32_t amount_vnd)
     return false;
 }
 
+/* True if [start, end) contains `needle`. */
+static bool span_has(const char *start, const char *end, const char *needle)
+{
+    size_t n = strlen(needle);
+    for (const char *p = start; p + n <= end; ++p)
+        if (memcmp(p, needle, n) == 0)
+            return true;
+    return false;
+}
+
+bool sepay_has_transfer_to(const char *body, const char *account, uint32_t amount_vnd)
+{
+    if (!body || !account || !*account || amount_vnd == 0 || strlen(account) > 32)
+        return false;
+    char sub_field[64], main_field[64];
+    snprintf(sub_field, sizeof(sub_field), "\"sub_account\":\"%s\"", account);
+    snprintf(main_field, sizeof(main_field), "\"account_number\":\"%s\"", account);
+    const char *key = "\"amount_in\":\"";
+    for (const char *field = strstr(body, key); field; field = strstr(field + 1, key))
+    {
+        /* Transaction objects are flat, so the enclosing braces bound this one. */
+        const char *start = field;
+        while (start > body && *start != '{')
+            --start;
+        const char *end = strchr(field, '}');
+        if (*start != '{' || !end)
+            continue;
+        double amount = strtod(field + strlen(key), NULL);
+        if ((span_has(start, end, sub_field) || span_has(start, end, main_field)) &&
+            amount > (double)amount_vnd - 0.5 && amount < (double)amount_vnd + 0.5)
+            return true;
+    }
+    return false;
+}
+
 bool sepay_latest_id(const char *body, uint32_t *id)
 {
     bool found = false;
