@@ -294,7 +294,6 @@ static void draw_footer(const rfid_receipt_t *receipt, const rfid_notice_t *noti
         int fee_scale = strlen(fee) <= 5 ? 3 : (strlen(fee) <= 8 ? 2 : 1);
         draw_text(126, fee_scale == 3 ? 209 : 216, fee, fee_scale, COLOR_TEAL);
     }
-
 }
 
 static void format_duration(char *out, size_t out_size, uint32_t seconds)
@@ -337,7 +336,6 @@ static void draw_thanks_screen(const rfid_receipt_t *receipt)
     ESP_ERROR_CHECK(lcd_draw_bitmap_locked(0, 0, width, height, framebuffer));
 }
 
-#if CONFIG_PARKING_LCD_KAORUKO
 /* Layout with the 96x96 Kaoruko animation in the top-right corner (GIF_X, GIF_Y). */
 static void draw_parking_screen(const parking_state_t *state, int free_count,
                                 const rfid_receipt_t *receipt, const rfid_notice_t *notice)
@@ -390,80 +388,15 @@ static void draw_parking_screen(const parking_state_t *state, int free_count,
         draw_text(x + 4, 172, !state->online ? "----" : occupied ? "BUSY" : "FREE", 1, color);
     }
 
-    draw_footer(receipt, notice);
-    ESP_ERROR_CHECK(lcd_draw_bitmap_locked(0, 0, width, height, framebuffer));
-}
-#else
-/* Full-width layout: availability and sensors on top, an entry status bar, bays, footer. */
-static void draw_parking_screen(const parking_state_t *state, int free_count,
-                                const rfid_receipt_t *receipt, const rfid_notice_t *notice)
-{
-    fill_rect(0, 0, width, height, COLOR_BG);
-    fill_rect(0, 0, width, 4, COLOR_TEAL);
-    draw_text(10, 11, "PARKSENSE", 2, COLOR_WHITE);
-    char price[16];
-    snprintf(price, sizeof(price), "%u VND/H", (unsigned)PARKING_FEE_PER_HOUR_VND);
-    draw_text(width - 8 - (int)strlen(price) * 6, 15, price, 1, COLOR_MUTED);
-    fill_rect(8, 32, width - 16, 1, COLOR_LINE);
-
-    /* Free spaces: the number people read from the lane, coloured by how full the lot is. */
-    const bool stale = state->received && !state->online;
-    const uint16_t free_color = stale ? COLOR_MUTED : free_count == 0 ? COLOR_RED
-                                : free_count == 1 ? COLOR_ORANGE : COLOR_GREEN;
-    fill_rect(8, 38, 116, 68, COLOR_PANEL);
-    fill_rect(8, 38, 3, 68, free_color);
-    draw_text(18, 44, "FREE SPACES", 1, COLOR_MUTED);
-    char count[4];
-    snprintf(count, sizeof(count), "%d", free_count);
-    draw_text(18, 58, count, 6, free_color);
-    draw_text(58, 79, "/5", 3, COLOR_MUTED);
-
-    /* Sensor cards stacked on the right. */
-    char temperature[16] = "--.-";
-    char water[16] = "--.-";
-    if (state->temperature_received)
-        format_tenths(temperature, sizeof(temperature), state->temperature_c);
-    if (state->received)
-        format_tenths(water, sizeof(water), state->water_mm);
-    fill_rect(130, 38, 102, 32, COLOR_PANEL);
-    draw_text(136, 42, "TEMP C", 1, COLOR_MUTED);
-    draw_text(136, 53, temperature, 2, COLOR_WHITE);
-    fill_rect(130, 74, 102, 32, state->flood ? COLOR_DARK_RED : COLOR_PANEL);
-    draw_text(136, 78, "WATER MM", 1, COLOR_MUTED);
-    draw_text(136, 89, water, 2, state->flood ? COLOR_RED : COLOR_WHITE);
-
-    /* One status line for drivers: flood matters most, then a silent sensor, then full. */
-    const char *status = "ENTRY OPEN";
-    uint16_t status_color = COLOR_GREEN;
-    if (state->flood)
-        status = "FLOOD - NO ENTRY", status_color = COLOR_RED;
-    else if (stale)
-        status = "SENSOR OFFLINE", status_color = COLOR_ORANGE;
-    else if (!state->received)
-        status = "WAITING SENSORS", status_color = COLOR_MUTED;
-    else if (free_count == 0)
-        status = "LOT FULL", status_color = COLOR_RED;
-    fill_rect(8, 112, width - 16, 26, COLOR_PANEL);
-    fill_rect(8, 112, 3, 26, status_color);
-    draw_text((width - (int)strlen(status) * 12) / 2, 118, status, 2, status_color);
-
-    for (int i = 0; i < PARKING_SLOT_COUNT; ++i)
-    {
-        int x = 8 + i * 46;
-        bool occupied = state->slots[i] != 0;
-        const uint16_t color = !state->online ? COLOR_MUTED : occupied ? COLOR_RED : COLOR_GREEN;
-
-        fill_rect(x, 144, 43, 46, COLOR_PANEL);
-        fill_rect(x, 144, 43, 3, color);
-        char slot_label[3] = {'S', (char)('1' + i), '\0'};
-        draw_text(x + 10, 153, slot_label, 2, COLOR_WHITE);
-        draw_text(x + 10, 176, !state->online ? "----" : occupied ? "BUSY" : "FREE", 1, color);
-    }
-
-    draw_footer(receipt, notice);
-    ESP_ERROR_CHECK(lcd_draw_bitmap_locked(0, 0, width, height, framebuffer));
-}
+#if !CONFIG_PARKING_LCD_KAORUKO
+    /* The Kaoruko corner, without the GIF. */
+    fill_rect(GIF_X, GIF_Y, GIF_WIDTH - 8, GIF_HEIGHT, COLOR_PANEL);
+    draw_text(GIF_X + 29, GIF_Y + 18, "P", 6, COLOR_TEAL);
+    draw_text(GIF_X + 7, GIF_Y + 74, "SMART PARK", 1, COLOR_MUTED);
 #endif
+    draw_footer(receipt, notice);
+    ESP_ERROR_CHECK(lcd_draw_bitmap_locked(0, 0, width, height, framebuffer));
+}
 
 static void draw_flame(int center_x, int bottom_y, int frame, int scale)
 {
@@ -583,6 +516,24 @@ static void draw_claude_frame(int frame_index, int x, int previous_x,
     gif_buffer_index ^= 1;
 }
 
+/* The animation buffers (2 x 18 KB with Kaoruko) are the heap SePay's HTTPS handshake needs,
+ * so they are given back while a car pays; the animation is paused then anyway. */
+static bool gif_buffers_take(bool want)
+{
+    for (int i = 0; i < GIF_BUFFERS; ++i)
+    {
+        if (want && gif_framebuffer[i] == NULL)
+            gif_framebuffer[i] = heap_caps_malloc(GIF_PIXELS * sizeof(uint16_t), MALLOC_CAP_DMA);
+        else if (!want && gif_framebuffer[i] != NULL)
+        {
+            vTaskDelay(pdMS_TO_TICKS(20)); /* let the last frame's SPI DMA finish (~4 ms) */
+            heap_caps_free(gif_framebuffer[i]);
+            gif_framebuffer[i] = NULL;
+        }
+    }
+    return gif_framebuffer[0] != NULL && gif_framebuffer[GIF_BUFFERS - 1] != NULL;
+}
+
 static void animation_task(void *arg)
 {
     (void)arg;
@@ -606,7 +557,8 @@ static void animation_task(void *arg)
         rfid_payment_t pay;
         rfid_session_get_payment(&pay);
         const bool footer_busy = receipt.valid || notice.valid;
-        if (!state.fire && !(pay.active && !pay.expired))
+        const bool buffers = gif_buffers_take(!pay.active); /* NULL until the heap allows */
+        if (buffers && !state.fire && !pay.active)
         {
             draw_kaoruko_frame(frame);
             if (!footer_busy)

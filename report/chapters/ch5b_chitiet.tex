@@ -151,9 +151,11 @@ Claude & 68$\times$46 & 18 & 112\,608 B & 16\,204 B (6,9$\times$) \\
 \bottomrule
 \end{tabular}
 \end{table}
-\noindent Ảnh Kaoruko mặc định \emph{tắt} (\code{PARKING\_LCD\_KAORUKO} trong menuconfig): hai bộ
-đệm DMA $96\times96$ của nó chiếm thêm 24\,KB heap, khiến bắt tay HTTPS với SePay thiếu bộ nhớ.
-Mã nguồn vẫn được giữ; góc màn hình hiện ô chữ ``P'' thay thế.
+\noindent Hai bộ đệm DMA $96\times96$ của ảnh Kaoruko (36\,KB) chính là phần heap mà bắt tay HTTPS
+với SePay cần. Vì ảnh động vốn dừng khi đang hiện mã QR, tác vụ \code{lcd\_animation} trả hai bộ đệm
+này lại trong lúc có xe đang thanh toán và cấp phát lại sau đó; nếu lúc ấy heap chưa đủ thì chỉ bỏ
+qua khung hình. Có thể tắt hẳn ảnh bằng \code{PARKING\_LCD\_KAORUKO} trong menuconfig (góc màn hình
+hiện ô chữ ``P'').
 
 \begin{lydo}[Tại sao tiền xử lý ảnh trên máy tính]
 Ảnh gốc có nền trắng cần xóa và điểm ảnh cần đảo byte. Phiên bản trước làm việc
@@ -405,7 +407,7 @@ Mất một gói \code{rfid\_event} & gửi lại sau 300\,ms chờ ACK & $\appr
 \textbf{Hạng mục} & \textbf{Kích thước} \\ \midrule
 DRAM tĩnh dùng / tổng (mã IRAM + \code{.data} + \code{.bss}) & 99\,968 / 321\,296 B (31,1\%) \\
 Framebuffer màn hình (heap, DMA) & 115\,200 B \\
-2 bộ đệm ảnh động (heap, DMA; Kaoruko tắt, bật thì 36\,864 B) & 12\,512 B \\
+2 bộ đệm ảnh động (heap, DMA; trả lại khi đang thanh toán) & 36\,864 B \\
 Stack các tác vụ của ứng dụng & $\approx$ 19\,KB (+ 8\,KB tác vụ \code{sepay} khi có token) \\
 Bộ đệm TLS khi gọi SePay (heap, chỉ tồn tại trong lúc gửi yêu cầu) & cấp phát động \\
 Bảng phiên, hóa đơn, thông báo, nhật ký, 16 \code{seq} gần nhất & $<$ 1\,KB \\ \midrule
@@ -532,18 +534,17 @@ khiển thanh chắn, cảm biến và nhật ký vào/ra kèm giá gửi xe.
 \end{tabular}
 \caption{Các màn hình TFT $240\times240$, kết xuất từ chính mã \file{lcd\_display.c} biên dịch trên máy tính}\label{fig:tft}
 \end{figure}
-Màn hình bình thường dùng hết chiều ngang: thẻ \code{FREE SPACES} với số chỗ trống cỡ lớn, đổi
-màu xanh/cam/đỏ theo mức đầy; hai thẻ nhiệt độ và mực nước xếp chồng bên phải (thẻ nước chuyển
-đỏ khi ngập); một dòng trạng thái cho người lái (\code{ENTRY OPEN}, \code{LOT FULL},
-\code{FLOOD - NO ENTRY}, \code{SENSOR OFFLINE}); 5 ô S1–S5 với vạch màu ở cạnh trên; vùng chân dành
-cho ảnh động nhỏ, hóa đơn hoặc thông báo. Khi một lượt trả tiền hoàn tất (SePay hoặc
+Trên màn hình bình thường: hàng trên là số chỗ trống, hai ô nhiệt độ và mực nước (ô nước chuyển
+đỏ khi ngập), ảnh động $96\times96$ ở góc phải; nhãn \code{FLOOD-NO ENTRY} hoặc \code{SENSOR OFFLINE}
+hiện ở góc trên; hàng giữa là 5 ô S1–S5 với vạch xanh (trống)/đỏ (có xe); vùng chân dùng cho ảnh
+động nhỏ, hóa đơn hoặc thông báo. Khi một lượt trả tiền hoàn tất (SePay hoặc
 \emph{Confirm paid}), màn hình \code{THANK YOU} hiện 5\,s trong lúc thanh chắn mở, sau đó hóa đơn
 vẫn ở chân màn hình thêm khoảng một phút.
 
 \begin{figure}[H]
 \centering
 \includegraphics[width=0.42\linewidth]{photos/tft_live.jpg}
-\caption{Màn hình TFT thật trên mô hình (bố cục cũ, khi còn ảnh động Kaoruko) khi 4 ô có xe: \code{FREE SPACES 1/5}, S1 trống (xanh), S2–S5 có xe (đỏ), nhiệt độ 27,2\,°C, mực nước 0,0\,mm}\label{fig:tft-live}
+\caption{Màn hình TFT thật trên mô hình khi 4 ô có xe: \code{FREE SPACES 1/5}, S1 trống (xanh), S2–S5 có xe (đỏ), nhiệt độ 27,2\,°C, mực nước 0,0\,mm}\label{fig:tft-live}
 \end{figure}
 
 \subsection{Kịch bản demo}
