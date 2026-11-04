@@ -1,6 +1,11 @@
 % =====================================================================
-\chapter{Kiểm thử}\label{chap:kiemthu}
+\chapter{KIỂM THỬ VÀ ĐÁNH GIÁ HỆ THỐNG}\label{chap:kiemthu}
 % =====================================================================
+
+Chương này trình bày chiến lược và kết quả kiểm thử (tự động, tích hợp bằng công cụ giả lập
+và trên phần cứng), kết quả thực nghiệm trên mô hình, từ đó đánh giá các chức năng đã hoàn
+thiện, các hạn chế đã khắc phục và các hạn chế còn tồn tại cùng nguyên nhân và cách khắc phục.
+
 
 \section{Chiến lược kiểm thử}
 \begin{figure}[H]
@@ -58,7 +63,7 @@ trống. Bài kiểm thử được sửa để tự dọn trạng thái — đ�
 kiểm thử thường xuyên.
 
 \section{Kiểm thử tích hợp bằng công cụ giả lập}
-Các lệnh ở Bước~10 (Chương~\ref{chap:huongdanchay}) gửi bản tin thật tới máy chủ thật,
+Các lệnh ở Bước~10 (Mục~\ref{chap:huongdanchay}) gửi bản tin thật tới máy chủ thật,
 được dùng để kiểm tra màn hình, thanh chắn, còi, trang web và nhật ký khi chưa có đủ client.
 
 \section{Kịch bản kiểm thử hệ thống trên phần cứng}
@@ -95,3 +100,124 @@ S26 & Quẹt ra rồi không chuyển khoản trong 3 phút; sau đó bấm \cod
 S27 & Khi xe thứ nhất đang chờ thanh toán, quẹt thẻ xe thứ hai ở cổng ra & màn hình QR vẫn giữ, dòng cuối đổi thành \code{NEXT CAR: WAIT, ONE IS PAYING}; web \code{WAIT · PAYING}; mã QR của xe thứ nhất không đổi \\
 \bottomrule
 \end{longtable}
+\section{Kết quả thực nghiệm}\label{sec:demo}
+\subsection{Trang web giám sát}
+Hình~\ref{fig:dashboard} là ảnh chụp trang web thật của hệ thống (chạy với dữ liệu mẫu).
+Sơ đồ bãi là phần chính: 5 ô lớn, ô có xe vẽ hình xe màu đỏ, ô trống hiện chữ P màu
+xanh, làn xe với hướng vào/ra; phía trên là số chỗ trống/có xe/tổng. Bên dưới là phần điều
+khiển thanh chắn, cảm biến và nhật ký vào/ra kèm giá gửi xe.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.86\linewidth]{dashboard.png}
+\caption{Trang web giám sát tại \code{http://parking.local} (dữ liệu mẫu)}\label{fig:dashboard}
+\end{figure}
+
+\subsection{Các màn hình TFT}
+\begin{figure}[H]
+\centering
+\setlength{\tabcolsep}{3pt}
+\begin{tabular}{ccc}
+\includegraphics[width=0.3\linewidth]{photos/tft_main.png} &
+\includegraphics[width=0.3\linewidth]{photos/tft_full.png} &
+\includegraphics[width=0.3\linewidth]{photos/tft_flood.png} \\
+\footnotesize (a) Bình thường & \footnotesize (b) Bãi đầy & \footnotesize (c) Ngập, quẹt vào bị từ chối \\[4pt]
+\includegraphics[width=0.3\linewidth]{photos/tft_offline.png} &
+\includegraphics[width=0.3\linewidth]{photos/tft_thanks.png} &
+\includegraphics[width=0.3\linewidth]{photos/tft_receipt.png} \\
+\footnotesize (d) Cảm biến mất kết nối & \footnotesize (e) Cảm ơn sau khi trả tiền & \footnotesize (f) Hóa đơn ở chân màn hình \\
+\end{tabular}
+\caption{Các màn hình TFT $240\times240$, kết xuất từ chính mã \file{lcd\_display.c} biên dịch trên máy tính}\label{fig:tft}
+\end{figure}
+Trên màn hình bình thường: hàng trên là số chỗ trống, hai ô nhiệt độ và mực nước (ô nước chuyển
+đỏ khi ngập), ảnh động $96\times96$ ở góc phải; nhãn \code{FLOOD-NO ENTRY} hoặc \code{SENSOR OFFLINE}
+hiện ở góc trên; hàng giữa là 5 ô S1–S5 với vạch xanh (trống)/đỏ (có xe); vùng chân dùng cho ảnh
+động nhỏ, hóa đơn hoặc thông báo. Khi một lượt trả tiền hoàn tất (SePay hoặc
+\emph{Confirm paid}), màn hình \code{THANK YOU} hiện 5\,s trong lúc thanh chắn mở, sau đó hóa đơn
+vẫn ở chân màn hình thêm khoảng một phút.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.42\linewidth]{photos/tft_live.jpg}
+\caption{Màn hình TFT thật trên mô hình khi 4 ô có xe: \code{FREE SPACES 1/5}, S1 trống (xanh), S2–S5 có xe (đỏ), nhiệt độ 27,2\,°C, mực nước 0,0\,mm}\label{fig:tft-live}
+\end{figure}
+
+\subsection{Kịch bản demo}
+\begin{enumerate}
+\item Bật máy chủ, RFID Client, Sensor Client (thứ tự bất kỳ); điện thoại ở cùng mạng Wi-Fi chung mở \code{http://parking.local}.
+\item Đặt xe mô hình vào ô S2: ô S2 trên TFT chuyển đỏ ngay, trên web hiện hình xe trong $\le$ 1\,s.
+\item Quẹt thẻ ở cổng vào: thanh chắn vào mở rồi tự đóng sau 3\,s; web có dòng \code{IN}.
+\item Quẹt lại thẻ đó ở cổng vào: màn hình báo \code{WRONG GATE – ALREADY INSIDE - USE EXIT GATE}.
+\item Quẹt thẻ ở cổng ra: TFT hiện mã VietQR; quét bằng ứng dụng ngân hàng và chuyển khoản; vài giây sau hóa đơn hiện trên TFT, thanh chắn ra mở; web có dòng \code{OUT} kèm phí.
+\item Đưa bật lửa gần cảm biến lửa: còi kêu, màn hình DANGER, hai thanh chắn mở và không đóng được từ web.
+\item Tắt lửa: còi tắt, thanh chắn đóng, màn hình trở lại bình thường.
+\end{enumerate}
+\section{Đánh giá các chức năng đã hoàn thiện}
+Nhóm đã xây dựng hoàn chỉnh một hệ thống bãi đỗ xe thông minh quy mô mô hình gồm ba
+vi điều khiển, cùng kết nối vào mạng Wi-Fi chung của nhóm:
+\begin{itemize}
+  \item \textbf{10 use case} (Mục~\ref{chap:usecase}) đều được hiện thực: theo dõi chỗ
+        trống tại bãi và trên web, gửi/lấy xe bằng RFID kèm tính phí, từ chối quẹt sai
+        cổng hoặc bãi đầy, cảnh báo cháy và mở đường sơ tán, giám sát nước và nhiệt độ,
+        điều khiển thanh chắn thủ công, nhật ký vào/ra kèm phí.
+  \item \textbf{Thanh toán VietQR}: cổng ra hiển thị mã VietQR (BIDV) sinh ngay trên chip,
+        máy chủ hỏi SePay mỗi 3\,s và tự mở thanh chắn khi nhận được chuyển khoản đúng mã
+        và đủ tiền; khi không có Internet hoặc trả tiền mặt, người vận hành xác nhận trên
+        trang web.
+  \item \textbf{Kiến trúc} phân lớp rõ ràng, không có phụ thuộc vòng; đa tác vụ với
+        FreeRTOS và ba cơ chế đồng bộ dùng đúng chỗ; giao tiếp UDP nhẹ, tự phục hồi khi mất gói;
+        tên \code{parking.local} luôn trỏ đúng IP; ba bo đều là trạm Wi-Fi nên bật theo
+        thứ tự nào cũng được.
+  \item \textbf{Hiệu năng}: màn hình phản ánh thay đổi trong khoảng 0,1\,s; thanh chắn mở
+        khoảng 0,2\,s sau khi quẹt thẻ; firmware dùng 31\% RAM tĩnh, còn 20\% flash ứng dụng.
+  \item \textbf{Chất lượng}: 397 phép kiểm thử tự động đều đạt, chạy cả mã nguồn hai
+        client trên phần cứng giả lập.
+  \item \textbf{Bền vững}: quẹt thẻ không bị mất (ACK và gửi lại), dữ liệu gửi xe giữ được qua mất điện, giờ thực không cần Internet.
+  \item \textbf{Giám sát chủ động}: phát hiện Sensor Client mất kết nối sau 3\,s thay vì
+        hiển thị dữ liệu cũ như dữ liệu thật; cảnh báo ngập có trễ, tự chặn xe vào; thống kê
+        doanh thu, lượt vào/ra theo ngày và 7 ngày.
+  \item \textbf{Mô hình thực tế} hoàn chỉnh (Hình~\ref{fig:model}): 5 ô có cảm biến, 2 cổng
+        servo, hộp điều khiển trung tâm có màn hình, nguồn có bảo vệ ngược cực.
+\end{itemize}
+
+Qua đề tài, nhóm đã vận dụng các kiến thức trọng tâm của môn lập trình nhúng: hệ điều
+hành thời gian thực, đồng bộ tác vụ, PWM và SPI có DMA, ADC và lọc nhiễu tín hiệu số,
+lập trình socket, quản lý bộ nhớ hạn chế, xử lý dữ liệu không tin cậy, và kiểm thử
+phần mềm nhúng không cần phần cứng.
+
+\section{Các hạn chế đã được khắc phục}
+Bản thiết kế đầu tiên có năm hạn chế. Bốn hạn chế đã được khắc phục hoàn toàn, hạn
+chế về bảo mật được khắc phục ở phía trang web và mật khẩu (bản tin UDP chủ đích không
+ký, xem mục~\ref{sec:conlai}); tất cả được
+kiểm chứng bằng kiểm thử tự động (Bảng~\ref{tab:unittests}) và kịch bản phần cứng
+S15–S21 (Bảng~\ref{tab:systest}):
+
+\begin{longtable}{@{}p{3.2cm}p{6.6cm}p{4.6cm}@{}}
+\caption{Hạn chế ban đầu và giải pháp đã hiện thực}\label{tab:fixed}\\
+\toprule \textbf{Hạn chế} & \textbf{Giải pháp} & \textbf{Kiểm chứng} \\ \midrule \endfirsthead
+\toprule \textbf{Hạn chế} & \textbf{Giải pháp} & \textbf{Kiểm chứng} \\ \midrule \endhead
+Bản tin UDP và API không có xác thực; mật khẩu cố định trong mã nguồn &
+Lệnh POST cần mã PIN quản trị; mật khẩu Wi-Fi và mã PIN chuyển ra \file{sdkconfig}
+(menuconfig) và \file{secrets.h}, không còn trong Git &
+S19 \\ \midrule
+Sự kiện quẹt thẻ có thể mất &
+Máy chủ trả ACK; RFID Client gửi lại sau 300\,ms, tối đa 6 lần; máy chủ nhận ra
+bản gửi lại qua \code{seq} nên không mở cổng hai lần &
+\file{rfid\_client}: gửi lại, bỏ cuộc; \file{rfid\_session}: chống xử lý trùng; S16, S18 \\ \midrule
+Phiên và nhật ký mất khi khởi động lại; thời gian tính từ lúc khởi động &
+Toàn bộ trạng thái (\code{rfid\_store\_t}) lưu NVS sau mỗi lần quẹt và mỗi 5 phút, khôi
+phục khi khởi động; trình duyệt của người vận hành gửi giờ Unix
+(\code{POST /api/time}), máy chủ dời các mốc cũ theo và bù thời gian mất điện &
+\file{rfid\_session}: lưu/khôi phục, đặt giờ; S17 \\ \midrule
+Nhiệt độ chỉ cập nhật khi có xe quẹt thẻ &
+RFID Client gửi bản tin \code{climate} mỗi 5\,s, độc lập với quẹt thẻ &
+\file{rfid\_client}, \file{json\_parsers}; S21 \\ \midrule
+Số phiên RFID và cảm biến IR chưa được đối chiếu &
+Máy chủ từ chối thẻ mới khi IR báo đủ 5 ô có xe; trang web cảnh báo \code{CHECK THE LOT}
+khi số thẻ trong bãi lệch số ô có xe quá 15\,s &
+\file{rfid\_session}: đối chiếu IR; S20 \\
+\bottomrule
+\end{longtable}
+
+
+\input{chapters/c5_hanche}

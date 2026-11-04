@@ -1,0 +1,41 @@
+\section{Các giao tiếp ngoại vi}
+\begin{table}[H]
+\centering\small
+\caption{Các giao tiếp ngoại vi được sử dụng}\label{tab:interfaces}
+\begin{tabularx}{\linewidth}{@{}p{2.6cm}X>{\raggedright\arraybackslash}p{4.1cm}@{}}
+\toprule
+\textbf{Giao tiếp} & \textbf{Nguyên lý} & \textbf{Dùng cho} \\ \midrule
+GPIO & Chân vào/ra số mức 0/1, có thể bật điện trở kéo lên/xuống & 5 cảm biến IR, cảm biến lửa (DO), còi \\
+PWM (LEDC) & Khối phần cứng phát xung chu kỳ cố định, độ rộng xung (duty) điều chỉnh được; CPU không phải bật/tắt chân & Góc quay 2 servo SG90 (50\,Hz, xung 0,5–2,4\,ms) \\
+SPI & Bus nối tiếp đồng bộ 4 dây (SCK, MOSI, MISO, CS), một master nhiều slave, mỗi slave một chân CS; có thể dùng DMA để truyền khối lớn & Màn hình ST7789 (40\,MHz, DMA), 2 đầu đọc MFRC522 dùng chung bus \\
+ADC & Chuyển điện áp tương tự sang số (ESP8266: 10 bit ở chân A0; NodeMCU có cầu phân áp cho dải 0–3,3\,V) & Cảm biến mực nước \\
+1 dây (DHT) & Giao thức riêng của DHT11 trên một chân: host kéo thấp để bắt đầu, cảm biến trả 40 bit mã hóa bằng độ rộng xung & Nhiệt độ \\
+UART / USB Serial-JTAG & Truyền nối tiếp bất đồng bộ; ESP32-C3 có sẵn bộ USB Serial-JTAG để nạp firmware và xem nhật ký & Nạp chương trình, nhật ký gỡ lỗi \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\begin{lydo}[Tại sao dùng ngoại vi phần cứng thay vì điều khiển chân bằng phần mềm]
+PWM phần cứng giữ xung servo ổn định ngay cả khi CPU bận vẽ màn hình; SPI có DMA truyền
+115\,KB ảnh màn hình mà CPU không phải chép từng byte. Nếu tạo xung bằng phần mềm, chỉ một
+ngắt Wi-Fi cũng đủ làm servo rung.
+\end{lydo}
+
+\section{Giao thức mạng và thanh toán}
+\begin{itemize}
+  \item \textbf{Wi-Fi 802.11 b/g/n (chế độ trạm)}: ba bo cùng kết nối vào một điểm phát; địa
+        chỉ IP do DHCP của router cấp.
+  \item \textbf{UDP}: giao thức truyền gói không kết nối, không bảo đảm đến nơi nhưng độ trễ
+        thấp và không cần bắt tay. Gói \emph{broadcast} được gửi tới mọi thiết bị trong mạng
+        con, nên client không cần biết IP của máy chủ. Độ tin cậy cho sự kiện quẹt thẻ được bổ
+        sung bằng ACK và gửi lại (Mục~\ref{sec:giaothuc}).
+  \item \textbf{HTTP}: giao thức yêu cầu–phản hồi trên TCP, dùng cho trang web giám sát và các
+        API JSON.
+  \item \textbf{mDNS}: phân giải tên \code{.local} bằng multicast trong mạng cục bộ, không cần
+        máy chủ DNS, cho phép mở \code{http://parking.local}.
+  \item \textbf{HTTPS/TLS}: HTTP được mã hóa và xác thực máy chủ bằng chứng chỉ X.509; máy chủ
+        dùng để gọi API SePay.
+  \item \textbf{VietQR}: chuẩn mã QR chuyển khoản liên ngân hàng của NAPAS, dựa trên chuẩn
+        EMVCo: chuỗi các trường dạng \emph{mã–độ dài–giá trị} (ngân hàng, số tài khoản, số tiền,
+        nội dung) kết thúc bằng mã kiểm tra CRC16 (Mục~\ref{sec:vietqr}).
+\end{itemize}

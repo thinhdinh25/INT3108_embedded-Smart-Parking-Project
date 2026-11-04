@@ -1,5 +1,5 @@
 % =====================================================================
-\chapter{Giới thiệu bài toán}\label{chap:gioithieu}
+\chapter{GIỚI THIỆU ĐỀ TÀI}\label{chap:gioithieu}
 % =====================================================================
 
 \section{Bối cảnh}
@@ -51,15 +51,15 @@ dụng (PWM, SPI có DMA, ADC, GPIO), giao tiếp không dây, quản lý bộ n
 (vài trăm KB RAM), xử lý dữ liệu không tin cậy từ mạng và kiểm thử phần mềm nhúng
 khi không có phần cứng.
 
-\section{Phạm vi}
+\section{Phạm vi và giới hạn}
 Hệ thống là \textbf{mô hình} quy mô phòng thí nghiệm: 5 chỗ đỗ, 2 cổng, xe mô hình,
 thẻ RFID MIFARE. Thanh toán điện tử chỉ gồm chuyển khoản qua mã VietQR tới một tài
 khoản BIDV (xác nhận qua SePay hoặc người vận hành); cổng thanh toán thẻ, nhận dạng
-biển số và lưu trữ đám mây nằm ngoài phạm vi và được nêu ở phần hướng phát triển (Chương~\ref{chap:ketluan}).
+biển số và lưu trữ đám mây nằm ngoài phạm vi và được nêu ở phần hướng phát triển (Kết luận).
 
 \section{Kết quả đạt được (tóm tắt)}
 \begin{itemize}
-  \item Ba bo mạch hoạt động phối hợp, 10 use case (Chương~\ref{chap:usecase}) đều
+  \item Ba bo mạch hoạt động phối hợp, 10 use case (Mục~\ref{chap:usecase}) đều
         được hiện thực và có phép kiểm thử tương ứng.
   \item Firmware máy chủ 1,22\,MB, dùng 31\% RAM tĩnh; còn 20\% phân vùng ứng dụng.
   \item 397 phép kiểm thử tự động đều đạt (Chương~\ref{chap:kiemthu}).
@@ -68,19 +68,17 @@ biển số và lưu trữ đám mây nằm ngoài phạm vi và được nêu �
 \section{Cấu trúc báo cáo}
 \begin{table}[H]
 \centering\small
-\caption{Cấu trúc báo cáo theo yêu cầu của môn học}\label{tab:cautruc}
-\begin{tabularx}{\linewidth}{@{}lXl@{}}
+\caption{Cấu trúc báo cáo}\label{tab:cautruc}
+\begin{tabularx}{\linewidth}{@{}lX@{}}
 \toprule
-\textbf{Chương} & \textbf{Nội dung} & \textbf{Yêu cầu} \\ \midrule
-\ref{chap:gioithieu} & Giới thiệu bài toán, mục tiêu, ý nghĩa & Giới thiệu (1đ) \\
-\ref{chap:usecase} & 10 use case: tác nhân, luồng chính, ngoại lệ, kiểm thử & Use case (10đ) \\
-\ref{chap:thanhphan} & Các thành phần phần cứng và phần mềm, thông số quan trọng & Thành phần (2đ) \\
-\ref{chap:caidat} & Cài đặt môi trường, hệ điều hành, phần mềm mô phỏng & Cài đặt (1đ) \\
-\ref{chap:thietke} & Thiết kế, phân tích kiến trúc, luồng hoạt động, demo & Thiết kế (3đ) \\
-\ref{chap:huongdanchay} & Hướng dẫn chạy mã nguồn từng bước & Chạy mã nguồn (2đ) \\
-\ref{chap:kiemthu} & Kiểm thử tự động và kịch bản kiểm thử phần cứng & Bổ trợ thiết kế/demo \\
-\ref{chap:ketluan} & Tổng kết, hạn chế, hướng phát triển & Kết luận (1đ) \\
-\ref{chap:donggop} & Đóng góp của thành viên, phân chia điểm & Đóng góp \\
+\textbf{Phần} & \textbf{Nội dung} \\ \midrule
+Chương~\ref{chap:gioithieu} & Bối cảnh, mục tiêu, ý nghĩa, phạm vi và giới hạn của đề tài \\
+Chương~\ref{chap:coso} & Hệ thống nhúng và FreeRTOS, vi điều khiển, thiết bị ngoại vi, các giao tiếp ngoại vi và giao thức mạng, môi trường và công cụ phát triển \\
+Chương~\ref{chap:thietke} & Yêu cầu chức năng (10 use case) và phi chức năng, thiết kế phần cứng, kiến trúc, mô hình tác vụ, luồng hoạt động, máy trạng thái \\
+Chương~\ref{chap:trienkhai} & Tổ chức mã nguồn, giao thức, hiện thực từng thành phần, triển khai trên phần cứng thực tế \\
+Chương~\ref{chap:kiemthu} & Kiểm thử tự động và trên phần cứng, kết quả thực nghiệm, đánh giá và hạn chế \\
+Kết luận & Tổng kết và hướng phát triển \\
+Phụ lục~\ref{chap:donggop} & Đóng góp của các thành viên và phân chia điểm \\
 \bottomrule
 \end{tabularx}
 \end{table}

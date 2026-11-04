@@ -1,4 +1,37 @@
-% ---------------------------------------------------------------------
+% =====================================================================
+\chapter{TRIỂN KHAI VÀ LẬP TRÌNH HỆ THỐNG}\label{chap:trienkhai}
+% =====================================================================
+
+Chương này trình bày cách tổ chức mã nguồn (\S\ref{sec:module}), giao thức giữa các bo
+(\S\ref{sec:giaothuc}), cách hiện thực và cấu hình từng thành phần trên vi điều khiển
+(\S\ref{sec:chitiet}) và các bước triển khai lên phần cứng thực tế (\S\ref{chap:huongdanchay}).
+
+\section{Các module mã nguồn của máy chủ}\label{sec:module}
+\begin{table}[H]
+\centering\small
+\caption{Module firmware máy chủ (\file{Server/main/})}\label{tab:modules}
+\begin{tabularx}{\linewidth}{@{}p{4.3cm}rX@{}}
+\toprule
+\textbf{Tệp} & \textbf{Dòng} & \textbf{Trách nhiệm} \\ \midrule
+\file{main.c} & 43 & Khởi tạo NVS, khôi phục phiên, màn hình, còi, servo, mạng theo thứ tự \\
+\file{parking/parking\_state.c} & 65 & Trạng thái bãi dùng chung, đồng hồ bãi (critical section) \\
+\file{parking/json\_scan.c} & 81 & Hàm đọc JSON dùng chung, không cấp phát động \\
+\file{parking/parking\_update.c} & 108 & Kiểm tra bản tin \code{parking\_update} và \code{climate} \\
+\file{parking/rfid\_session.c} & 519 & Bản tin RFID, phiên gửi xe, phí, hóa đơn, thông báo, nhật ký, chống lặp, đối chiếu IR, lưu/khôi phục, đặt giờ, lượt thanh toán QR \\
+\file{parking/payment.c} & 131 & Chuỗi VietQR (EMVCo, CRC16), tìm giao dịch khớp mã trong JSON của SePay \\
+\file{parking/parking\_persist.c} & 47 & Lưu/đọc phiên, nhật ký, đồng hồ trong NVS \\
+\file{barrier/servo.c} & 230 & PWM servo, hẹn giờ tự đóng, chế độ cháy \\
+\file{buzzer/buzzer.c} & 29 & Còi tích cực mức thấp \\
+\file{display/lcd\_display.c} & 706 & Giao diện TFT, màn hình thanh toán QR, màn hình cháy, ảnh động \\
+\file{display/*\_gif.c} & dữ liệu & Khung ảnh động đã nén LZSS \\
+\file{network/wifi.c} & 137 & Kết nối vào Wi-Fi chung (trạm), tự kết nối lại \\
+\file{network/network\_service.c} & 87 & Khởi động mạng, mDNS, cập nhật IP cho mDNS \\
+\file{network/udp/udp\_server.c} & 188 & Nhận và điều phối bản tin UDP, gửi ACK \\
+\file{network/sepay\_client.c} & 127 & Tác vụ hỏi vòng API SePay khi có xe đang thanh toán \\
+\file{network/http/\allowbreak http\_server.c} & 283 & 13 route HTTP, API JSON, xác nhận thanh toán, kiểm tra mã PIN \\
+\bottomrule
+\end{tabularx}
+\end{table}
 \section{Giao thức và giao diện lập trình}\label{sec:giaothuc}
 \begin{lstlisting}[language=json,caption={Bản tin \code{parking\_update} (Sensor Client → máy chủ)}]
 {"type":"parking_update","slots":[1,0,0,1,0],"water_mm":0.2,"fire":false}
@@ -65,13 +98,12 @@ GET & \code{/api/barrier} & \code{\{"in\_open":bool,"out\_open":bool\}} \\
 GET & \code{/api/rfid} & \code{now\_s}, \code{fee\_per\_hour}, \code{today}/\code{week} (doanh thu, lượt vào, lượt ra), \code{parked[]} (thẻ, giờ vào, phí tạm tính), \code{payment} (lượt thanh toán đang chờ: \code{\{"card","fee","code","expired"\}} hoặc \code{null}), \code{log[]} (10 sự kiện mới nhất) \\
 POST & \code{/api/barrier/}\allowbreak\code{<cổng>/<lệnh>} & Cổng \code{in}, \code{out}, \code{all}; lệnh \code{open}, \code{close}. Lỗi 500 nếu bị từ chối (ví dụ đóng khi có cháy) \\
 POST & \code{/api/time} & Thân là giờ Unix (giây) từ trình duyệt; máy chủ đặt đồng hồ bãi và lưu NVS \\
-POST & \code{/api/payment/confirm} & Thân là mã thẻ; người vận hành xác nhận đã nhận tiền (chuyển khoản hoặc tiền mặt): xe ra như bình thường. Dùng được cả cho xe chưa quẹt ra (thu phí đến hiện tại) \\
+POST & \code{/api/payment/\allowbreak confirm} & Thân là mã thẻ; người vận hành xác nhận đã nhận tiền (chuyển khoản hoặc tiền mặt): xe ra như bình thường. Dùng được cả cho xe chưa quẹt ra (thu phí đến hiện tại) \\
 \bottomrule
 \end{tabularx}
 \end{table}
 
-% ---------------------------------------------------------------------
-\section{Thiết kế chi tiết từng thành phần}\label{sec:chitiet}
+\section{Hiện thực từng thành phần}\label{sec:chitiet}
 
 \subsection{Thanh chắn: PWM phần cứng và hẹn giờ một lần}
 Servo SG90 nhận xung chu kỳ 20\,ms; độ rộng xung quyết định góc (Hình~\ref{fig:pwm}).
@@ -378,181 +410,243 @@ Trang web là HTML/CSS/JavaScript thuần, nhúng trong firmware bằng
 khi router mất Internet).
 \end{lydo}
 
-% ---------------------------------------------------------------------
-\section{Phân tích kiến trúc}\label{sec:phantich}
-\subsection{Hiệu năng và độ trễ}
+
+\section{Triển khai trên phần cứng thực tế}\label{chap:huongdanchay}
+
+Mục này hướng dẫn từ lúc lấy mã nguồn đến lúc hệ thống chạy hoàn chỉnh, kèm kết
+quả mong đợi ở mỗi bước để kiểm tra. Môi trường cần được cài đặt trước theo
+Mục~\ref{chap:caidat}. Có hai cách chạy:
+\begin{itemize}
+  \item \textbf{Đầy đủ phần cứng}: Bước~1 đến Bước~9.
+  \item \textbf{Không cần client} (chỉ có bo máy chủ, dùng máy tính giả lập hai client):
+        Bước~1, 2, 4 rồi Bước~10.
+\end{itemize}
+Bộ kiểm thử tự động (không cần phần cứng nào) nằm ở Bước~11.
+
 \begin{table}[H]
 \centering\small
-\caption{Ngân sách độ trễ của các luồng chính (ước tính từ thông số thiết kế)}\label{tab:latency}
-\begin{tabularx}{\linewidth}{@{}lXr@{}}
+\caption{Tên cổng nối tiếp theo hệ điều hành}\label{tab:ports}
+\begin{tabularx}{\linewidth}{@{}lXX@{}}
 \toprule
-\textbf{Luồng} & \textbf{Thành phần} & \textbf{Tổng} \\ \midrule
-Xe vào ô → màn hình TFT & lọc 50\,ms + gửi ngay + UDP vài ms + đánh thức + vẽ 23\,ms & $\approx$ 0,1\,s \\
-Xe vào ô → trang web & như trên + hỏi vòng tối đa 1\,s & $\le$ 1,1\,s \\
-Quẹt thẻ → thanh chắn mở & quét 2 đầu đọc $\approx$ 10\,ms + UDP + xử lý $<$ 1\,ms + servo 90° $\approx$ 0,15\,s & $\approx$ 0,2\,s \\
-Có lửa → còi kêu & lọc 50\,ms + gửi ngay + UDP & $\approx$ 0,06\,s \\
-Mất một gói \code{parking\_update} & sửa ở lần nhắc lại & $\le$ 1\,s \\
-Mất một gói \code{rfid\_event} & gửi lại sau 300\,ms chờ ACK & $\approx$ 0,5\,s \\
+\textbf{Hệ điều hành} & \textbf{ESP32-C3 SuperMini (USB tích hợp)} & \textbf{ESP8266 NodeMCU (CH340/CP2102)} \\ \midrule
+Windows & \code{COM3}, \code{COM4}, \ldots{} (xem Device Manager) & \code{COM5}, \ldots \\
+macOS & \code{/dev/cu.usbmodem*} & \code{/dev/cu.usbserial-*} hoặc \code{/dev/cu.wchusbserial*} \\
+Linux & \code{/dev/ttyACM0} & \code{/dev/ttyUSB0} \\
 \bottomrule
 \end{tabularx}
 \end{table}
 
-\subsection{Bộ nhớ}
-\begin{table}[H]
-\centering\small
-\caption{Sử dụng bộ nhớ của firmware máy chủ (đo bằng \code{idf.py size})}\label{tab:memory}
-\begin{tabularx}{\linewidth}{@{}Xr@{}}
-\toprule
-\textbf{Hạng mục} & \textbf{Kích thước} \\ \midrule
-DRAM tĩnh dùng / tổng (mã IRAM + \code{.data} + \code{.bss}) & 99\,968 / 321\,296 B (31,1\%) \\
-Framebuffer màn hình (heap, DMA) & 115\,200 B \\
-2 bộ đệm ảnh động (heap, DMA; trả lại khi đang thanh toán) & 36\,864 B \\
-Stack các tác vụ của ứng dụng & $\approx$ 19\,KB (+ 8\,KB tác vụ \code{sepay} khi có token) \\
-Bộ đệm TLS khi gọi SePay (heap, chỉ tồn tại trong lúc gửi yêu cầu) & cấp phát động \\
-Bảng phiên, hóa đơn, thông báo, nhật ký, 16 \code{seq} gần nhất & $<$ 1\,KB \\ \midrule
-Ảnh firmware & 1\,223\,104 B \\
-Phân vùng ứng dụng (\code{factory}) & 1\,536\,000 B (dùng 79,6\%) \\
-\bottomrule
-\end{tabularx}
-\end{table}
+\buoc{Lấy mã nguồn}
+\begin{lstlisting}[style=shell]
+git clone https://github.com/thinhdinh25/INT3108_embedded-Smart-Parking-Project.git
+cd INT3108_embedded-Smart-Parking-Project
+\end{lstlisting}
+Hoặc tải tệp ZIP từ trang GitHub của dự án và giải nén.
 
-\begin{lydo}[Tại sao phân vùng ứng dụng 1,5\,MB]
-Bảng phân vùng mặc định chỉ có 1\,MB cho ứng dụng và đã đầy 98\% trước khi thêm mDNS.
-Flash 2\,MB đủ chỗ cho phân vùng 1,5\,MB có sẵn trong ESP-IDF
-(\code{partitions\_singleapp\_large.csv}), được khai báo trong \file{sdkconfig.defaults}
-để mọi thành viên build ra cùng cấu hình; sau khi thêm HTTPS và mã QR vẫn còn 20\% dự phòng.
+\buoc{Làm quen cấu trúc thư mục}
+\begin{lstlisting}[language={},numbers=none,caption={Cấu trúc kho mã nguồn}]
+Server/              Firmware may chu ESP32-C3 (ESP-IDF)
+  main/              Ma nguon: barrier, buzzer, display, network, parking
+  sdkconfig.defaults Cau hinh mac dinh: -O2, phan vung ung dung 1,5 MB
+SensorClient/        Sketch Arduino cho Sensor Client (ESP8266)
+RFIDClient/          Sketch Arduino cho RFID Client (ESP8266)
+  secrets.example.h  Ten/mat khau Wi-Fi chung mau -> chep thanh secrets.h
+examples/            Cong cu gia lap client bang Python
+tests/               Bo kiem thu tu dong tren may tinh
+docs/                Ghi chu dau day
+report/              Bao cao nay (LaTeX + PDF)
+\end{lstlisting}
+
+\buoc{Lắp mạch}
+Đấu dây theo Bảng~\ref{tab:pin-srv} (máy chủ) và Bảng~\ref{tab:pin-clients} (hai client);
+bố trí thiết bị trên mô hình như Hình~\ref{fig:model} và Bảng~\ref{tab:placement}.
+Kiểm tra trước khi cấp nguồn:
+\begin{itemize}
+  \item Servo dùng nguồn 5\,V riêng, \textbf{GND nối chung} với ESP32-C3; không cấp
+        nguồn cho servo từ chân 3V3.
+  \item Màn hình ST7789 dùng 3V3; RC522 dùng 3V3 (không dùng 5\,V).
+  \item Cắm đúng cực jack DC (nếu cắm ngược, diode sẽ chặn nhưng khi đó hệ thống không lên nguồn);
+        tụ lọc đặt sát chỗ servo lấy nguồn.
+  \item Chỉnh biến trở từng module IR khi đã đặt xe mẫu vào ô: đèn báo sáng khi có xe,
+        tắt khi ô trống.
+  \item Module còi không được kéo GPIO9 xuống mức thấp khi cấp nguồn (nếu không, bo
+        sẽ vào chế độ nạp firmware).
+\end{itemize}
+
+\buoc{Biên dịch và nạp máy chủ ESP32-C3}
+Mở terminal ESP-IDF (Mục~\ref{chap:caidat}), cắm ESP32-C3 qua USB:
+\begin{lstlisting}[style=shell]
+cd Server
+idf.py set-target esp32c3        # chi lan dau; tao sdkconfig tu sdkconfig.defaults
+idf.py build                     # lan dau tai them espressif/mdns, espressif/qrcode
+idf.py -p <CONG> flash monitor   # vi du: -p COM4 hoac -p /dev/cu.usbmodem101
+\end{lstlisting}
+\textbf{Kết quả mong đợi} sau \code{idf.py build}:
+\begin{lstlisting}[language={},numbers=none]
+INT3108_Smart_Parking_Project.bin binary size 0x12a9c0 bytes. Smallest app
+partition is 0x177000 bytes. 0x4c640 bytes (20%) free.
+Project build complete.
+\end{lstlisting}
+\textbf{Kết quả mong đợi} trên cửa sổ monitor (thoát bằng \code{Ctrl+]}):
+\begin{lstlisting}[language={},numbers=none]
+I (...) LCD_DISPLAY: ST7789 display started at 240x240 with 10-frame Kaoruko animation
+I (...) WIFI_STA: Wi-Fi station started, connecting to SSID=Parking...
+I (...) HTTP_SERVER: HTTP server listening on port 80
+I (...) UDP_SERVER: UDP server listening on port 3333
+I (...) SEPAY: QR payment on, auto-checked with SePay (timeout 180 s)
+I (...) SERVER: Joining shared Wi-Fi: ESP32-Parking
+I (...) SERVER: Web interface: http://parking.local
+I (...) WIFI_STA: Got IP: 192.168.1.23
+I (...) SERVER: mDNS: parking.local -> 192.168.1.23
+\end{lstlisting}
+\code{Joining shared Wi-Fi} in tên mạng Wi-Fi chung đã cấu hình; \code{Got IP} là địa chỉ
+do router cấp (ở đây \code{192.168.1.23}, tùy router). Dòng \code{SEPAY} cho biết chế độ
+thanh toán: \code{No QR} nếu chưa khai báo tài khoản nhận (cổng ra chờ người vận hành xác nhận),
+\code{confirmed by the operator} nếu có tài khoản nhưng chưa có token SePay. Màn hình TFT
+hiện giao diện \code{PARKSENSE} với các giá trị \code{--.-}; hai thanh chắn về vị trí
+đóng. Nếu chưa thấy \code{Got IP}, kiểm tra router đã bật và SSID/mật khẩu đúng.
+
+\begin{lydo}[Đổi mật khẩu Wi-Fi và mã PIN trước khi triển khai]
+Mã nguồn chỉ chứa giá trị \emph{demo}. Giá trị thật không nằm trong Git:
+\begin{itemize}[nosep]
+  \item Máy chủ: \code{idf.py menuconfig → Parking network and security}, đặt SSID, mật
+        khẩu của mạng Wi-Fi chung và mã PIN quản trị. Giá trị
+        được lưu trong \file{Server/sdkconfig}, tệp này bị \file{.gitignore} bỏ qua.
+  \item Thanh toán QR: \code{idf.py menuconfig → Parking QR payment (SePay)}, đặt số tài
+        khoản nhận, tên chủ tài khoản và token SePay (Bảng~\ref{tab:payconfig}). Để trống
+        số tài khoản thì không có mã QR, người vận hành thu tiền và bấm \emph{Confirm paid}. Token SePay có toàn quyền đọc giao dịch của tài
+        khoản, nên \textbf{chỉ} được nhập ở đây (\file{sdkconfig}), không bao giờ ghi vào
+        \file{sdkconfig.defaults} hay mã nguồn.
+  \item Hai client: sao chép \file{secrets.example.h} thành \file{secrets.h} trong thư mục
+        của sketch rồi sửa; \file{secrets.h} cũng bị bỏ qua khi commit. Không có
+        \file{secrets.h} thì sketch dùng giá trị demo.
+  \item SSID và mật khẩu Wi-Fi phải \textbf{giống nhau} trên cả ba bo (cùng một mạng chung).
+\end{itemize}
 \end{lydo}
 
-\subsection{Độ tin cậy và khả năng chịu lỗi}
-\begin{table}[H]
-\centering\small
-\caption{Phân tích lỗi và cách hệ thống phản ứng}\label{tab:faults}
-\begin{tabularx}{\linewidth}{@{}p{4.3cm}X@{}}
-\toprule
-\textbf{Tình huống lỗi} & \textbf{Phản ứng của hệ thống} \\ \midrule
-Mất gói UDP cảm biến & Bản tin nhắc lại sau $\le$ 1\,s sửa trạng thái \\
-Mất gói quẹt thẻ hoặc gói ACK & RFID Client gửi lại mỗi 300\,ms (tối đa 6 lần); máy chủ nhận bản sao chỉ trả ACK, không mở cổng hai lần \\
-Bản tin sai định dạng / độc hại & Bị từ chối, trạng thái cũ giữ nguyên, có cảnh báo trong log \\
-Xe vào không quẹt thẻ (đi theo xe trước) & Trang web cảnh báo lệch số thẻ / số ô có xe; khi IR báo đủ 5 ô thì từ chối thẻ mới \\
-Socket UDP lỗi & Đóng socket, chờ 1\,s, tạo lại \\
-Máy chủ mất Wi-Fi & Tự kết nối lại; nhận IP (có thể mới) → thông báo lại \code{parking.local} \\
-Router mất Internet & Mọi chức năng tại bãi vẫn chạy; mã QR vẫn hiển thị (sinh trên chip); người vận hành xem giao dịch trong ứng dụng ngân hàng và bấm \code{Confirm paid} \\
-SePay trả lỗi / hết thời gian chờ & Ghi cảnh báo, thử lại sau 3\,s; thanh chắn ra vẫn đóng cho tới khi khớp giao dịch hoặc người vận hành xác nhận \\
-Không có chuyển khoản sau 180\,s & TFT báo \code{PAY AT BOOTH} 30\,s; xe khác được thanh toán; chuyển khoản đến muộn vẫn hoàn tất \\
-Client mất Wi-Fi & Sensor Client bỏ qua lần gửi, tự kết nối lại; trang web báo OFFLINE \\
-DHT11 đọc lỗi & Giữ giá trị hợp lệ gần nhất \\
-Có cháy khi người vận hành bấm đóng & Lệnh đóng bị từ chối; thanh chắn giữ mở \\
-Sensor Client im lặng quá 3\,s & TFT và web báo \code{SENSOR OFFLINE}, sơ đồ ô chuyển xám; trạng thái cháy/ngập cuối cùng được giữ (an toàn); dữ liệu cũ không được dùng để từ chối thẻ hay cảnh báo lệch \\
-Nước ngập $\ge$ 20\,mm & Còi kêu, chặn xe vào, xe trong bãi vẫn ra; tắt khi $\le$ 15\,mm \\
-Máy chủ mất điện, khởi động lại & Thanh chắn về vị trí đóng; phiên, nhật ký, các \code{seq} đã xử lý và đồng hồ được khôi phục từ NVS; thời gian mất điện được bù khi trình duyệt gửi giờ thực \\
-Lỗi khởi tạo phần cứng & Fail-fast: in lỗi và khởi động lại \\
-\bottomrule
-\end{tabularx}
-\end{table}
+\begin{lydo}[Nâng cấp từ bản firmware cũ]
+Bản này thêm thống kê doanh thu vào dữ liệu lưu trong NVS nên định dạng lưu đổi
+(\code{RFID\_STORE\_VERSION} 3). Lần khởi động đầu sau khi nạp, máy chủ bỏ qua bản lưu
+cũ: các xe đang gửi phải quẹt vào lại. Các lần sau dữ liệu được giữ bình thường.
+\end{lydo}
 
-\subsection{Bảo mật}
-\begin{itemize}
-\item \textbf{Đã có}: kiểm tra bản tin chặt chẽ ở ranh giới mạng; không cấp phát động
-  khi xử lý dữ liệu ngoài; mã thẻ giới hạn ký tự nên không thể chèn mã vào JSON hay
-  HTML; trang web chèn dữ liệu bằng \code{textContent}, không dùng \code{innerHTML}
-  cho dữ liệu từ máy chủ; mạng dùng WPA2.
-\item \textbf{Bản tin UDP} không được ký: thiết bị đã vào được mạng Wi-Fi (biết mật khẩu
-  WPA2) có thể gửi bản tin giả. Đây là đánh đổi có chủ đích (xem hộp ``Tại sao không ký
-  gói UDP'').
-\item \textbf{Xác thực API}: mọi lệnh thay đổi trạng thái (mở/đóng cổng, đặt giờ) cần mã
-  PIN quản trị; so sánh mã PIN không dừng sớm để không lộ qua thời gian phản hồi.
-\item \textbf{Bí mật ngoài mã nguồn}: mật khẩu Wi-Fi, mã PIN, số tài khoản và token
-  SePay nằm trong \file{sdkconfig} (menuconfig) và \file{secrets.h}, cả hai bị
-  \file{.gitignore} bỏ qua; kho mã chỉ chứa giá trị demo. Token SePay đặc biệt nhạy cảm
-  vì SePay không cho giới hạn quyền của API token: ai có token đều đọc được toàn bộ giao
-  dịch của tài khoản.
-\item \textbf{Kết nối ra Internet}: chỉ có yêu cầu HTTPS từ máy chủ tới SePay, chứng
-  chỉ máy chủ được kiểm tra bằng bộ chứng chỉ gốc của ESP-IDF; máy chủ không mở cổng nào
-  ra Internet (nằm sau NAT của router). Thanh toán chỉ được công nhận khi giao dịch
-  \emph{mới} (sau thời điểm hiện QR) có nội dung chứa đúng mã và số tiền $\ge$ phí.
-\end{itemize}
+\begin{lydo}[Lưu ý khi đã có cấu hình cũ]
+\file{sdkconfig.defaults} chỉ được áp dụng khi chưa có tệp \file{Server/sdkconfig}.
+Nếu máy đã từng biên dịch bản cũ, hãy chạy lại \code{idf.py set-target esp32c3} (tạo lại
+cấu hình) hoặc chọn trong \code{idf.py menuconfig}: \emph{Compiler options → Optimize for
+performance} và \emph{Partition Table → Single factory app (large), no OTA}. Lần nạp
+đầu sau khi đổi bảng phân vùng phải dùng \code{idf.py flash} (nạp cả bảng phân vùng).
+\end{lydo}
 
-\subsection{Khả năng bảo trì, kiểm thử và mở rộng}
-\begin{itemize}
-\item Lớp nghiệp vụ độc lập phần cứng: 397 phép kiểm thử chạy trên máy tính trong vài giây.
-\item Hai client được kiểm thử bằng chính mã nguồn \file{.ino} trên phần cứng giả lập,
-  kèm kiểm tra hợp đồng giao tiếp với bộ đọc JSON thật của máy chủ.
-\item Số chỗ đỗ là hằng số \code{PARKING\_SLOT\_COUNT}; số phiên tối đa bằng số chỗ.
-  Mở rộng quy mô lớn hơn cần đổi định dạng \code{slots} và tách cảm biến theo khu vực.
-\end{itemize}
+\buoc{Nạp RFID Client}
+\begin{enumerate}
+  \item Mở Arduino IDE, \emph{File → Open} tệp \file{RFIDClient/RFIDClient.ino}.
+  \item \emph{Tools → Board}: \textbf{NodeMCU 1.0 (ESP-12E Module)}; \emph{Port}: cổng
+        của bo (Bảng~\ref{tab:ports}); \emph{Upload Speed}: 115200.
+  \item Bấm \textbf{Upload} (mũi tên). Chờ \code{Done uploading}.
+  \item Mở \emph{Serial Monitor}, tốc độ \textbf{115200}.
+\end{enumerate}
+Trước khi nạp, sao chép \file{RFIDClient/secrets.example.h} thành \file{secrets.h} và
+điền SSID/mật khẩu mạng Wi-Fi chung (giống máy chủ). \textbf{Kết quả mong đợi}: dòng
+\code{Đang kết nối Wi-Fi <SSID>}, sau đó \code{Đã kết nối, IP: 192.168.1.x}, phiên bản
+firmware của hai đầu đọc và \code{Hệ thống đã sẵn sàng!}. RFID Client chỉ là một trạm
+trong mạng chung; nó gửi bản tin tới \code{255.255.255.255:3333} nên không cần biết IP
+máy chủ.
 
-\subsection{Tổng hợp quyết định kiến trúc}
-\begin{longtable}{@{}p{3.3cm}p{3.6cm}p{7.4cm}@{}}
-\caption{Các quyết định kiến trúc chính}\label{tab:adr}\\
-\toprule \textbf{Quyết định} & \textbf{Phương án khác} & \textbf{Lý do / đánh đổi} \\ \midrule \endfirsthead
-\toprule \textbf{Quyết định} & \textbf{Phương án khác} & \textbf{Lý do / đánh đổi} \\ \midrule \endhead
-3 bo mạch, máy chủ trung tâm & 1 bo lớn & Đủ chân, đặt cảm biến gần nơi cần đo, cô lập lỗi; đổi lại cần mạng \\
-FreeRTOS trên máy chủ & Vòng lặp Arduino & Nhiều việc song song có ưu tiên; đổi lại phải đồng bộ cẩn thận \\
-UDP broadcast + JSON & TCP, MQTT, nhị phân & Nhẹ, dễ gỡ lỗi; mất gói được bù bằng nhắc lại (cảm biến) hoặc ACK và gửi lại (quẹt thẻ) \\
-Gói UDP không ký, ACK + \code{seq} cho quẹt thẻ & Ký HMAC, TLS & Đơn giản, dễ gỡ lỗi; dựa vào WPA2 của mạng Wi-Fi riêng của nhóm; quẹt thẻ vẫn không bị mất \\
-Gửi theo thay đổi + nhắc lại 1\,s & Chỉ gửi định kỳ & Độ trễ $\approx$ 0,1\,s; vẫn tự sửa khi mất gói \\
-Wi-Fi chung + mDNS + broadcast \code{255.255.}\allowbreak\code{255.255} & AP trên RFID Client, AP trên máy chủ & Máy chủ có Internet cho SePay, không tốn RAM chạy AP; điện thoại người vận hành ở sẵn trong mạng; tên cố định dù IP đổi; đổi lại phụ thuộc router và phải tắt cô lập thiết bị \\
-Bộ đọc JSON tự viết & cJSON & Không cấp phát, chỉ đúng lược đồ; đổi lại phải tự kiểm thử kỹ \\
-Hẹn giờ một lần cho thanh chắn & Tác vụ hỏi vòng & Chính xác, không đánh thức CPU vô ích \\
-Vẽ màn hình theo sự kiện & Hỏi vòng 500\,ms & Phản hồi ngay, ít lần thức \\
-Tiền xử lý ảnh động trên máy tính & Xử lý trên chip mỗi khung & Bớt CPU và 1,2\,KB RAM; dữ liệu nhỏ hơn \\
-Lưu phiên/nhật ký vào NVS sau mỗi lần quẹt và mỗi 5 phút & Chỉ giữ trong RAM; ghi mỗi giây & Không mất dữ liệu khi mất điện; NVS tự rải lượt ghi, $\approx$ 300 lần ghi/ngày là rất nhỏ so với tuổi thọ flash \\
-Giờ thực do trình duyệt cung cấp & SNTP, RTC DS3231 & Không cần thêm phần cứng; đồng hồ bãi không phụ thuộc Internet (nay mạng có Internet nên SNTP có thể bổ sung sau) \\
-Thanh toán VietQR, hỏi vòng SePay & Webhook SePay, cổng thanh toán, chỉ tiền mặt & QR sinh trên chip, không cần mạng; máy chủ sau NAT không nhận được webhook; hỏi vòng 3\,s dưới xa giới hạn 2–3 yêu cầu/giây của SePay \\
-Cho phép người vận hành xác nhận tay & Chỉ tự động & Bãi vẫn thu tiền khi mất Internet, khi không có token hoặc khi trả tiền mặt; cần mã PIN \\
+\buoc{Nạp Sensor Client}
+Làm tương tự Bước~5 với tệp \file{SensorClient/SensorClient.ino} (cũng tạo
+\file{secrets.h} từ \file{secrets.example.h}). \textbf{Kết quả mong đợi}
+trên Serial Monitor: \code{Connected, client IP: 192.168.1.x}, sau đó mỗi giây một dòng
+\code{Sent: \{"type":"parking\_update",...\}}. Màn hình TFT hiện số chỗ trống thật.
+
+\begin{lydo}[Nạp lại qua Wi-Fi (OTA)]
+Từ lần thứ hai, khi máy tính kết nối cùng mạng Wi-Fi chung, hai client xuất hiện
+trong \emph{Tools → Port} dưới dạng cổng mạng (ví dụ \code{ESP8266-RC522-DHT11}); chọn
+cổng đó để nạp firmware mà không cần tháo bo khỏi mô hình.
+\end{lydo}
+
+\buoc{Bật hệ thống theo thứ tự}
+Bật router/điểm phát Wi-Fi chung trước, sau đó bật ba bo theo \textbf{thứ tự bất kỳ}:
+cả ba đều là trạm Wi-Fi, tự kết nối (và tự kết nối lại) vào mạng chung, và hai client
+gửi broadcast nên không cần chờ máy chủ có IP.
+
+\buoc{Mở trang web giám sát}
+\begin{enumerate}
+  \item Cho điện thoại/máy tính kết nối \textbf{cùng mạng Wi-Fi chung} với ba bo.
+  \item Mở trình duyệt, vào \code{http://parking.local}.
+  \item Lần đầu bấm một nút điều khiển thanh chắn, cần nhập mã PIN quản trị (mặc định
+        \code{2468}). Trình duyệt nhớ mã PIN và từ đó tự gửi giờ thực cho máy chủ mỗi
+        lần mở trang, nên giờ vào/ra trong nhật ký là giờ thật.
+  \item Nếu thiết bị không mở được tên \code{.local} (một số máy Android cũ), dùng địa chỉ
+        IP trong dòng \code{Web interface: http://192.168.1.x} (hoặc \code{Got IP}) trên monitor của máy chủ.
+\end{enumerate}
+\textbf{Kết quả mong đợi}: trang như Hình~\ref{fig:dashboard}, góc trên phải hiện
+\code{ESP32 / ONLINE} và nhãn \code{LIVE / SENSOR}.
+
+\buoc{Chạy các kịch bản demo}
+Thực hiện kịch bản ở mục~\ref{sec:demo} và đối chiếu với Bảng~\ref{tab:systest}
+(Chương~\ref{chap:kiemthu}).
+
+\buoc{Chạy khi không có hai client (giả lập bằng máy tính)}
+\begin{enumerate}
+  \item Cho máy chủ và máy tính cùng kết nối vào mạng Wi-Fi chung (router, hoặc điểm phát
+        trên điện thoại có tên/mật khẩu như đã đặt ở Bước~4); mở monitor máy chủ để
+        thấy \code{Got IP: \ldots}.
+  \item Giả lập Sensor Client và RFID Client. Script mặc định gửi tới
+        \code{255.255.255.255} nên không cần \code{--host}; chỉ thêm \code{--host <IP>}
+        (IP máy chủ) khi mạng chặn broadcast:
+\end{enumerate}
+\begin{lstlisting}[style=shell]
+python3 examples/udp_sender.py --slots 1,0,0,1,0
+python3 examples/udp_rfid_sender.py A1B2C3D4 --gate in
+python3 examples/udp_rfid_sender.py A1B2C3D4 --gate in   # quet lai: WRONG GATE
+python3 examples/udp_rfid_sender.py A1B2C3D4 --gate out  # ra: ma QR (hoac hoa don)
+python3 examples/udp_sender.py --slots 1,0,0,1,0 --fire  # bao chay
+python3 examples/udp_sender.py --slots 1,0,0,1,0         # het chay
+\end{lstlisting}
+\textbf{Kết quả mong đợi}: TFT và trang web thay đổi đúng như khi dùng client thật;
+thanh chắn mở/đóng; nhật ký trên web có các dòng \code{IN}, \code{REJECTED · WRONG GATE},
+\code{OUT}. Khi thanh toán QR bật, lệnh \code{--gate out} hiện mã QR thay vì mở cổng;
+chuyển khoản thật hoặc bấm \code{Confirm paid} trên web để xe ra. Trên Windows dùng
+\code{python} thay cho \code{python3}.
+
+Script RFID đặt \code{seq} ngẫu nhiên cho mỗi lần chạy, nên có thể chạy song song với
+RFID Client thật.
+
+\buoc{Chạy bộ kiểm thử tự động}
+Không cần ESP-IDF hay Arduino, chỉ cần trình biên dịch C/C++:
+\begin{lstlisting}[style=shell]
+make -C tests
+\end{lstlisting}
+\textbf{Kết quả mong đợi}:
+\begin{lstlisting}[language={},numbers=none]
+payment                  30/30 checks passed
+json_parsers             78/78 checks passed
+rfid_session             149/149 checks passed
+gif_frames               89/89 checks passed
+sensor_client            15/15 checks passed
+rfid_client              23/23 checks passed
+ALL TESTS PASSED
+\end{lstlisting}
+
+\subsection{Xử lý sự cố thường gặp}
+\begin{longtable}{@{}p{4.6cm}p{9.8cm}@{}}
+\caption{Lỗi thường gặp và cách khắc phục}\label{tab:troubleshoot}\\
+\toprule \textbf{Hiện tượng} & \textbf{Nguyên nhân và cách khắc phục} \\ \midrule \endfirsthead
+\toprule \textbf{Hiện tượng} & \textbf{Nguyên nhân và cách khắc phục} \\ \midrule \endhead
+\code{idf.py: command not found} & Chưa mở terminal ESP-IDF; mở shortcut/script kích hoạt do EIM tạo. \\
+\code{Failed to connect to ESP32-C3} & Sai cổng; hoặc giữ nút BOOT, bấm RESET, thả BOOT rồi nạp lại. \\
+Biên dịch báo phân vùng đầy & Đang dùng \file{sdkconfig} cũ (1\,MB): làm theo hộp ``Lưu ý khi đã có cấu hình cũ'' ở Bước~4. \\
+Monitor lặp \code{Disconnected ... retrying} & Router/điểm phát chưa bật, ngoài tầm phủ sóng, hoặc sai SSID/mật khẩu trong menuconfig; kiểm tra lại Bước~4. \\
+Máy chủ nhận được bản tin nhưng client không thấy ACK, hoặc máy chủ không có dữ liệu dù client báo đã gửi & Router/điểm phát đang bật chế độ cô lập thiết bị (\emph{AP/client isolation}), chặn gói giữa các thiết bị trong mạng: tắt chế độ này trong trang quản trị router. Mạng khách (guest) thường bật sẵn chế độ này. \\
+Mã QR hiện nhưng chuyển khoản xong cổng không mở & Chưa có token SePay hoặc router mất Internet (xem dòng \code{SEPAY} trên monitor); kiểm tra nội dung chuyển khoản còn nguyên mã \code{PK\ldots}, số tiền đủ; người vận hành có thể bấm \code{Confirm paid}. \\
+Bấm nút trên web không có tác dụng & Sai mã PIN: xóa dữ liệu trang (hoặc mở tab ẩn danh) rồi nhập lại. \\
+Arduino không thấy cổng ESP8266 & Cài driver CH340/CP2102; thử cáp USB khác (cáp chỉ sạc không truyền được dữ liệu). \\
+Thiếu \code{MFRC522.h} hoặc \code{DHT.h} & Cài thư viện như Mục~\ref{chap:caidat}. \\
+\code{parking.local} không mở & Thiết bị không hỗ trợ mDNS: dùng IP trong log máy chủ; kiểm tra điện thoại đã kết nối đúng mạng Wi-Fi chung với máy chủ. \\
+Trang web báo \code{OFFLINE} & Máy chủ mất điện hoặc mất Wi-Fi; xem monitor máy chủ. \\
+Servo rung, bo tự khởi động lại & Cấp nguồn servo từ 3V3 hoặc thiếu GND chung; dùng nguồn 5\,V riêng. \\
+Màn hình trắng hoặc lệch hình & Kiểm tra dây SPI; chỉnh chân/độ lệch trong \code{idf.py menuconfig → Parking TFT display}. \\
+Ô đỗ báo ngược (trống thành có xe) & Chỉnh biến trở trên module IR; kiểm tra thứ tự chân S1–S5. \\
 \bottomrule
 \end{longtable}
-
-% ---------------------------------------------------------------------
-\section{Demo}\label{sec:demo}
-\subsection{Trang web giám sát}
-Hình~\ref{fig:dashboard} là ảnh chụp trang web thật của hệ thống (chạy với dữ liệu mẫu).
-Sơ đồ bãi là phần chính: 5 ô lớn, ô có xe vẽ hình xe màu đỏ, ô trống hiện chữ P màu
-xanh, làn xe với hướng vào/ra; phía trên là số chỗ trống/có xe/tổng. Bên dưới là phần điều
-khiển thanh chắn, cảm biến và nhật ký vào/ra kèm giá gửi xe.
-
-\begin{figure}[H]
-\centering
-\includegraphics[width=0.86\linewidth]{dashboard.png}
-\caption{Trang web giám sát tại \code{http://parking.local} (dữ liệu mẫu)}\label{fig:dashboard}
-\end{figure}
-
-\subsection{Các màn hình TFT}
-\begin{figure}[H]
-\centering
-\setlength{\tabcolsep}{3pt}
-\begin{tabular}{ccc}
-\includegraphics[width=0.3\linewidth]{photos/tft_main.png} &
-\includegraphics[width=0.3\linewidth]{photos/tft_full.png} &
-\includegraphics[width=0.3\linewidth]{photos/tft_flood.png} \\
-\footnotesize (a) Bình thường & \footnotesize (b) Bãi đầy & \footnotesize (c) Ngập, quẹt vào bị từ chối \\[4pt]
-\includegraphics[width=0.3\linewidth]{photos/tft_offline.png} &
-\includegraphics[width=0.3\linewidth]{photos/tft_thanks.png} &
-\includegraphics[width=0.3\linewidth]{photos/tft_receipt.png} \\
-\footnotesize (d) Cảm biến mất kết nối & \footnotesize (e) Cảm ơn sau khi trả tiền & \footnotesize (f) Hóa đơn ở chân màn hình \\
-\end{tabular}
-\caption{Các màn hình TFT $240\times240$, kết xuất từ chính mã \file{lcd\_display.c} biên dịch trên máy tính}\label{fig:tft}
-\end{figure}
-Trên màn hình bình thường: hàng trên là số chỗ trống, hai ô nhiệt độ và mực nước (ô nước chuyển
-đỏ khi ngập), ảnh động $96\times96$ ở góc phải; nhãn \code{FLOOD-NO ENTRY} hoặc \code{SENSOR OFFLINE}
-hiện ở góc trên; hàng giữa là 5 ô S1–S5 với vạch xanh (trống)/đỏ (có xe); vùng chân dùng cho ảnh
-động nhỏ, hóa đơn hoặc thông báo. Khi một lượt trả tiền hoàn tất (SePay hoặc
-\emph{Confirm paid}), màn hình \code{THANK YOU} hiện 5\,s trong lúc thanh chắn mở, sau đó hóa đơn
-vẫn ở chân màn hình thêm khoảng một phút.
-
-\begin{figure}[H]
-\centering
-\includegraphics[width=0.42\linewidth]{photos/tft_live.jpg}
-\caption{Màn hình TFT thật trên mô hình khi 4 ô có xe: \code{FREE SPACES 1/5}, S1 trống (xanh), S2–S5 có xe (đỏ), nhiệt độ 27,2\,°C, mực nước 0,0\,mm}\label{fig:tft-live}
-\end{figure}
-
-\subsection{Kịch bản demo}
-\begin{enumerate}
-\item Bật máy chủ, RFID Client, Sensor Client (thứ tự bất kỳ); điện thoại ở cùng mạng Wi-Fi chung mở \code{http://parking.local}.
-\item Đặt xe mô hình vào ô S2: ô S2 trên TFT chuyển đỏ ngay, trên web hiện hình xe trong $\le$ 1\,s.
-\item Quẹt thẻ ở cổng vào: thanh chắn vào mở rồi tự đóng sau 3\,s; web có dòng \code{IN}.
-\item Quẹt lại thẻ đó ở cổng vào: màn hình báo \code{WRONG GATE – ALREADY INSIDE - USE EXIT GATE}.
-\item Quẹt thẻ ở cổng ra: TFT hiện mã VietQR; quét bằng ứng dụng ngân hàng và chuyển khoản; vài giây sau hóa đơn hiện trên TFT, thanh chắn ra mở; web có dòng \code{OUT} kèm phí.
-\item Đưa bật lửa gần cảm biến lửa: còi kêu, màn hình DANGER, hai thanh chắn mở và không đóng được từ web.
-\item Tắt lửa: còi tắt, thanh chắn đóng, màn hình trở lại bình thường.
-\end{enumerate}

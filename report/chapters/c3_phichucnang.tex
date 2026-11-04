@@ -1,0 +1,17 @@
+\section{Yêu cầu phi chức năng}\label{sec:nfr}
+\begin{table}[H]
+\centering\small
+\caption{Yêu cầu phi chức năng và cách đáp ứng}\label{tab:nfr}
+\begin{tabularx}{\linewidth}{@{}p{3.1cm}X>{\raggedright\arraybackslash}p{4.4cm}@{}}
+\toprule
+\textbf{Yêu cầu} & \textbf{Mức cần đạt} & \textbf{Cách đáp ứng} \\ \midrule
+Thời gian đáp ứng & Màn hình cập nhật $\le$ 0,2\,s sau khi xe đỗ/rời ô; thanh chắn mở $\le$ 0,5\,s sau khi quẹt thẻ; trang web $\approx$ 1\,s & Gửi theo thay đổi, vẽ theo sự kiện, tác vụ ưu tiên cao cho UDP \\
+An toàn & Có cháy: mở cả hai thanh chắn và bật còi ngay; có ngập: không cho xe vào & Chế độ cháy có ưu tiên cao nhất, bỏ qua lệnh đóng thủ công \\
+Độ tin cậy & Không mất lượt quẹt thẻ khi mất gói; không mất xe đang gửi khi mất điện; tự kết nối lại Wi-Fi & ACK và gửi lại, lưu phiên vào NVS, tự kết nối lại \\
+Tài nguyên & Chạy trong $\approx$ 321\,KB DRAM của ESP32-C3 cùng ảnh màn hình 115\,KB và TLS & Bộ đệm TLS cấp phát động, trả bộ đệm ảnh động khi thanh toán \\
+Bảo mật & Thao tác điều khiển cần mã PIN; bí mật không nằm trong mã nguồn & PIN qua header, cấu hình trong \file{sdkconfig}/\file{secrets.h} \\
+Dễ sử dụng & Xem trên mọi điện thoại, không cần cài ứng dụng; trả tiền bằng app ngân hàng bất kỳ & Trang web tại \code{parking.local}, mã VietQR \\
+Chi phí và bảo trì & Linh kiện phổ thông; mã nguồn kiểm thử được khi không có phần cứng & Bộ kiểm thử tự động 397 phép trên máy tính \\
+\bottomrule
+\end{tabularx}
+\end{table}

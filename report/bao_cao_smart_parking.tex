@@ -9,10 +9,12 @@
 %  Trên Overleaf: tải cả thư mục report/ lên, Menu -> Compiler -> XeLaTeX.
 %  Nội dung từng chương nằm trong report/chapters/.
 % =====================================================================
-\documentclass[12pt,a4paper]{report}
+\documentclass[12pt,letterpaper]{report}
+% Mẫu báo cáo của môn: Times New Roman 13pt, giãn dòng 1,3, khổ Letter
+\usepackage[fontsize=13pt]{scrextend}
 
 % ---------- Thông tin nhóm ----------
-\newcommand{\tenmon}{Lập trình nhúng (INT3108)}
+\newcommand{\tenmon}{Lập trình nhúng và thời gian thực}
 \newcommand{\tendetai}{Hệ thống bãi đỗ xe thông minh\\[2pt]sử dụng ESP32-C3 và ESP8266}
 \newcommand{\giangvien}{Trần Hoàng Việt}
 \newcommand{\lopmonhoc}{INT3108 1}
@@ -38,9 +40,15 @@
 \fi
 \usepackage[vietnamese,shorthands=off]{babel}
 
-\usepackage[left=3cm,right=2cm,top=2.5cm,bottom=2.5cm]{geometry}
+\usepackage[left=3cm,right=2cm,top=2.49cm,bottom=3cm]{geometry}
 \usepackage{setspace}
-\setstretch{1.25}
+\setstretch{1.3}
+% Bảng, hình và mã nguồn giãn dòng đơn như bảng trong Word
+\AtBeginEnvironment{table}{\setstretch{1.0}}
+\AtBeginEnvironment{longtable}{\setstretch{1.0}}
+\AtBeginEnvironment{figure}{\setstretch{1.0}}
+\AtBeginEnvironment{lstlisting}{\setstretch{1.0}}
+\AtBeginEnvironment{tcolorbox}{\setstretch{1.15}}
 \usepackage{amsmath,amssymb}
 \usepackage{graphicx}
 \usepackage{xcolor}
@@ -72,18 +80,25 @@
 \definecolor{boxD}{RGB}{252,228,236}
 \definecolor{boxE}{RGB}{237,231,246}
 
-\titleformat{\chapter}[hang]{\Large\bfseries\color{uetblue}}{Chương \thechapter.}{0.6em}{}
-\titlespacing*{\chapter}{0pt}{-10pt}{14pt}
-\titleformat{\section}{\large\bfseries\color{uetblue}}{\thesection}{0.6em}{}
-\titleformat{\subsection}{\normalsize\bfseries}{\thesubsection}{0.6em}{}
+% Tiêu đề chương theo mẫu: "CHƯƠNG 1. ...", chữ đậm 18pt, căn giữa; phụ lục "PHỤ LỤC A. ..."
+\newcommand{\chapprefix}{CHƯƠNG}
+\titleformat{\chapter}[block]{\centering\bfseries\fontsize{18}{23}\selectfont}{\chapprefix~\thechapter.}{0.4em}{}
+\titleformat{name=\chapter,numberless}[block]{\centering\bfseries\fontsize{18}{23}\selectfont}{}{0pt}{}
+\titlespacing*{\chapter}{0pt}{-12pt}{18pt}
+\usepackage{titletoc}
+% Mục lục như mẫu: "CHƯƠNG 1. GIỚI THIỆU ĐỀ TÀI ..... 15"
+\titlecontents{chapter}[0pt]{\addvspace{8pt}\bfseries}
+  {\chapprefix~\thecontentslabel.\ }{}{\titlerule*[0.6pc]{.}\contentspage}
+\titleformat{\section}{\fontsize{14}{18}\selectfont\bfseries}{\thesection.}{0.6em}{}
+\titleformat{\subsection}{\normalsize\bfseries}{\thesubsection.}{0.6em}{}
+\titleformat{\subsubsection}{\normalsize\bfseries\itshape}{\thesubsubsection.}{0.6em}{}
+\setcounter{secnumdepth}{3}
 
+% Mẫu chỉ có số trang ở giữa chân trang, trang bìa không đánh số
 \pagestyle{fancy}
 \fancyhf{}
-\fancyhead[L]{\small\itshape Báo cáo kỹ thuật — Bãi đỗ xe thông minh}
-\fancyhead[R]{\small\itshape \tenmon}
 \fancyfoot[C]{\thepage}
-\renewcommand{\headrulewidth}{0.4pt}
-\setlength{\headheight}{15pt}
+\renewcommand{\headrulewidth}{0pt}
 \fancypagestyle{plain}{\fancyhf{}\fancyfoot[C]{\thepage}\renewcommand{\headrulewidth}{0pt}}
 
 \lstset{
@@ -141,51 +156,75 @@
 \begin{document}
 
 % =====================================================================
-%  TRANG BÌA
+%  TRANG BÌA (theo mẫu Template_baocao.docx)
 % =====================================================================
 \begin{titlepage}
-  \centering
   \begin{tikzpicture}[remember picture,overlay]
-    \draw[uetblue,line width=2pt] ($(current page.north west)+(2cm,-1.5cm)$)
-      rectangle ($(current page.south east)+(-1.5cm,1.5cm)$);
-    \draw[uetblue,line width=0.6pt] ($(current page.north west)+(2.15cm,-1.65cm)$)
-      rectangle ($(current page.south east)+(-1.65cm,1.65cm)$);
+    \draw[black,line width=3pt] ($(current page.north west)+(3cm,-2.49cm)$)
+      rectangle ($(current page.south east)+(-2cm,3cm)$);
+    \draw[black,line width=1pt] ($(current page.north west)+(3.15cm,-2.64cm)$)
+      rectangle ($(current page.south east)+(-2.15cm,3.15cm)$);
   \end{tikzpicture}
-  {\large ĐẠI HỌC QUỐC GIA HÀ NỘI\par}
-  {\large\bfseries TRƯỜNG ĐẠI HỌC CÔNG NGHỆ\par}
-  {\large\bfseries KHOA CÔNG NGHỆ THÔNG TIN\par}
-  \vspace{0.4cm}
-  \rule{0.5\linewidth}{0.8pt}\par
-  \vspace{1.0cm}
-  \includegraphics[width=3.2cm]{uet_logo.png}\par
-  \vspace{1.0cm}
-  {\Large BÁO CÁO BÀI TẬP LỚN\par}
-  \vspace{0.3cm}
-  {\large Môn học: \tenmon\par}
+  \setstretch{1.3}\centering
+  \vspace*{0.9cm}
+  {\fontsize{12}{16}\selectfont\bfseries TRƯỜNG ĐẠI HỌC CÔNG NGHỆ\par}
   \vspace{1.4cm}
-  {\LARGE\bfseries \tendetai\par}
-  \vspace{1.6cm}
-  \begin{tabular}{@{}ll@{}}
-    \textbf{Giảng viên hướng dẫn:} & \giangvien \\
-    \textbf{Lớp môn học:} & \lopmonhoc \\
-  \end{tabular}
-  \par\vspace{0.8cm}
-  \textbf{Nhóm sinh viên thực hiện}\par\vspace{0.2cm}
-  \begin{tabular}{|l|c|}
-    \hline
-    \textbf{Họ và tên} & \textbf{MSSV} \\ \hline
-    \thanhvien
-    \hline
-  \end{tabular}
+  \includegraphics[width=3.1cm]{uet_logo.png}\par
+  \vspace{1.9cm}
+  {\fontsize{18}{24}\selectfont\bfseries BÁO CÁO KẾT THÚC HỌC PHẦN\par}
+  {\fontsize{15}{20}\selectfont\bfseries \tenmon\par}
+  \vspace{1.2cm}
+  \begin{minipage}{0.86\linewidth}
+    \fontsize{15}{21}\selectfont\bfseries
+    Tên đề tài: \mdseries Hệ thống bãi đỗ xe thông minh sử dụng ESP32-C3 và ESP8266\par
+    \vspace{0.3cm}
+    \bfseries Danh sách thành viên:\par
+    \mdseries
+    \begin{tabular}{@{\hspace{1em}}ll@{}}
+      \thanhvien
+    \end{tabular}\par
+    \vspace{0.3cm}
+    \bfseries Giảng viên: \mdseries \giangvien\par
+  \end{minipage}
   \vfill
-  {\large Hà Nội, tháng 10 năm 2026\par}
+  {\fontsize{15}{20}\selectfont\bfseries Hà Nội – 2026\par}
+  \vspace{0.6cm}
 \end{titlepage}
 
-% =====================================================================
-\pagenumbering{roman}
-\chapter*{Tóm tắt}
-\addcontentsline{toc}{chapter}{Tóm tắt}
+% Đánh số trang liên tục từ trang bìa như mẫu (trang bìa không in số)
+\setcounter{page}{2}
+\renewcommand{\contentsname}{MỤC LỤC}
+\renewcommand{\listfigurename}{DANH SÁCH HÌNH VẼ}
+\renewcommand{\listtablename}{DANH SÁCH BẢNG BIỂU}
+\renewcommand{\bibname}{TÀI LIỆU THAM KHẢO}
 
+\chapter*{LỜI CẢM ƠN}
+Nhóm xin gửi lời cảm ơn chân thành tới thầy \giangvien{}, giảng viên học phần \tenmon{},
+đã tận tình giảng dạy và định hướng trong suốt quá trình học tập và thực hiện đề tài.
+Những kiến thức về hệ điều hành thời gian thực, lập trình ngoại vi và giao tiếp không dây
+từ học phần là nền tảng để nhóm xây dựng hệ thống bãi đỗ xe thông minh này.
+
+Nhóm cũng cảm ơn Trường Đại học Công nghệ, Đại học Quốc gia Hà Nội đã tạo môi trường học
+tập và điều kiện để nhóm thực hành, cùng các bạn trong lớp đã góp ý trong quá trình thử
+nghiệm mô hình. Dù đã cố gắng, báo cáo khó tránh khỏi thiếu sót; nhóm rất mong nhận được
+ý kiến đóng góp của thầy để hoàn thiện hơn.
+
+\vspace{1cm}
+\noindent\hfill Hà Nội, tháng 11 năm 2026\par
+\noindent\hfill Nhóm sinh viên thực hiện\hspace*{1cm}\par
+
+\chapter*{LỜI CAM ĐOAN}
+Nhóm xin cam đoan báo cáo và hệ thống được trình bày là kết quả làm việc của các thành viên
+trong nhóm dưới sự hướng dẫn của thầy \giangvien{}. Mã nguồn, mô hình phần cứng, số liệu đo
+và kết quả kiểm thử trong báo cáo là trung thực, do nhóm tự thực hiện. Các tài liệu, thư
+viện và công cụ của bên thứ ba đều được ghi rõ nguồn trong báo cáo và trong phần tài liệu
+tham khảo. Nhóm xin chịu hoàn toàn trách nhiệm về lời cam đoan này.
+
+\vspace{1cm}
+\noindent\hfill Hà Nội, tháng 11 năm 2026\par
+\noindent\hfill Nhóm sinh viên thực hiện\hspace*{1cm}\par
+
+\chapter*{TÓM TẮT}
 Báo cáo trình bày việc phân tích, thiết kế, hiện thực và kiểm thử một \textbf{hệ
 thống bãi đỗ xe thông minh} quy mô mô hình gồm 5 chỗ đỗ và 2 cổng ra/vào. Hệ thống
 sử dụng ba vi điều khiển Wi-Fi của Espressif phối hợp qua một mạng Wi-Fi cục bộ:
@@ -204,38 +243,38 @@ Cả ba bo là trạm Wi-Fi trong cùng một mạng Wi-Fi chung của nhóm (ro
 phát có Internet); không bo nào phát điểm truy cập. Ở cổng ra, máy chủ hiển thị mã
 VietQR để người lái chuyển khoản và tự xác nhận giao dịch qua SePay.
 
-Báo cáo tuân theo đúng yêu cầu của môn học: giới thiệu bài toán, 10 use case chi
-tiết, các thành phần hệ thống, hướng dẫn cài đặt môi trường, thiết kế và phân tích
-kiến trúc (kèm demo), hướng dẫn chạy mã nguồn từng bước, kiểm thử, kết luận và phần
-đóng góp của các thành viên. Mỗi lựa chọn công nghệ và thông số đều có hộp
-\emph{Lý do} giải thích. Bộ kiểm thử tự động gồm 6 bộ với 384 phép kiểm tra chạy
-trên máy tính — kể cả chạy lại chính mã nguồn Arduino của hai client trên phần cứng
-giả lập — và tất cả đều đạt.
+Báo cáo gồm năm chương theo mẫu của học phần: giới thiệu đề tài; cơ sở lý thuyết và công cụ
+sử dụng; phân tích thiết kế hệ thống (10 use case, yêu cầu phi chức năng, kiến trúc, tác vụ,
+máy trạng thái); triển khai và lập trình hệ thống; kiểm thử và đánh giá. Bộ kiểm thử tự động
+gồm 6 bộ với 397 phép kiểm tra chạy trên máy tính — kể cả chạy lại chính mã nguồn Arduino
+của hai client trên phần cứng giả lập — và tất cả đều đạt.
 
 \medskip
 \noindent\textbf{Từ khóa:} ESP32-C3, ESP8266, FreeRTOS, ESP-IDF, RFID, UDP, mDNS,
 LEDC PWM, SPI DMA, ST7789, hệ thống nhúng thời gian thực.
 
-\tableofcontents
-\listoffigures
-\listoftables
-\lstlistoflistings
 
-\chapter*{Danh mục từ viết tắt}
-\addcontentsline{toc}{chapter}{Danh mục từ viết tắt}
-\begin{longtable}{@{}p{2.6cm}p{11.5cm}@{}}
+\tableofcontents
+
+\chapter*{DANH SÁCH THUẬT NGỮ VIẾT TẮT}
+\addcontentsline{toc}{chapter}{DANH SÁCH THUẬT NGỮ VIẾT TẮT}
+\begin{longtable}{@{}p{2.6cm}p{12.4cm}@{}}
 \toprule
 \textbf{Viết tắt} & \textbf{Ý nghĩa} \\ \midrule
+ACK & Acknowledgement — bản tin xác nhận đã nhận \\
 ADC & Analog-to-Digital Converter — bộ chuyển đổi tương tự–số \\
 AP & Access Point — điểm truy cập Wi-Fi \\
 API & Application Programming Interface \\
 DHCP & Dynamic Host Configuration Protocol — cấp địa chỉ IP tự động \\
+CRC & Cyclic Redundancy Check — mã kiểm tra dư vòng \\
 DMA & Direct Memory Access — truy cập bộ nhớ trực tiếp, không qua CPU \\
 GPIO & General Purpose Input/Output \\
 HTTP & HyperText Transfer Protocol \\
+HTTPS & HTTP qua TLS — HTTP được mã hóa \\
 IDF & IoT Development Framework (ESP-IDF) \\
 IR & Infrared — hồng ngoại \\
 JSON & JavaScript Object Notation \\
+NAPAS & Công ty Cổ phần Thanh toán Quốc gia Việt Nam \\
 LEDC & LED Control — khối phát PWM phần cứng của ESP32 \\
 LZSS & Lempel–Ziv–Storer–Szymanski — thuật toán nén từ điển \\
 mDNS & Multicast DNS — phân giải tên miền \code{.local} trong mạng cục bộ \\
@@ -245,31 +284,33 @@ PWM & Pulse Width Modulation — điều chế độ rộng xung \\
 RFID & Radio Frequency Identification \\
 RTOS & Real-Time Operating System \\
 SPI & Serial Peripheral Interface \\
+TLS & Transport Layer Security \\
 SSID & Service Set Identifier — tên mạng Wi-Fi \\
 STA & Station — thiết bị kết nối vào một AP \\
 TFT & Thin-Film Transistor (màn hình) \\
 UC & Use case — ca sử dụng \\
+VA & Virtual Account — tài khoản ảo nhận chuyển khoản \\
+VietQR & Chuẩn mã QR chuyển khoản liên ngân hàng của NAPAS \\
 UDP & User Datagram Protocol \\
 UID & Unique Identifier — mã định danh của thẻ RFID \\
 \bottomrule
 \end{longtable}
 
-\cleardoublepage
-\pagenumbering{arabic}
+\cleardoublepage\phantomsection\addcontentsline{toc}{chapter}{DANH SÁCH BẢNG BIỂU}
+\listoftables
+\cleardoublepage\phantomsection\addcontentsline{toc}{chapter}{DANH SÁCH HÌNH VẼ}
+\listoffigures
 
-\input{chapters/ch1_gioithieu}
-\input{chapters/ch2_usecase}
-\input{chapters/ch3_thanhphan}
-\input{chapters/ch4_caidat}
-\input{chapters/ch5_thietke}
-\input{chapters/ch6_huongdanchay}
-\input{chapters/ch7_kiemthu}
-\input{chapters/ch8_ketluan}
-\input{chapters/ch9_donggop}
+\input{chapters/c1_gioithieu}
+\input{chapters/c2_coso}
+\input{chapters/c3_phantich}
+\input{chapters/c4_trienkhai}
+\input{chapters/c5_kiemthu}
+\input{chapters/kl_ketluan}
 
 % =====================================================================
-\chapter*{Tài liệu tham khảo}
-\addcontentsline{toc}{chapter}{Tài liệu tham khảo}
+\chapter*{TÀI LIỆU THAM KHẢO}
+\addcontentsline{toc}{chapter}{TÀI LIỆU THAM KHẢO}
 \begin{enumerate}[label={[\arabic*]}]
 \item Espressif Systems, \emph{ESP32-C3 Series Datasheet} và \emph{ESP32-C3 Technical
   Reference Manual}.
@@ -290,6 +331,14 @@ UID & Unique Identifier — mã định danh của thẻ RFID \\
   \emph{Journal of the ACM}, 29(4), 1982.
 \item Thư viện \emph{MFRC522} (miguelbalboa) và \emph{DHT sensor library} (Adafruit)
   cho Arduino.
+\item NAPAS, \emph{Đặc tả kỹ thuật mã QR chuyển tiền liên ngân hàng (VietQR)}, dựa trên EMVCo
+  \emph{QR Code Specification for Payment Systems — Merchant-Presented Mode}.
+\item SePay, \emph{SePay Developer Documentation}: API giao dịch, tài khoản ảo (VA).
 \end{enumerate}
+
+\appendix
+\renewcommand{\chapprefix}{PHỤ LỤC}
+\addtocontents{toc}{\protect\renewcommand{\protect\chapprefix}{PHỤ LỤC}}
+\input{chapters/pl_donggop}
 
 \end{document}

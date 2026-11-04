@@ -1,0 +1,15 @@
+% =====================================================================
+\chapter*{KẾT LUẬN}\addcontentsline{toc}{chapter}{KẾT LUẬN}\label{chap:ketluan}
+% =====================================================================
+\input{chapters/kl_tongket}
+\section*{Hướng phát triển}
+
+\begin{itemize}
+  \item Cảm biến IR dưới mỗi thanh chắn: chỉ đóng khi làn xe trống, tránh hạ cần xuống xe.
+  \item Danh sách thẻ đăng ký (vé tháng, khóa thẻ mất) lưu trong NVS, quản lý từ trang web.
+  \item Ghép thẻ với ô đỗ: ô đầu tiên chuyển sang có xe sau khi quẹt vào thuộc về thẻ đó.
+  \item Ký bản tin UDP bằng HMAC kèm số thứ tự chống phát lại; HTTPS cho trang quản trị.
+  \item Module RTC DS3231 để có giờ thực ngay cả khi chưa có trình duyệt kết nối.
+  \item Kết nối MQTT lên đám mây để quản lý nhiều bãi, thống kê doanh thu, đặt chỗ trước.
+  \item Bổ sung OTA cho máy chủ (bảng phân vùng hai khe ứng dụng, cần flash 4\,MB).
+\end{itemize}
