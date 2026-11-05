@@ -51,6 +51,7 @@
 \AtBeginEnvironment{tcolorbox}{\setstretch{1.15}}
 \usepackage{amsmath,amssymb}
 \usepackage{graphicx}
+\usepackage{pdflscape}
 \usepackage{xcolor}
 \usepackage{booktabs,longtable,tabularx,array,multirow}
 \usepackage{enumitem}
@@ -64,7 +65,7 @@
 \usepackage{listings}
 \usepackage{tikz}
 \usetikzlibrary{arrows.meta,positioning,shapes.geometric,shapes.misc,fit,calc,backgrounds}
-\usepackage{url}
+\usepackage{xurl}
 \usepackage[hidelinks]{hyperref}
 
 % Chữ và tiêu đề đen trắng; logo, mã nguồn, hình vẽ và hộp "Lý do" dùng màu.
@@ -159,14 +160,15 @@
 %  TRANG BÌA (theo mẫu Template_baocao.docx)
 % =====================================================================
 \begin{titlepage}
+  \setstretch{1.3}\centering
+  % \vspace* phải đứng trước tikzpicture: tikzpicture mở đoạn mới, \vspace* sau đó không đẩy được dòng đầu xuống
+  \vspace*{0.9cm}%
   \begin{tikzpicture}[remember picture,overlay]
     \draw[black,line width=3pt] ($(current page.north west)+(3cm,-2.49cm)$)
       rectangle ($(current page.south east)+(-2cm,3cm)$);
     \draw[black,line width=1pt] ($(current page.north west)+(3.15cm,-2.64cm)$)
       rectangle ($(current page.south east)+(-2.15cm,3.15cm)$);
-  \end{tikzpicture}
-  \setstretch{1.3}\centering
-  \vspace*{0.9cm}
+  \end{tikzpicture}%
   {\fontsize{12}{16}\selectfont\bfseries TRƯỜNG ĐẠI HỌC CÔNG NGHỆ\par}
   \vspace{1.4cm}
   \includegraphics[width=3.1cm]{uet_logo.png}\par
@@ -334,6 +336,31 @@ UID & Unique Identifier — mã định danh của thẻ RFID \\
 \item NAPAS, \emph{Đặc tả kỹ thuật mã QR chuyển tiền liên ngân hàng (VietQR)}, dựa trên EMVCo
   \emph{QR Code Specification for Payment Systems — Merchant-Presented Mode}.
 \item SePay, \emph{SePay Developer Documentation}: API giao dịch, tài khoản ảo (VA).
+\item Knowledge Sourcing Intelligence, \emph{Smart Parking Market}.
+  \url{https://www.knowledge-sourcing.com/report/smart-parking-market}
+\item Meticulous Research, \emph{Smart Parking Market}.
+  \url{https://www.meticulousresearch.com/pressrelease/1052/smart-parking-market-2032}
+\item KPS System, \emph{Giải pháp bãi giữ xe thông minh}.
+  \url{https://kps.com.vn/en/tin-tuc/giai-phap-bai-giu-xe-thong-minh-399.html}
+\item Hikvision, \emph{Parking Lots} và \emph{On-street Parking}.
+  \url{https://www.hikvision.com/vn/solutions/solutions-by-scenario/parking-lots},
+  \url{https://www.hikvision.com/vn/products/parking-management/on-street-parking/}
+\item Nedap, \emph{Wireless vehicle detection system SENSIT}.
+  \url{https://www.parking.net/parking-showcases/nedap-identification-systems/nedap-wireless-vehicle-detection-system-sensit-accurate-parking-occupancy-detection-system}
+\item SKIDATA, \emph{The Benefits of Parking Guidance for Parking Operators}.
+  \url{https://www.skidata.com/en-nordics/skidata-blog/parking-guidance-benefits-for-parking-operators}
+\item FPT Shop, \emph{Có phần mềm giữ xe miễn phí nào không?}
+  \url{https://fptshop.com.vn/tin-tuc/danh-gia/phan-mem-giu-xe-mien-phi-172797}
+\item Việt Nam News, \emph{Hà Nội pilots iParking for cars from May} (28/3/2017) và \emph{Hà Nội expands iParking in July}.
+  \url{https://vietnamnews.vn/society/373668/ha-noi-pilots-iparking-for-cars-from-may.html},
+  \url{https://vietnamnews.vn/society/449045/ha-noi-expands-iparking-in-july.html}
+\item VietNamNet, \emph{Hà Nội tạm dừng thí điểm mô hình trông giữ xe iParking từ 1/9}, 31/8/2020.
+  \url{https://vietnamnet.vn/ha-noi-tam-dung-thi-diem-mo-hinh-trong-giu-xe-iparking-tu-19-i262776.html}
+\item Mekong ASEAN, \emph{Từ 5/5 sẽ thu phí không dừng tại 5 sân bay lớn}.
+  \url{https://mekongasean.vn/tu-55-se-thu-phi-khong-dung-tai-5-san-bay-lon-28091.html}
+\item Tạp chí Luật sư Việt Nam, \emph{Hà Nội sẽ thu phí điện tử không dừng toàn bộ bãi đỗ xe từ ngày 01/7}, 25/5/2026.
+  \url{https://lsvn.vn/ha-noi-se-thu-phi-dien-tu-khong-dung-toan-bo-bai-do-xe-tu-ngay-01-7-a173253.html}
+\item Capterra, \emph{SKIDATA}. \url{https://www.capterra.com/p/141629/SKIDATA/alternatives/}
 \end{enumerate}
 
 \appendix

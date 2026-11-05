@@ -343,6 +343,32 @@ DHT11 & 2 (D4) & GPIO2 cần mức cao khi khởi động, module DHT11 có sẵ
 \end{tabularx}
 \end{table}
 
+\subsection{Sơ đồ nguyên lý}\label{sec:schematic}
+Các Hình~\ref{fig:sch-server}, \ref{fig:sch-sensor} và \ref{fig:sch-rfid} là sơ đồ nguyên lý
+của ba mạch, với các chân GPIO trùng với Bảng~\ref{tab:pin-srv} và \ref{tab:pin-clients}.
+Mỗi bản vẽ thể hiện một mạch kèm đầu vào 5\,V riêng (J\_PWR1--3). Trên hai mạch ESP8266, hai
+diode 1N4007 mắc nối tiếp hạ 5\,V xuống khoảng 3,6\,V (mỗi diode sụt khoảng 0,7\,V) để cấp
+cho ESP8266 và các module của mạch đó; trên mạch máy chủ, servo dùng 5\,V có tụ 100\,µF
+riêng, còn màn hình và còi dùng 3,3\,V từ bo ESP32-C3.
+
+\begin{landscape}
+\begin{figure}[p]
+\centering
+\includegraphics[width=\linewidth]{schematic/sheet1.pdf}
+\caption{Sơ đồ nguyên lý máy chủ: ESP32-C3 SuperMini, màn hình ST7789, 2 servo SG90 và còi}\label{fig:sch-server}
+\end{figure}
+\begin{figure}[p]
+\centering
+\includegraphics[width=\linewidth]{schematic/sheet2.pdf}
+\caption{Sơ đồ nguyên lý Sensor Client: ESP8266, 5 cảm biến hồng ngoại, cảm biến lửa và mực nước}\label{fig:sch-sensor}
+\end{figure}
+\begin{figure}[p]
+\centering
+\includegraphics[width=\linewidth]{schematic/sheet3.pdf}
+\caption{Sơ đồ nguyên lý RFID Client: ESP8266, 2 đầu đọc RC522 dùng chung SPI và DHT11}\label{fig:sch-rfid}
+\end{figure}
+\end{landscape}
+
 \paragraph{Nguồn điện.} Mô hình có một điểm cấp nguồn là jack DC trên vách sau
 (Hình~\ref{fig:model-wall}); khi trình diễn có thể cấp qua cáp USB vào hộp điều
 khiển. Ba chi tiết được thêm sau khi đo thực tế:
