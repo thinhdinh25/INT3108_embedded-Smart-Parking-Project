@@ -23,7 +23,8 @@ The full technical report (Vietnamese, LaTeX source and PDF) is in
 - Five parking-space states from debounced digital IR sensors.
 - RFID entry/exit: a card scanned on the entry reader opens the entry barrier;
   the same card scanned on the exit reader opens the exit barrier.
-  RFID-opened barriers close automatically after 3 seconds (one-shot timer).
+  RFID-opened barriers begin checking after 3 seconds and close 1 second after
+  the gate IR beam clears.
 - Rejected scans (wrong gate, lot full) show a red notice on the TFT for 5 s,
   e.g. `WRONG GATE – ALREADY INSIDE - USE EXIT GATE`.
 - Parking fee of 5,000 VND per started hour (minimum one hour). The TFT shows
@@ -45,8 +46,8 @@ The full technical report (Vietnamese, LaTeX source and PDF) is in
   `SENSOR OFFLINE` with grey bays and the dashboard marks the data as last
   known state. Stale data never blocks entry or raises the lot warning.
 - Flood alarm: at 20 mm water (off again at 15 mm) the buzzer sounds, the TFT
-  and dashboard warn, and entry scans are refused (`FLOOD ALARM`); cars inside
-  can still leave.
+  shows a dedicated alarm screen and the dashboard warns, and entry scans are
+  refused (`FLOOD ALARM`); cars inside can still leave.
 - Revenue statistics: today's and the last 7 days' revenue and in/out counts
   (UTC+7 days), saved in NVS with the sessions.
 - Cross-check with the IR sensors: when all 5 bays are occupied a new card is

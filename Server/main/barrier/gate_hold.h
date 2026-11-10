@@ -5,7 +5,7 @@
 
 /* A barrier only closes after its IR beam has stayed clear this long, so a one-sample
  * flicker of the sensor while a car is underneath cannot bring it down. */
-#define GATE_CLEAR_US 300000LL
+#define GATE_CLEAR_US 1000000LL
 
 typedef struct
 {

@@ -67,6 +67,7 @@ static const uint16_t COLOR_RED = 0xF800;
 static const uint16_t COLOR_DARK_RED = 0x4000;
 static const uint16_t COLOR_ORANGE = 0xFD20;
 static const uint16_t COLOR_YELLOW = 0xFFE0;
+static const uint16_t COLOR_BLUE = 0x001F;
 
 static uint16_t rgb565_byte_swap(uint16_t color)
 {
@@ -450,6 +451,30 @@ static void draw_fire_alarm_screen(int frame)
     ESP_ERROR_CHECK(lcd_draw_bitmap_locked(0, 0, width, height, framebuffer));
 }
 
+static void draw_flood_alarm_screen(float water_mm)
+{
+    fill_rect(0, 0, width, height, COLOR_BG);
+    fill_rect(0, 0, width, 8, COLOR_TEAL);
+    fill_rect(0, height - 8, width, 8, COLOR_TEAL);
+    fill_rect(8, 8, 4, height - 16, COLOR_TEAL);
+    fill_rect(width - 12, 8, 4, height - 16, COLOR_TEAL);
+    fill_rect(16, 16, width - 32, height - 32, COLOR_BLUE);
+    draw_text((width - (int)strlen("FLOOD ALARM") * 12) / 2, 32,
+              "FLOOD ALARM", 2, COLOR_WHITE);
+    draw_text(71, 75, "WATER LEVEL", 1, COLOR_TEAL);
+
+    char level[16];
+    format_tenths(level, sizeof(level), water_mm);
+    strcat(level, " MM");
+    draw_text((width - (int)strlen(level) * 18) / 2, 105, level, 3, COLOR_WHITE);
+    fill_rect(32, 158, width - 64, 2, COLOR_TEAL);
+    draw_text((width - (int)strlen("ENTRY CLOSED") * 12) / 2, 174,
+              "ENTRY CLOSED", 2, COLOR_YELLOW);
+    draw_text((width - (int)strlen("EXIT STILL OPEN") * 6) / 2, 208,
+              "EXIT STILL OPEN", 1, COLOR_WHITE);
+    ESP_ERROR_CHECK(lcd_draw_bitmap_locked(0, 0, width, height, framebuffer));
+}
+
 static void draw_kaoruko_frame(int frame_index)
 {
     if (frame_index < 0 || frame_index >= KAORUKO_FRAME_COUNT)
@@ -650,6 +675,9 @@ static void display_task(void *arg)
         if (receipt.valid && memcmp(&receipt, &last_receipt, sizeof(receipt)) != 0)
             thanks_until_us = now_us + THANKS_US;
         const bool thanks = receipt.valid && now_us < thanks_until_us;
+        const bool fire_screen = state.received && state.fire;
+        const bool flood_screen = state.flood;
+        const bool alarm_screen = fire_screen || flood_screen;
         const bool lot_alarm = rfid_session_lot_alarm((uint64_t)now_us);
         /* Pulsed, so it cannot be mistaken for the steady fire and flood alarm. */
         buzzer_set_warning(lot_alarm && (now_us / 1000000) % 2 == 0);
@@ -668,8 +696,7 @@ static void display_task(void *arg)
             thanks != thanks_shown ||
             lot_alarm != last_lot_alarm)
         {
-            const bool fire_screen = state.received && state.fire;
-            const bool parking_screen = !fire_screen && !paying && !thanks;
+            const bool parking_screen = !alarm_screen && !paying && !thanks;
             if (!parking_screen)
                 parking_screen_shown = false; /* before drawing, so the animation stops first */
             if (fire_screen)
@@ -677,6 +704,8 @@ static void display_task(void *arg)
                 draw_fire_alarm_screen(fire_frame);
                 fire_frame = (fire_frame + 1) % 15;
             }
+            else if (flood_screen)
+                draw_flood_alarm_screen(state.water_mm);
             else if (paying)
                 draw_payment_screen(&payment, &notice);
             else if (thanks)
