@@ -6,7 +6,7 @@ shows the latest parking state on a 1.54-inch ST7789 TFT.
 
 ## Network
 
-- Wi-Fi SSID: `Parking`
+- Wi-Fi SSID: `Parking` (2.4 GHz only; the ESP32-C3 has no 5 GHz radio)
 - Wi-Fi password: `12345678`
 - Device address: assigned by the hotspot's DHCP (printed on the serial log)
 - Dashboard: `http://parking.local` (mDNS hostname `parking`)

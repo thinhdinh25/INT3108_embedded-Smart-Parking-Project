@@ -51,7 +51,8 @@ The full technical report (Vietnamese, LaTeX source and PDF) is in
   (UTC+7 days), saved in NVS with the sessions.
 - Cross-check with the IR sensors: when all 5 bays are occupied a new card is
   refused, and the dashboard warns when cards inside and occupied bays differ
-  for more than 15 s.
+  for more than 15 s. More cars than cards for 15 s also pulses the buzzer and
+  shows `CAR W/O CARD` on the TFT until the counts match or the sensors go silent.
 - Both barriers start closed after every reboot.
 
 ## Boards, languages, and software
@@ -83,11 +84,13 @@ support ArduinoOTA updates.
 | TFT DC / A0 | GPIO7 |
 | TFT RES / RST | GPIO3 |
 | TFT CS | GPIO10 |
-| TFT BL / LED | GPIO5 |
+| TFT BL / LED | 3V3 (always on; GPIO5 now has the entry gate sensor) |
 | TFT VCC / GND | 3V3 / GND |
 | IN barrier servo signal | GPIO0 |
 | OUT barrier servo signal | GPIO1 |
 | Buzzer signal (active-low) | GPIO9 |
+| Entry gate IR sensor (active-low) | GPIO5 |
+| Exit gate IR sensor (active-low) | GPIO2 |
 
 GPIO9 is an ESP32-C3 boot-strapping pin; use a buzzer module that does not pull
 it low during reset. The buzzer output starts HIGH (silent).
@@ -132,6 +135,9 @@ All three boards join one shared Wi-Fi (your router or phone hotspot, with
 Internet for SePay); no board runs a hotspot:
 
 - SSID `Parking`, password `12345678` by default (see Secrets below)
+- It must be a 2.4 GHz network: the ESP32-C3 and ESP8266 have no 5 GHz radio. On a
+  router with separate names, pick the 2.4 GHz one; a phone or laptop on the 5 GHz
+  name still reaches the boards if the router bridges the two.
 - Every board gets its address by DHCP. The router must not isolate its
   clients (no "AP isolation"), or the broadcasts never reach the server.
 - Dashboard: [http://parking.local](http://parking.local) (mDNS, re-announced
@@ -180,6 +186,7 @@ HTTP API:
 | POST | `/api/barrier/{in,out,all}/{open,close}` | Move barriers manually |
 | POST | `/api/time` | Body: Unix seconds. Sets the parking clock |
 | POST | `/api/payment/confirm` | Body: card ID. Operator confirms a transfer or cash; opens the exit |
+| POST | `/api/rfid/remove` | Body: card ID. Deletes a car from the inside list: no fee, no barrier |
 
 Every POST needs the admin PIN in the `X-Parking-Key` header (the dashboard
 asks for it once and remembers it); a wrong or missing PIN returns 401.
@@ -208,7 +215,7 @@ With a receiving account set, an exit scan no longer opens the barrier at once:
 2. The driver scans it with any Vietnamese banking app and pays.
 3. With a SePay token, the server polls
    `my.sepay.vn/userapi/transactions/list` every 3 s (only transactions newer
-   than the QR) for that note and amount, then opens the exit barrier, prints
+   than the QR) for that note and exact amount, then opens the exit barrier, prints
    the receipt and counts the revenue. MoMo and some wallets replace the note,
    so a transfer of exactly the fee to the receiving account/VA also counts.
 4. No transfer after 180 s: the TFT shows `PAY AT BOOTH`; a late transfer still

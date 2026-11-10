@@ -21,6 +21,7 @@
 #include "sdkconfig.h"
 
 #include "../parking/parking_state.h"
+#include "../buzzer/buzzer.h"
 #include "../parking/payment.h"
 #include "../parking/rfid_session.h"
 #include "lcd_display.h"
@@ -51,6 +52,7 @@ static uint16_t *gif_framebuffer[GIF_BUFFERS];
 static int gif_buffer_index = 0;
 static SemaphoreHandle_t lcd_mutex;
 static TaskHandle_t display_task_handle;
+static volatile bool parking_screen_shown; /* only that screen has room for the animation */
 static const int width = LCD_WIDTH;
 static const int height = LCD_HEIGHT;
 
@@ -167,6 +169,22 @@ static esp_err_t lcd_draw_bitmap_locked(int x_start, int y_start,
 
     esp_err_t err = esp_lcd_panel_draw_bitmap(
         panel, x_start, y_start, x_end, y_end, pixels);
+
+    xSemaphoreGive(lcd_mutex);
+    return err;
+}
+
+/* Checked under the mutex: a frame decoded just before another screen took over is dropped,
+ * otherwise it would stay on top of that screen until its next redraw. */
+static esp_err_t gif_draw_bitmap(int x_start, int y_start, int x_end, int y_end,
+                                 const void *pixels)
+{
+    if (xSemaphoreTake(lcd_mutex, portMAX_DELAY) != pdTRUE)
+        return ESP_ERR_TIMEOUT;
+
+    esp_err_t err = parking_screen_shown
+        ? esp_lcd_panel_draw_bitmap(panel, x_start, y_start, x_end, y_end, pixels)
+        : ESP_OK;
 
     xSemaphoreGive(lcd_mutex);
     return err;
@@ -334,7 +352,8 @@ static void draw_thanks_screen(const rfid_receipt_t *receipt)
 
 /* Layout with the 96x96 Kaoruko animation in the top-right corner (GIF_X, GIF_Y). */
 static void draw_parking_screen(const parking_state_t *state, int free_count,
-                                const rfid_receipt_t *receipt, const rfid_notice_t *notice)
+                                const rfid_receipt_t *receipt, const rfid_notice_t *notice,
+                                bool lot_alarm)
 {
     fill_rect(0, 0, width, height, COLOR_BG);
     fill_rect(0, 0, width, 4, COLOR_TEAL);
@@ -343,6 +362,8 @@ static void draw_parking_screen(const parking_state_t *state, int free_count,
     /* Status tag: flood matters most; a silent sensor means the bays below are stale. */
     if (state->flood)
         draw_text(150, 15, "FLOOD-NO ENTRY", 1, COLOR_RED);
+    else if (lot_alarm)
+        draw_text(150, 15, "CAR W/O CARD", 1, COLOR_RED);
     else if (state->received && !state->online)
         draw_text(150, 15, "SENSOR OFFLINE", 1, COLOR_ORANGE);
     fill_rect(8, 32, width - 16, 1, COLOR_LINE);
@@ -443,7 +464,7 @@ static void draw_kaoruko_frame(int frame_index)
         return;
     }
     /* Frames are stored pre-matted and pre-byte-swapped, so they go straight to the panel. */
-    esp_err_t err = lcd_draw_bitmap_locked(
+    esp_err_t err = gif_draw_bitmap(
         GIF_X,
         GIF_Y,
         GIF_X + GIF_WIDTH,
@@ -469,7 +490,7 @@ static void draw_claude_frame(int frame_index, int x, int previous_x,
         for (size_t i = 0; i < (size_t)CLAUDE_WIDTH * CLAUDE_HEIGHT; ++i)
             background[i] = rgb565_byte_swap(COLOR_PANEL);
 
-        esp_err_t clear_err = lcd_draw_bitmap_locked(
+        esp_err_t clear_err = gif_draw_bitmap(
             previous_x,
             CLAUDE_Y,
             previous_x + CLAUDE_WIDTH,
@@ -489,7 +510,7 @@ static void draw_claude_frame(int frame_index, int x, int previous_x,
         return;
     }
 
-    esp_err_t err = lcd_draw_bitmap_locked(
+    esp_err_t err = gif_draw_bitmap(
         x,
         CLAUDE_Y,
         x + CLAUDE_WIDTH,
@@ -544,7 +565,7 @@ static void animation_task(void *arg)
         rfid_session_get_payment(&pay);
         const bool footer_busy = receipt.valid || notice.valid;
         const bool buffers = gif_buffers_take(!pay.active); /* NULL until the heap allows */
-        if (buffers && !state.fire && !pay.active)
+        if (buffers && !state.fire && !pay.active && parking_screen_shown)
         {
             draw_kaoruko_frame(frame);
             if (!footer_busy)
@@ -615,6 +636,7 @@ static void display_task(void *arg)
     float last_water = -1000.0f;
     int64_t thanks_until_us = 0;
     bool thanks_shown = false;
+    bool last_lot_alarm = false;
 
     for (;;)
     {
@@ -628,6 +650,9 @@ static void display_task(void *arg)
         if (receipt.valid && memcmp(&receipt, &last_receipt, sizeof(receipt)) != 0)
             thanks_until_us = now_us + THANKS_US;
         const bool thanks = receipt.valid && now_us < thanks_until_us;
+        const bool lot_alarm = rfid_session_lot_alarm((uint64_t)now_us);
+        /* Pulsed, so it cannot be mistaken for the steady fire and flood alarm. */
+        buzzer_set_warning(lot_alarm && (now_us / 1000000) % 2 == 0);
 
         if (state.fire || first_draw ||
             memcmp(&payment, &last_payment, sizeof(payment)) != 0 ||
@@ -640,9 +665,14 @@ static void display_task(void *arg)
             state.water_mm != last_water ||
             memcmp(&receipt, &last_receipt, sizeof(receipt)) != 0 ||
             memcmp(&notice, &last_notice, sizeof(notice)) != 0 ||
-            thanks != thanks_shown)
+            thanks != thanks_shown ||
+            lot_alarm != last_lot_alarm)
         {
-            if (state.received && state.fire)
+            const bool fire_screen = state.received && state.fire;
+            const bool parking_screen = !fire_screen && !paying && !thanks;
+            if (!parking_screen)
+                parking_screen_shown = false; /* before drawing, so the animation stops first */
+            if (fire_screen)
             {
                 draw_fire_alarm_screen(fire_frame);
                 fire_frame = (fire_frame + 1) % 15;
@@ -652,7 +682,8 @@ static void display_task(void *arg)
             else if (thanks)
                 draw_thanks_screen(&receipt);
             else
-                draw_parking_screen(&state, free_count, &receipt, &notice);
+                draw_parking_screen(&state, free_count, &receipt, &notice, lot_alarm);
+            parking_screen_shown = parking_screen;
             last_payment = payment;
 
             memcpy(last_slots, state.slots, sizeof(last_slots));
@@ -665,6 +696,7 @@ static void display_task(void *arg)
             memcpy(&last_receipt, &receipt, sizeof(receipt));
             memcpy(&last_notice, &notice, sizeof(notice));
             thanks_shown = thanks;
+            last_lot_alarm = lot_alarm;
             first_draw = false;
         }
 
@@ -682,7 +714,7 @@ void lcd_display_notify(void)
 
 esp_err_t lcd_display_start(void)
 {
-    if (CONFIG_PARKING_LCD_BL_GPIO >= 0)
+#if CONFIG_PARKING_LCD_BL_GPIO >= 0
     {
         gpio_config_t backlight = {
             .pin_bit_mask = 1ULL << CONFIG_PARKING_LCD_BL_GPIO,
@@ -692,6 +724,7 @@ esp_err_t lcd_display_start(void)
                             "Configure backlight GPIO failed");
         gpio_set_level(CONFIG_PARKING_LCD_BL_GPIO, 0);
     }
+#endif
 
     /* Allocate the 115.2 KB full-screen framebuffer first, before SPI/LCD driver queues
      * shrink the largest contiguous DRAM region. */
@@ -778,8 +811,9 @@ esp_err_t lcd_display_start(void)
         return ESP_ERR_NO_MEM;
     }
 
-    if (CONFIG_PARKING_LCD_BL_GPIO >= 0)
-        gpio_set_level(CONFIG_PARKING_LCD_BL_GPIO, 1);
+#if CONFIG_PARKING_LCD_BL_GPIO >= 0
+    gpio_set_level(CONFIG_PARKING_LCD_BL_GPIO, 1);
+#endif
 
     if (xTaskCreate(display_task, "lcd_display", 4096, NULL, 4, &display_task_handle) != pdPASS)
     {

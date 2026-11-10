@@ -125,7 +125,7 @@
             </div>
             <h3 class="log-subtitle">Inside now</h3>
             <table class="log-table">
-                <thead><tr><th>Card</th><th>Entered</th><th>Fee so far</th></tr></thead>
+                <thead><tr><th>Card</th><th>Entered</th><th>Fee so far</th><th></th></tr></thead>
                 <tbody id="parked-list"></tbody>
             </table>
             <h3 class="log-subtitle">Recent events</h3>
@@ -171,6 +171,10 @@
             buttons.forEach(button => button.disabled = true);
             try {
                 const response = await post(`/api/barrier/${direction}/${open ? 'open' : 'close'}`);
+                if (response.status === 409) {
+                    state.textContent = 'CAR IN GATE';
+                    return;
+                }
                 if (!response.ok) throw new Error('Servo command failed');
                 state.textContent = open ? 'OPEN' : 'CLOSED';
                 state.classList.toggle('is-open', open);
@@ -195,6 +199,10 @@
                 status.textContent = 'Sending command…';
                 try {
                     const response = await post(`/api/barrier/all/${open ? 'open' : 'close'}`);
+                    if (response.status === 409) {
+                        status.textContent = 'Car in gate: that barrier stays open';
+                        return;
+                    }
                     if (!response.ok) throw new Error('Servo command failed');
                     [['in', 'in-state'], ['out', 'out-state']].forEach(([, id]) => {
                         const state = document.getElementById(id);
@@ -332,6 +340,31 @@
             return tr;
         }
 
+        async function removeCar(card, button) {
+            if (!confirm(`Delete ${card} from the cars inside? No fee is charged and the barrier stays closed.`)) return;
+            button.disabled = true;
+            try {
+                const response = await post('/api/rfid/remove', card);
+                if (!response.ok) throw new Error('Delete failed');
+                refreshLog();
+            } catch (error) {
+                alert(`Could not delete ${card}`);
+                button.disabled = false;
+            }
+        }
+        function parkedRow(car, nowS) {
+            const tr = row([car.card, clock(nowS, car.in_s), vnd(car.fee)]);
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.className = 'parked-delete';
+            button.textContent = 'Delete';
+            button.setAttribute('aria-label', `Delete ${car.card}`);
+            button.addEventListener('click', () => removeCar(car.card, button));
+            tr.insertCell().appendChild(button);
+            return tr;
+        }
+
+        let parkedKey = null; // rebuilding the rows on every poll could swallow a click on Delete
         async function refreshLog() {
             try {
                 const response = await fetch('/api/rfid', { cache: 'no-store' });
@@ -345,8 +378,12 @@
                 document.getElementById('today-visits').textContent = visits(data.today);
                 document.getElementById('week-vnd').textContent = vnd(data.week.vnd);
                 document.getElementById('week-visits').textContent = visits(data.week);
-                const parked = data.parked.map(car => row([car.card, clock(data.now_s, car.in_s), vnd(car.fee)]));
-                document.getElementById('parked-list').replaceChildren(...(parked.length ? parked : [emptyRow('No cars inside', 3)]));
+                const key = JSON.stringify([data.parked, Math.floor(data.now_s / 60)]);
+                if (key !== parkedKey) {
+                    parkedKey = key;
+                    const parked = data.parked.map(car => parkedRow(car, data.now_s));
+                    document.getElementById('parked-list').replaceChildren(...(parked.length ? parked : [emptyRow('No cars inside', 4)]));
+                }
                 const events = data.log.map(e => row([
                     clock(data.now_s, e.at_s), e.card, EVENT_LABELS[e.event] || e.event,
                     e.event === 'out' ? duration(e.duration_s) : '', e.event === 'out' ? vnd(e.fee) : ''

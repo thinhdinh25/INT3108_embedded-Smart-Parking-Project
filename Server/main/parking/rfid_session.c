@@ -517,3 +517,50 @@ bool rfid_session_pay_cash(const char *card_id)
     portEXIT_CRITICAL(&session_lock);
     return done;
 }
+
+bool rfid_session_lot_alarm(uint64_t now_us)
+{
+    static bool counting;
+    static uint64_t since_us;
+    parking_state_t lot;
+    int free_bays;
+    parking_state_get(&lot, &free_bays);
+
+    portENTER_CRITICAL(&session_lock);
+    int cards = 0;
+    for (int i = 0; i < RFID_MAX_ACTIVE; ++i)
+        cards += store.sessions[i].active;
+    portEXIT_CRITICAL(&session_lock);
+
+    /* Stale bays prove nothing, and they would leave the buzzer on with no way to clear it. */
+    if (!lot.online || PARKING_SLOT_COUNT - free_bays <= cards)
+    {
+        counting = false;
+        return false;
+    }
+    if (!counting)
+    {
+        counting = true;
+        since_us = now_us;
+    }
+    return now_us - since_us >= RFID_LOT_ALARM_HOLD_US;
+}
+
+bool rfid_session_remove(const char *card_id)
+{
+    bool removed = false;
+    portENTER_CRITICAL(&session_lock);
+    const int index = card_id ? find_session(card_id) : -1;
+    if (index >= 0)
+    {
+        store.sessions[index].active = false;
+        if (payment.active && strcmp(payment.card_id, card_id) == 0)
+            payment.active = false;
+        /* Its notice may still say "pay at the booth". */
+        if (latest_notice.valid && strcmp(latest_notice.card_id, card_id) == 0)
+            latest_notice.valid = false;
+        removed = true;
+    }
+    portEXIT_CRITICAL(&session_lock);
+    return removed;
+}

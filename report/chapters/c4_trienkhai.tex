@@ -13,22 +13,22 @@ Chương này trình bày cách tổ chức mã nguồn (\S\ref{sec:module}), gi
 \begin{tabularx}{\linewidth}{@{}p{4.3cm}rX@{}}
 \toprule
 \textbf{Tệp} & \textbf{Dòng} & \textbf{Trách nhiệm} \\ \midrule
-\file{main.c} & 43 & Khởi tạo NVS, khôi phục phiên, màn hình, còi, servo, mạng theo thứ tự \\
-\file{parking/parking\_state.c} & 65 & Trạng thái bãi dùng chung, đồng hồ bãi (critical section) \\
-\file{parking/json\_scan.c} & 81 & Hàm đọc JSON dùng chung, không cấp phát động \\
+\file{main.c} & 44 & Khởi tạo NVS, khôi phục phiên, màn hình, còi, servo, mạng theo thứ tự \\
+\file{parking/parking\_state.c} & 73 & Trạng thái bãi dùng chung, đồng hồ bãi (critical section) \\
+\file{parking/json\_scan.c} & 99 & Hàm đọc JSON dùng chung, không cấp phát động \\
 \file{parking/parking\_update.c} & 108 & Kiểm tra bản tin \code{parking\_update} và \code{climate} \\
-\file{parking/rfid\_session.c} & 519 & Bản tin RFID, phiên gửi xe, phí, hóa đơn, thông báo, nhật ký, chống lặp, đối chiếu IR, lưu/khôi phục, đặt giờ, lượt thanh toán QR \\
-\file{parking/payment.c} & 131 & Chuỗi VietQR (EMVCo, CRC16), tìm giao dịch khớp mã trong JSON của SePay \\
+\file{parking/rfid\_session.c} & 566 & Bản tin RFID, phiên gửi xe, xóa xe, cảnh báo xe không thẻ, phí, hóa đơn, thông báo, nhật ký, chống lặp, đối chiếu IR, lưu/khôi phục, đặt giờ, lượt thanh toán QR \\
+\file{parking/payment.c} & 166 & Chuỗi VietQR (EMVCo, CRC16), tìm giao dịch khớp mã trong JSON của SePay \\
 \file{parking/parking\_persist.c} & 47 & Lưu/đọc phiên, nhật ký, đồng hồ trong NVS \\
 \file{barrier/servo.c} & 230 & PWM servo, hẹn giờ tự đóng, chế độ cháy \\
-\file{buzzer/buzzer.c} & 29 & Còi tích cực mức thấp \\
-\file{display/lcd\_display.c} & 706 & Giao diện TFT, màn hình thanh toán QR, màn hình cháy, ảnh động \\
+\file{buzzer/buzzer.c} & 44 & Còi tích cực mức thấp, hai nguồn kích hoạt độc lập (báo động, cảnh báo) \\
+\file{display/lcd\_display.c} & 831 & Giao diện TFT, màn hình thanh toán QR, màn hình cháy, ảnh động \\
 \file{display/*\_gif.c} & dữ liệu & Khung ảnh động đã nén LZSS \\
-\file{network/wifi.c} & 137 & Kết nối vào Wi-Fi chung (trạm), tự kết nối lại \\
+\file{network/wifi.c} & 143 & Kết nối vào Wi-Fi chung (trạm), tự kết nối lại \\
 \file{network/network\_service.c} & 87 & Khởi động mạng, mDNS, cập nhật IP cho mDNS \\
 \file{network/udp/udp\_server.c} & 188 & Nhận và điều phối bản tin UDP, gửi ACK \\
-\file{network/sepay\_client.c} & 127 & Tác vụ hỏi vòng API SePay khi có xe đang thanh toán \\
-\file{network/http/\allowbreak http\_server.c} & 283 & 13 route HTTP, API JSON, xác nhận thanh toán, kiểm tra mã PIN \\
+\file{network/sepay\_client.c} & 136 & Tác vụ hỏi vòng API SePay khi có xe đang thanh toán \\
+\file{network/http/\allowbreak http\_server.c} & 302 & 14 route HTTP, API JSON, xác nhận thanh toán, xóa xe, kiểm tra mã PIN \\
 \bottomrule
 \end{tabularx}
 \end{table}
@@ -88,7 +88,7 @@ Chung & — & Khóa lạ, khóa lặp, dữ liệu thừa sau \code{\}}, chuỗi
 
 \begin{table}[H]
 \centering\small
-\caption[API HTTP của máy chủ (13 route)]{API HTTP của máy chủ (13 route); mọi lệnh POST cần header \code{X-Parking-Key} đúng mã PIN, sai thì trả 401}\label{tab:api}
+\caption[API HTTP của máy chủ (14 route)]{API HTTP của máy chủ (14 route); mọi lệnh POST cần header \code{X-Parking-Key} đúng mã PIN, sai thì trả 401}\label{tab:api}
 \begin{tabularx}{\linewidth}{@{}lp{4.4cm}X@{}}
 \toprule
 \textbf{PT} & \textbf{Đường dẫn} & \textbf{Kết quả} \\ \midrule
@@ -99,6 +99,7 @@ GET & \code{/api/rfid} & \code{now\_s}, \code{fee\_per\_hour}, \code{today}/\cod
 POST & \code{/api/barrier/}\allowbreak\code{<cổng>/<lệnh>} & Cổng \code{in}, \code{out}, \code{all}; lệnh \code{open}, \code{close}. Lỗi 500 nếu bị từ chối (ví dụ đóng khi có cháy) \\
 POST & \code{/api/time} & Thân là giờ Unix (giây) từ trình duyệt; máy chủ đặt đồng hồ bãi và lưu NVS \\
 POST & \code{/api/payment/\allowbreak confirm} & Thân là mã thẻ; người vận hành xác nhận đã nhận tiền (chuyển khoản hoặc tiền mặt): xe ra như bình thường. Dùng được cả cho xe chưa quẹt ra (thu phí đến hiện tại) \\
+POST & \code{/api/rfid/\allowbreak remove} & Thân là mã thẻ; xóa xe khỏi danh sách trong bãi và hủy lượt thanh toán đang chờ của xe đó: không tính phí, không ghi nhật ký, không mở thanh chắn. Lỗi 404 nếu thẻ không ở trong bãi \\
 \bottomrule
 \end{tabularx}
 \end{table}
@@ -186,7 +187,9 @@ Claude & 68$\times$46 & 18 & 112\,608 B & 16\,204 B (6,9$\times$) \\
 \noindent Hai bộ đệm DMA $96\times96$ của ảnh Kaoruko (36\,KB) chính là phần heap mà bắt tay HTTPS
 với SePay cần. Vì ảnh động vốn dừng khi đang hiện mã QR, tác vụ \code{lcd\_animation} trả hai bộ đệm
 này lại trong lúc có xe đang thanh toán và cấp phát lại sau đó; nếu lúc ấy heap chưa đủ thì chỉ bỏ
-qua khung hình.
+qua khung hình. Ảnh động chỉ được vẽ khi màn hình chính đang hiện: cờ \code{parking\_screen\_shown} được
+kiểm tra trong lúc giữ mutex của màn hình, nên một khung vừa giải nén xong đúng lúc đổi màn hình sẽ bị bỏ
+thay vì nằm đè lên màn hình QR, \code{THANK YOU} hay màn hình cháy.
 
 \begin{lydo}[Tại sao tiền xử lý ảnh trên máy tính]
 Ảnh gốc có nền trắng cần xóa và điểm ảnh cần đảo byte. Phiên bản trước làm việc
@@ -306,7 +309,7 @@ nhận và cho truy vấn qua API. Tác vụ \code{sepay} (\file{network/sepay\_
 cứ 3\,s gọi lại với \code{since\_id=<id+1>\&limit=20}, nên chỉ giao dịch \emph{sau} lúc hiện QR
 được xét. Hàm \code{sepay\_has\_payment()} tìm giao dịch có \code{transaction\_content}
 chứa mã (không phân biệt hoa thường, phòng khi ngân hàng đổi kiểu chữ của nội dung) và
-\code{amount\_in} $\ge$ phí. Ví MoMo và một số ví điện tử thay nội dung bằng chữ của riêng họ (đã gặp khi thử thật), nên hàm \code{sepay\_has\_transfer\_to()} còn chấp nhận giao dịch vào đúng tài khoản/VA nhận với số tiền \emph{đúng bằng} phí; vì mỗi lúc chỉ một xe thanh toán và chỉ xét giao dịch sau lúc hiện QR, cách này không nhầm xe. TLS dùng bộ chứng chỉ gốc của ESP-IDF; với
+\code{amount\_in} \emph{đúng bằng} phí: chuyển dư hay thiếu đều không mở cổng. Mã QR chỉ điền sẵn số tiền, còn việc có khóa ô nhập hay không là do từng ứng dụng ngân hàng, nên chốt chặn nằm ở bước kiểm tra này. Ví MoMo và một số ví điện tử thay nội dung bằng chữ của riêng họ (đã gặp khi thử thật), nên hàm \code{sepay\_has\_transfer\_to()} còn chấp nhận giao dịch vào đúng tài khoản/VA nhận với số tiền \emph{đúng bằng} phí; vì mỗi lúc chỉ một xe thanh toán và chỉ xét giao dịch sau lúc hiện QR, cách này không nhầm xe. TLS dùng bộ chứng chỉ gốc của ESP-IDF; với
 \code{CONFIG\_MBEDTLS\_DYNAMIC\_BUFFER=y}, bộ đệm TLS chỉ được cấp phát trong lúc gửi yêu
 cầu — cần thiết vì RAM đã chật bên cạnh framebuffer 115\,KB. Lỗi mạng hoặc lỗi HTTP chỉ
 ghi cảnh báo và thử lại ở chu kỳ sau.
@@ -443,6 +446,7 @@ cd INT3108_embedded-Smart-Parking-Project
 \end{lstlisting}
 Hoặc tải tệp ZIP từ trang GitHub của dự án và giải nén.
 
+\needspace{19\baselineskip}
 \buoc{Làm quen cấu trúc thư mục}
 \begin{lstlisting}[language={},numbers=none,caption={Cấu trúc kho mã nguồn}]
 Server/              Firmware may chu ESP32-C3 (ESP-IDF)
@@ -483,8 +487,8 @@ idf.py -p <CONG> flash monitor   # vi du: -p COM4 hoac -p /dev/cu.usbmodem101
 \end{lstlisting}
 \textbf{Kết quả mong đợi} sau \code{idf.py build}:
 \begin{lstlisting}[language={},numbers=none]
-INT3108_Smart_Parking_Project.bin binary size 0x12a9c0 bytes. Smallest app
-partition is 0x177000 bytes. 0x4c640 bytes (20%) free.
+INT3108_Smart_Parking_Project.bin binary size 0x13ce50 bytes.
+Smallest app partition is 0x177000 bytes. 0x3a1b0 bytes (15%) free.
 Project build complete.
 \end{lstlisting}
 \textbf{Kết quả mong đợi} trên cửa sổ monitor (thoát bằng \code{Ctrl+]}):
@@ -494,7 +498,7 @@ I (...) WIFI_STA: Wi-Fi station started, connecting to SSID=Parking...
 I (...) HTTP_SERVER: HTTP server listening on port 80
 I (...) UDP_SERVER: UDP server listening on port 3333
 I (...) SEPAY: QR payment on, auto-checked with SePay (timeout 180 s)
-I (...) SERVER: Joining shared Wi-Fi: ESP32-Parking
+I (...) SERVER: Joining shared Wi-Fi: Parking
 I (...) SERVER: Web interface: http://parking.local
 I (...) WIFI_STA: Got IP: 192.168.1.23
 I (...) SERVER: mDNS: parking.local -> 192.168.1.23
@@ -520,7 +524,7 @@ Mã nguồn chỉ chứa giá trị \emph{demo}. Giá trị thật không nằm 
   \item Hai client: sao chép \file{secrets.example.h} thành \file{secrets.h} trong thư mục
         của sketch rồi sửa; \file{secrets.h} cũng bị bỏ qua khi commit. Không có
         \file{secrets.h} thì sketch dùng giá trị demo.
-  \item SSID và mật khẩu Wi-Fi phải \textbf{giống nhau} trên cả ba bo (cùng một mạng chung).
+  \item SSID và mật khẩu Wi-Fi phải \textbf{giống nhau} trên cả ba bo (cùng một mạng chung), và phải là mạng 2,4\,GHz.
 \end{itemize}
 \end{lydo}
 
@@ -620,15 +624,16 @@ make -C tests
 \end{lstlisting}
 \textbf{Kết quả mong đợi}:
 \begin{lstlisting}[language={},numbers=none]
-payment                  30/30 checks passed
+payment                  38/38 checks passed
 json_parsers             78/78 checks passed
-rfid_session             149/149 checks passed
+rfid_session             181/181 checks passed
 gif_frames               89/89 checks passed
-sensor_client            15/15 checks passed
-rfid_client              23/23 checks passed
+sensor_client            18/18 checks passed
+rfid_client              25/25 checks passed
 ALL TESTS PASSED
 \end{lstlisting}
 
+\needspace{14\baselineskip}
 \subsection{Xử lý sự cố thường gặp}
 \begin{longtable}{@{}p{4.6cm}p{9.8cm}@{}}
 \caption{Lỗi thường gặp và cách khắc phục}\label{tab:troubleshoot}\\
@@ -637,9 +642,10 @@ ALL TESTS PASSED
 \code{idf.py: command not found} & Chưa mở terminal ESP-IDF; mở shortcut/script kích hoạt do EIM tạo. \\
 \code{Failed to connect to ESP32-C3} & Sai cổng; hoặc giữ nút BOOT, bấm RESET, thả BOOT rồi nạp lại. \\
 Biên dịch báo phân vùng đầy & Đang dùng \file{sdkconfig} cũ (1\,MB): làm theo hộp ``Lưu ý khi đã có cấu hình cũ'' ở Bước~4. \\
-Monitor lặp \code{Disconnected ... retrying} & Router/điểm phát chưa bật, ngoài tầm phủ sóng, hoặc sai SSID/mật khẩu trong menuconfig; kiểm tra lại Bước~4. \\
+Monitor lặp \code{Disconnected ... retrying} & Router/điểm phát chưa bật, ngoài tầm phủ sóng, hoặc sai SSID/mật khẩu trong menuconfig; kiểm tra lại Bước~4. Nếu log báo \code{SSID not found} thì mạng có thể chỉ phát ở 5\,GHz, hãy chọn tên mạng 2,4\,GHz. \\
+Đã đổi SSID trong menuconfig nhưng bo vẫn vào mạng cũ & Build ở thư mục gốc và trong \file{Server/} dùng hai tệp \file{sdkconfig} riêng: đổi đúng tệp của nơi đang build rồi nạp lại. Sửa \file{Kconfig.projbuild} không có tác dụng với \file{sdkconfig} đã có giá trị. \\
 Máy chủ nhận được bản tin nhưng client không thấy ACK, hoặc máy chủ không có dữ liệu dù client báo đã gửi & Router/điểm phát đang bật chế độ cô lập thiết bị (\emph{AP/client isolation}), chặn gói giữa các thiết bị trong mạng: tắt chế độ này trong trang quản trị router. Mạng khách (guest) thường bật sẵn chế độ này. \\
-Mã QR hiện nhưng chuyển khoản xong cổng không mở & Chưa có token SePay hoặc router mất Internet (xem dòng \code{SEPAY} trên monitor); kiểm tra nội dung chuyển khoản còn nguyên mã \code{PK\ldots}, số tiền đủ; người vận hành có thể bấm \code{Confirm paid}. \\
+Mã QR hiện nhưng chuyển khoản xong cổng không mở & Chưa có token SePay hoặc router mất Internet (xem dòng \code{SEPAY} trên monitor); kiểm tra nội dung chuyển khoản còn nguyên mã \code{PK\ldots}, số tiền đúng bằng phí (chuyển dư cũng không mở cổng); người vận hành có thể bấm \code{Confirm paid}. \\
 Bấm nút trên web không có tác dụng & Sai mã PIN: xóa dữ liệu trang (hoặc mở tab ẩn danh) rồi nhập lại. \\
 Arduino không thấy cổng ESP8266 & Cài driver CH340/CP2102; thử cáp USB khác (cáp chỉ sạc không truyền được dữ liệu). \\
 Thiếu \code{MFRC522.h} hoặc \code{DHT.h} & Cài thư viện như Mục~\ref{chap:caidat}. \\

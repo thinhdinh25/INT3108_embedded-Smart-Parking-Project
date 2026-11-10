@@ -6,14 +6,14 @@ PARKING := $(SERVER)/parking
 DISPLAY := $(SERVER)/display
 BUILD   := build
 
-CFLAGS   := -std=c11 -Wall -Wextra -Werror -O1 -g -I. -Istubs -I$(PARKING) -I$(DISPLAY)
+CFLAGS   := -std=c11 -Wall -Wextra -Werror -O1 -g -I. -Istubs -I$(PARKING) -I$(DISPLAY) -I$(SERVER)/barrier
 CXXFLAGS := -std=c++17 -Wall -Wextra -O1 -g -Wno-sign-compare -Wno-unused-parameter \
             -I. -Iarduino -Istubs -I$(PARKING)
 
 PARKING_SRC := $(PARKING)/json_scan.c $(PARKING)/parking_update.c \
                $(PARKING)/parking_state.c $(PARKING)/rfid_session.c $(PARKING)/payment.c
 
-TESTS := payment json_parsers rfid_session gif_frames sensor_client rfid_client
+TESTS := payment json_parsers rfid_session gif_frames gate_hold sensor_client rfid_client
 
 .PHONY: all clean
 all: $(addprefix $(BUILD)/test_,$(TESTS))
@@ -39,6 +39,9 @@ $(BUILD)/test_rfid_session: test_rfid_session.c $(PARKING_OBJ) | $(BUILD)
 
 $(BUILD)/test_gif_frames: test_gif_frames.c $(DISPLAY)/kaoruko_gif.c $(DISPLAY)/claude_gif.c | $(BUILD)
 	$(CC) $(CFLAGS) $^ -o $@
+
+$(BUILD)/test_gate_hold: test_gate_hold.c $(SERVER)/barrier/gate_hold.h | $(BUILD)
+	$(CC) $(CFLAGS) $< -o $@
 
 $(BUILD)/test_sensor_client: test_sensor_client.cpp ../SensorClient/SensorClient.ino $(PARKING_OBJ) | $(BUILD)
 	$(CXX) $(CXXFLAGS) test_sensor_client.cpp $(PARKING_OBJ) -o $@

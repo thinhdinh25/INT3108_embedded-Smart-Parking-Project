@@ -10,6 +10,9 @@ Bản tin UDP không được ký: thiết bị trong mạng có thể gửi th�
 Phụ thuộc router Wi-Fi chung; router bật cô lập thiết bị sẽ chặn broadcast & Ba bo giao tiếp qua điểm phát chung & Dùng router riêng cho bãi, tắt cô lập thiết bị; hoặc ESP-NOW giữa các bo \\
 Token SePay có toàn quyền đọc giao dịch và nằm trong flash máy chủ & SePay không giới hạn quyền token; máy chủ phải tự gọi API & Mã hóa flash (flash encryption) hoặc chuyển việc gọi SePay sang một máy chủ trung gian dùng webhook \\
 Mỗi lúc chỉ một xe thanh toán ở cổng ra & Một cổng ra, một màn hình QR; ví như MoMo bỏ nội dung chuyển khoản nên phải đối chiếu theo số tiền & Mỗi lượt một tài khoản ảo (VA) riêng theo đơn hàng \\
+Ứng dụng ngân hàng có thể cho sửa số tiền; chuyển sai thì cổng không mở và tiền không được hoàn tự động & VietQR chỉ điền sẵn số tiền, việc khóa ô nhập do từng ứng dụng quyết định; máy chủ chỉ đọc được giao dịch & Thêm quy trình hoàn tiền của người vận hành, hoặc cổng thanh toán có hoàn tiền qua API \\
+Xóa xe trên trang web không để lại dấu vết trong nhật ký; ai có PIN đều có thể cho xe ra mà không tính phí & Nút xóa chỉ dùng để sửa danh sách sai & Ghi một sự kiện \code{DELETED} vào nhật ký \\
+Còi cảnh báo xe không thẻ không tắt được bằng tay; cảm biến IR bị che hoặc hỏng làm còi kêu mãi & Chưa có nút tắt còi; còi chỉ dừng khi hai số khớp hoặc cảm biến mất kết nối & Thêm nút tắt còi trên trang web \\
 Chưa có trình duyệt nào gửi giờ sau mất điện thì thời gian mất điện chưa được tính & Máy chủ không có đồng hồ thời gian thực & Thêm module RTC DS3231 hoặc lấy giờ qua SNTP khi có Internet \\
 \bottomrule
 \end{longtable}

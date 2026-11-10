@@ -28,7 +28,7 @@ Nguyễn Việt Tiến & Cơ khí: mô hình bãi xe, cơ cấu thanh chắn ser
 \subsection{Nguyễn Chí Minh (24020232) — phần mềm và tích hợp}
 \begin{itemize}
   \item \textbf{Firmware máy chủ ESP32-C3}: dựng kiến trúc phân lớp, các tác vụ FreeRTOS
-        và cơ chế đồng bộ; UDP server, HTTP server với 13 route; mDNS
+        và cơ chế đồng bộ; UDP server, HTTP server với 14 route; mDNS
         \code{parking.local} tự thông báo lại khi đổi IP; xử lý lỗi \code{accept (23)}
         bằng giới hạn và thu hồi kết nối.
   \item \textbf{Màn hình ST7789}: driver SPI có DMA, giao diện \code{PARKSENSE}, hóa đơn,
@@ -40,7 +40,7 @@ Nguyễn Việt Tiến & Cơ khí: mô hình bãi xe, cơ cấu thanh chắn ser
   \item \textbf{Trang web giám sát}: sơ đồ bãi trực quan, điều khiển thanh chắn, nhật ký
         vào/ra kèm phí, cảnh báo lệch thẻ/cảm biến.
   \item \textbf{Kiểm thử}: lớp giả lập Arduino để chạy nguyên mã hai sketch trên máy tính;
-        6 bộ kiểm thử, 397 phép kiểm tra; công cụ giả lập client bằng Python.
+        6 bộ kiểm thử, 429 phép kiểm tra; công cụ giả lập client bằng Python.
   \item \textbf{Báo cáo}: phần thành phần ở Chương~\ref{chap:coso}, Chương~\ref{chap:thietke}, Chương~\ref{chap:trienkhai} và các sơ đồ Mermaid.
 \end{itemize}
 \textit{Các commit tiêu biểu}:
@@ -139,6 +139,7 @@ Nguyễn Việt Tiến & 24020322 & 33,3\% & 100\% \\
 \end{table}
 
 \vspace{1cm}
+\needspace{7\baselineskip}
 \noindent Xác nhận của các thành viên:
 \par\vspace{0.5cm}
 \noindent

@@ -79,7 +79,7 @@ static const char *SEPAY_BODY =
 static void test_sepay(void)
 {
     CHECK(sepay_has_payment(SEPAY_BODY, "PK3F9A2B", 10000));   /* bank app lower-cased the code */
-    CHECK(sepay_has_payment(SEPAY_BODY, "PK3F9A2B", 9000));    /* paid more than asked */
+    CHECK(!sepay_has_payment(SEPAY_BODY, "PK3F9A2B", 9000));   /* paid more than asked */
     CHECK(!sepay_has_payment(SEPAY_BODY, "PK3F9A2B", 15000));  /* paid too little */
     CHECK(!sepay_has_payment(SEPAY_BODY, "PK77AA01", 10000));  /* that one only paid 5 000 */
     CHECK(sepay_has_payment(SEPAY_BODY, "PK77AA01", 5000));

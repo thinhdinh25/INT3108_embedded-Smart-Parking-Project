@@ -108,7 +108,7 @@ bool sepay_has_payment(const char *body, const char *code, uint32_t amount_vnd)
         if (*start != '{' || !end || !field || field > end)
             continue;
         double amount = strtod(field + strlen("\"amount_in\":\""), NULL);
-        if (amount + 0.5 >= (double)amount_vnd)
+        if (amount > (double)amount_vnd - 0.5 && amount < (double)amount_vnd + 0.5)
             return true;
     }
     return false;

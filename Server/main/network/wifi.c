@@ -39,6 +39,11 @@ static void wifi_event_handler(void *arg, esp_event_base_t event_base,
                 const wifi_event_sta_disconnected_t *event = event_data;
                 ESP_LOGW(TAG, "Disconnected from SSID=%s (reason=%d), retrying...",
                          WIFI_STA_SSID, event->reason);
+                if (event->reason == WIFI_REASON_NO_AP_FOUND)
+                {
+                    ESP_LOGW(TAG, "SSID not found: the ESP32-C3 only sees 2.4 GHz, "
+                                  "so a 5 GHz network never shows up");
+                }
                 esp_wifi_connect();
                 break;
             }
@@ -100,7 +105,8 @@ esp_err_t wifi_start(void)
         .sta = {
             .ssid = WIFI_STA_SSID,
             .password = WIFI_STA_PASSWORD,
-            .threshold.authmode = WIFI_AUTH_WPA2_PSK,
+            /* An empty password means an open network, which a WPA2 minimum would reject. */
+            .threshold.authmode = WIFI_STA_PASSWORD[0] ? WIFI_AUTH_WPA2_PSK : WIFI_AUTH_OPEN,
             .pmf_cfg = {
                 .capable = true,
                 .required = false,

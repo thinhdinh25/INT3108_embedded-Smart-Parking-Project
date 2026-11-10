@@ -28,7 +28,7 @@ config PARKING_LCD_CS_GPIO
 config PARKING_LCD_BL_GPIO
     int "Display backlight GPIO (-1 if tied on)"
     range -1 21
-    default 5
+    default -1
 
 config PARKING_LCD_X_GAP
     int "Panel X offset"
@@ -39,6 +39,20 @@ config PARKING_LCD_Y_GAP
     int "Panel Y offset"
     range 0 320
     default 0
+
+endmenu
+
+menu "Parking barrier sensors"
+
+config PARKING_GATE_IN_IR_GPIO
+    int "Entry gate IR sensor GPIO (active-low; holds the barrier open)"
+    range 0 21
+    default 5
+
+config PARKING_GATE_OUT_IR_GPIO
+    int "Exit gate IR sensor GPIO (active-low; holds the barrier open)"
+    range 0 21
+    default 2
 
 endmenu
 

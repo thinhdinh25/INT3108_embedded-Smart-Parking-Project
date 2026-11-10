@@ -15,7 +15,7 @@ size_t vietqr_payload(char *out, size_t out_size, const char *bin, const char *a
 uint16_t vietqr_crc16(const char *data, size_t len);
 
 /* SePay /userapi/transactions/list response: true if a transaction whose content contains
- * `code` (any letter case) brought in at least `amount_vnd`. */
+ * `code` (any letter case) brought in exactly `amount_vnd`. */
 bool sepay_has_payment(const char *body, const char *code, uint32_t amount_vnd);
 
 /* Same response: true if a transaction to `account` (main account_number or VA sub_account)

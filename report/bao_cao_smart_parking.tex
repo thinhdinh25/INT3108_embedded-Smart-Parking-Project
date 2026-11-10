@@ -63,6 +63,7 @@
 \usepackage{fancyhdr}
 \usepackage{titlesec}
 \usepackage{listings}
+\usepackage{needspace}
 \usepackage{tikz}
 \usetikzlibrary{arrows.meta,positioning,shapes.geometric,shapes.misc,fit,calc,backgrounds}
 \usepackage{xurl}
@@ -140,9 +141,12 @@
   fonttitle=\bfseries,coltitle=accent,colbacktitle=boxA!55,
   title={#1},attach title to upper={.\ }}
 
+% Không để dòng đơn của một đoạn nằm tách ở đầu hoặc cuối trang
+\widowpenalty=10000 \clubpenalty=10000 \displaywidowpenalty=10000
+
 % Đặc tả use case: nhãn bên trái, nội dung bên phải, ngắt trang tự nhiên
 \newenvironment{usecase}[2]{%
-  \par\medskip\noindent\rule{\linewidth}{0.8pt}\par\nobreak
+  \par\needspace{9\baselineskip}\medskip\noindent\rule{\linewidth}{0.8pt}\par\nobreak
   \noindent{\large\bfseries #1 — #2}\par\nobreak\vspace{-2pt}
   \noindent\rule{\linewidth}{0.4pt}\par\nobreak
   \begin{description}[style=multiline,leftmargin=3.3cm,font=\bfseries\normalsize,
@@ -151,7 +155,7 @@
 
 % Bước trong hướng dẫn chạy
 \newcounter{buoc}
-\newcommand{\buoc}[1]{\stepcounter{buoc}\par\medskip\noindent
+\newcommand{\buoc}[1]{\stepcounter{buoc}\par\needspace{5\baselineskip}\medskip\noindent
   {\bfseries Bước \thebuoc.\ #1}\par\nobreak\smallskip}
 
 \begin{document}
@@ -248,7 +252,7 @@ VietQR để người lái chuyển khoản và tự xác nhận giao dịch qua
 Báo cáo gồm năm chương theo mẫu của học phần: giới thiệu đề tài; cơ sở lý thuyết và công cụ
 sử dụng; phân tích thiết kế hệ thống (10 use case, yêu cầu phi chức năng, kiến trúc, tác vụ,
 máy trạng thái); triển khai và lập trình hệ thống; kiểm thử và đánh giá. Bộ kiểm thử tự động
-gồm 6 bộ với 397 phép kiểm tra chạy trên máy tính — kể cả chạy lại chính mã nguồn Arduino
+gồm 6 bộ với 429 phép kiểm tra chạy trên máy tính — kể cả chạy lại chính mã nguồn Arduino
 của hai client trên phần cứng giả lập — và tất cả đều đạt.
 
 \medskip

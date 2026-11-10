@@ -138,6 +138,10 @@ footer { display: flex; align-items: center; justify-content: center; gap: 8px; 
 .log-table .event-in td:nth-child(3) { color: var(--terminal); }
 .log-table .event-full td:nth-child(3), .log-table .event-wrong_gate td:nth-child(3), .log-table .event-flood td:nth-child(3) { color: #f87171; }
 .log-empty td { color: var(--muted); text-align: center; }
+.parked-delete { padding: 4px 8px; border: 1px solid #ff5959; background: transparent; color: #ff8080; font: inherit; font-size: 9px; cursor: pointer; }
+.parked-delete:hover { background: #5a1111; color: #fff; }
+.parked-delete:disabled { cursor: wait; opacity: .6; }
+.parked-delete:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
 
 @media (max-width: 700px) {
     .dashboard { width: min(100% - 28px, 560px); }

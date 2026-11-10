@@ -167,6 +167,11 @@ static esp_err_t barrier_command_handler(httpd_req_t *req)
     esp_err_t err = cmd->target == BARRIER_IN    ? servo_set_in_open(cmd->open)
                     : cmd->target == BARRIER_OUT ? servo_set_out_open(cmd->open)
                                                  : servo_set_all_open(cmd->open);
+    if (err == ESP_ERR_NOT_ALLOWED)
+    {
+        httpd_resp_set_status(req, "409 Conflict");
+        return httpd_resp_sendstr(req, "Car in gate");
+    }
     if (err != ESP_OK)
         return httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Servo command failed");
     if (cmd->target == BARRIER_ALL)
@@ -213,6 +218,24 @@ static esp_err_t payment_confirm_handler(httpd_req_t *req)
     return httpd_resp_sendstr(req, "PAID");
 }
 
+/* POST /api/rfid/remove, body = card ID: deletes a car from the inside list. The barrier stays
+ * as it is, so a car that is really there still needs a manual barrier command to leave. */
+static esp_err_t rfid_remove_handler(httpd_req_t *req)
+{
+    if (!authorized(req))
+        return send_unauthorized(req);
+    char card[RFID_CARD_ID_MAX + 1];
+    int len = req->content_len < sizeof(card) ? httpd_req_recv(req, card, req->content_len) : -1;
+    if (len <= 0)
+        return httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "Card ID expected");
+    card[len] = '\0';
+    if (!rfid_session_remove(card))
+        return httpd_resp_send_err(req, HTTPD_404_NOT_FOUND, "Card is not inside");
+    parking_persist_save();
+    lcd_display_notify();
+    return httpd_resp_sendstr(req, "REMOVED");
+}
+
 static esp_err_t barrier_state_handler(httpd_req_t *req)
 {
     char response[40];
@@ -225,7 +248,7 @@ static esp_err_t barrier_state_handler(httpd_req_t *req)
 esp_err_t http_server_start(void)
 {
     httpd_config_t config = HTTPD_DEFAULT_CONFIG();
-    config.max_uri_handlers = 13; /* one per route below */
+    config.max_uri_handlers = 14; /* one per route below */
     /* Browsers keep several keep-alive connections open and the dashboard polls every
      * 1-2 s; without purging, idle connections fill every slot and new clients get
      * "error in accept (23)". Budget: 3 internal + 10 clients + 1 UDP = 14 of 16 sockets. */
@@ -261,6 +284,7 @@ esp_err_t http_server_start(void)
          .user_ctx = (void *)&barrier_commands[5]},
         {.uri = "/api/time", .method = HTTP_POST, .handler = time_set_handler},
         {.uri = "/api/payment/confirm", .method = HTTP_POST, .handler = payment_confirm_handler},
+        {.uri = "/api/rfid/remove", .method = HTTP_POST, .handler = rfid_remove_handler},
         {.uri = "/api/rfid", .method = HTTP_GET, .handler = rfid_log_get_handler},
         {.uri = "/api/parking", .method = HTTP_GET, .handler = parking_state_get_handler},
         {.uri = "/style.css", .method = HTTP_GET, .handler = style_get_handler},

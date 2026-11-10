@@ -10,7 +10,14 @@ thiện, các hạn chế đã khắc phục và các hạn chế còn tồn t�
 \section{Chiến lược kiểm thử}
 \begin{figure}[H]
 \centering
-\mmd[0.92][0.6]{testpyramid}
+\begin{tikzpicture}[
+  lv/.style={draw,rounded corners=2pt,font=\footnotesize,align=center,text width=4.5cm,minimum height=2.1cm},
+  arr/.style={-{Stealth[length=2.5mm]},draw=black!70}]
+\node[lv,fill=boxB] (a) at (0,0) {\textbf{Kiểm thử tự động trên máy tính}\\module máy chủ + mã nguồn hai client · 429 phép kiểm tra · vài giây};
+\node[lv,fill=boxC] (b) at (5.5,0) {\textbf{Kiểm thử tích hợp bằng công cụ giả lập Python}\\\texttt{udp\_sender.py} · \texttt{udp\_rfid\_sender.py}};
+\node[lv,fill=boxD] (c) at (11,0) {\textbf{Kiểm thử hệ thống trên phần cứng}\\30 kịch bản S1–S30};
+\draw[arr] (a) -- (b); \draw[arr] (b) -- (c);
+\end{tikzpicture}
 \caption{Ba tầng kiểm thử: càng xuống dưới càng nhanh, tự động và chạy thường xuyên}\label{fig:testpyramid}
 \end{figure}
 
@@ -27,13 +34,13 @@ Wi-Fi, UDP, đầu đọc MFRC522 và DHT11.
 \begin{tabularx}{\linewidth}{@{}lXr@{}}
 \toprule
 \textbf{Bộ} & \textbf{Nội dung kiểm tra} & \textbf{Kết quả} \\ \midrule
-\file{payment} & CRC16-CCITT với giá trị kiểm tra chuẩn \code{0x29B1}; chuỗi VietQR đúng từng trường (00, 01, 38, 53, 54, 58, 62, 63); trùng từng byte với mã VietQR mẫu đã công bố (\code{\ldots{}6304AB76}); từ chối BIN sai, tài khoản trống hoặc có ký tự lạ, số tiền 0, nội dung có khoảng trắng, bộ đệm quá nhỏ; tìm giao dịch SePay theo mã (kể cả mã viết thường), chấp nhận trả dư, từ chối trả thiếu và mã khác; đọc id giao dịch mới nhất & 38/38 \\
+\file{payment} & CRC16-CCITT với giá trị kiểm tra chuẩn \code{0x29B1}; chuỗi VietQR đúng từng trường (00, 01, 38, 53, 54, 58, 62, 63); trùng từng byte với mã VietQR mẫu đã công bố (\code{\ldots{}6304AB76}); từ chối BIN sai, tài khoản trống hoặc có ký tự lạ, số tiền 0, nội dung có khoảng trắng, bộ đệm quá nhỏ; tìm giao dịch SePay theo mã (kể cả mã viết thường), chỉ chấp nhận đúng số tiền, từ chối trả dư, trả thiếu và mã khác; đọc id giao dịch mới nhất & 38/38 \\
 \file{json\_parsers} & Bản tin hợp lệ (mọi thứ tự khóa, khoảng trắng, giới hạn dải); 22 bản tin \code{parking\_update} sai và 16 bản tin \code{rfid\_event} sai đều bị từ chối (thiếu/thừa khóa, khóa lặp, sai kiểu, ngoài dải, ký tự lạ, dữ liệu thừa, chuỗi có ký tự thoát); bản tin \code{climate} hợp lệ và 8 dạng sai; trường \code{seq} của \code{rfid\_event}: thiếu, bằng 0, âm, thập phân, số mũ, dạng chuỗi, vượt 32 bit, lặp khóa đều bị từ chối, giá trị $2^{32}-1$ đọc chính xác & 78/78 \\
-\file{rfid\_session} & Phí theo giờ (biên 0, 3600, 3601\,s, bão hòa); vào/ra, sai cổng; hóa đơn hết hạn đúng 60\,s; bãi đầy, tái sử dụng chỗ; nhiệt độ; nhật ký vòng (thứ tự, chỉ giữ 10); thông báo từ chối 5\,s; IR báo đủ 5 ô thì từ chối thẻ mới; lưu rồi khôi phục sau ``mất điện'' (phiên, nhật ký, các \code{seq} đã xử lý, đồng hồ); đặt giờ Unix dời đúng các mốc cũ, lần đặt thứ hai không dời lại; chỉ mốc sau khởi động bị dời khi bù thời gian mất điện; bản lưu hỏng bị bỏ qua; cảm biến im lặng quá 3\,s thành ngoại tuyến và dữ liệu cũ không chặn xe vào; cảnh báo ngập bật ở 20\,mm, tắt ở 15\,mm, chặn xe vào nhưng vẫn cho ra; doanh thu và lượt vào/ra theo ngày, sang ngày mới, ra khỏi cửa sổ 7 ngày; \code{seq} gửi lại chỉ được xử lý một lần, nhớ 16 giá trị gần nhất; thanh toán QR: quẹt ra thành chờ thanh toán, quẹt lại hiện cùng mã QR, xe khác bị báo bận, sai mã không hoàn tất, trả xong thì có hóa đơn, nhật ký \code{OUT} và doanh thu, không ra hai lần, hết 180\,s có thông báo, chuyển khoản muộn vẫn được nhận, xác nhận tiền mặt cho xe đang chờ và xe chưa quẹt ra, tắt thanh toán thì ra ngay như cũ & 149/149 \\
+\file{rfid\_session} & Phí theo giờ (biên 0, 3600, 3601\,s, bão hòa); vào/ra, sai cổng; hóa đơn hết hạn đúng 60\,s; bãi đầy, tái sử dụng chỗ; nhiệt độ; nhật ký vòng (thứ tự, chỉ giữ 10); thông báo từ chối 5\,s; IR báo đủ 5 ô thì từ chối thẻ mới; lưu rồi khôi phục sau ``mất điện'' (phiên, nhật ký, các \code{seq} đã xử lý, đồng hồ); đặt giờ Unix dời đúng các mốc cũ, lần đặt thứ hai không dời lại; chỉ mốc sau khởi động bị dời khi bù thời gian mất điện; bản lưu hỏng bị bỏ qua; cảm biến im lặng quá 3\,s thành ngoại tuyến và dữ liệu cũ không chặn xe vào; cảnh báo ngập bật ở 20\,mm, tắt ở 15\,mm, chặn xe vào nhưng vẫn cho ra; doanh thu và lượt vào/ra theo ngày, sang ngày mới, ra khỏi cửa sổ 7 ngày; \code{seq} gửi lại chỉ được xử lý một lần, nhớ 16 giá trị gần nhất; thanh toán QR: quẹt ra thành chờ thanh toán, quẹt lại hiện cùng mã QR, xe khác bị báo bận, sai mã không hoàn tất, trả xong thì có hóa đơn, nhật ký \code{OUT} và doanh thu, không ra hai lần, hết 180\,s có thông báo, chuyển khoản muộn vẫn được nhận, xác nhận tiền mặt cho xe đang chờ và xe chưa quẹt ra, tắt thanh toán thì ra ngay như cũ; xóa xe: rời danh sách, hủy lượt thanh toán và thông báo, không tính phí, không ghi nhật ký, thẻ vào lại được, không ảnh hưởng lượt của xe khác; cảnh báo xe không thẻ: chỉ bật sau đủ 15\,s, tắt khi quẹt thẻ hoặc cảm biến mất kết nối, đếm lại từ đầu khi có lại dữ liệu, không bật khi số thẻ nhiều hơn số xe & 181/181 \\
 \file{gif\_frames} & 28 khung ảnh động giải nén đủ; nền đã xóa và byte đã đảo đúng; từ chối yêu cầu sai kích thước & 89/89 \\
 \file{sensor\_client} & Chạy \file{SensorClient.ino}: gửi định kỳ đúng 1 gói/giây; gửi ngay sau 50\,ms khi có xe; lọc nhiễu 30\,ms; thứ tự S1–S5; báo cháy và hết cháy; quy đổi mực nước; mất/có lại Wi-Fi; mọi gói được bộ đọc của máy chủ chấp nhận & 18/18 \\
 \file{rfid\_client} & Chạy \file{RFIDClient.ino}: UID hex in hoa; cổng vào/ra; chống lặp 2\,s trên cả hai đầu đọc; UID 10 byte; DHT11 lỗi giữ giá trị cũ; gửi \code{climate} độc lập; chưa có ACK thì gửi lại mỗi 300\,ms, dừng khi có ACK đúng \code{seq}, bỏ qua ACK của sự kiện khác và gói lạ, bỏ cuộc sau 6 lần; \code{seq} bắt đầu từ số ngẫu nhiên và tăng dần; mọi gói được máy chủ chấp nhận & 25/25 \\ \midrule
-\textbf{Tổng} & & \textbf{397/397} \\
+\textbf{Tổng} & & \textbf{429/429} \\
 \bottomrule
 \end{tabularx}
 \end{table}
@@ -66,6 +73,7 @@ kiểm thử thường xuyên.
 Các lệnh ở Bước~10 (Mục~\ref{chap:huongdanchay}) gửi bản tin thật tới máy chủ thật,
 được dùng để kiểm tra màn hình, thanh chắn, còi, trang web và nhật ký khi chưa có đủ client.
 
+\needspace{14\baselineskip}
 \section{Kịch bản kiểm thử hệ thống trên phần cứng}
 \begin{longtable}{@{}p{0.9cm}>{\raggedright\arraybackslash}p{5.6cm}>{\raggedright\arraybackslash}p{7.9cm}@{}}
 \caption{Kịch bản kiểm thử trên phần cứng và hành vi mong đợi}\label{tab:systest}\\
@@ -90,7 +98,7 @@ S16 & Gửi cùng một gói quẹt thẻ (cùng \code{seq}) hai lần bằng sc
 S17 & Gửi xe, rút điện máy chủ 1 phút, cấp lại, mở web & Xe vẫn trong danh sách; khi trình duyệt gửi giờ, giờ vào đúng và thời gian gửi tính cả lúc mất điện \\
 S18 & Quẹt vào/ra 20 lần liên tiếp khi xung quanh có nhiều mạng Wi-Fi & Mỗi lượt quẹt có đúng một dòng nhật ký, cổng mở đúng một lần; RFID Client không báo \code{Máy chủ không phản hồi} \\
 S19 & Bấm \code{OPEN} trên web ở trình duyệt chưa nhập PIN / nhập sai & Yêu cầu nhập PIN; nhập sai thì cổng không mở \\
-S20 & Đặt một xe vào ô mà không quẹt thẻ & Sau 15\,s web hiện \code{CHECK THE LOT}; khi đủ 5 ô có xe thì thẻ mới bị từ chối \code{FULL} \\
+S20 & Đặt một xe vào ô mà không quẹt thẻ & Sau 15\,s còi kêu ngắt quãng, TFT hiện \code{CAR W/O CARD}, web hiện \code{CHECK THE LOT}; quẹt thẻ vào thì còi tắt; khi đủ 5 ô có xe thì thẻ mới bị từ chối \code{FULL} \\
 S21 & Để yên 1 phút không quẹt thẻ & Nhiệt độ trên TFT/web vẫn cập nhật (bản tin \code{climate}) \\
 S22 & Rút điện Sensor Client & Sau $\approx$ 3\,s TFT hiện \code{SENSOR OFFLINE}, 5 ô xám; web báo \code{SENSOR OFFLINE} \\
 S23 & Nhúng cảm biến nước sâu hơn 20\,mm, quẹt thẻ mới ở cổng vào & Còi kêu, \code{FLOOD WARNING}; thẻ bị từ chối \code{FLOOD ALARM}; xe trong bãi quẹt ra vẫn mở cổng \\
@@ -98,6 +106,9 @@ S24 & Gửi rồi lấy 2 xe, xem ô doanh thu trên web & \code{TODAY} tăng đ
 S25 & Thanh toán QR bật, có token SePay: quẹt thẻ ở cổng ra, quét mã trên TFT bằng ứng dụng ngân hàng và chuyển khoản & TFT hiện \code{SCAN TO PAY} với mã QR, phí và \code{NOTE PK...}; thanh chắn vẫn đóng; vài giây sau khi chuyển khoản, thanh chắn ra mở, TFT hiện hóa đơn, web có dòng \code{OUT}, doanh thu tăng \\
 S26 & Quẹt ra rồi không chuyển khoản trong 3 phút; sau đó bấm \code{Confirm paid} trên web & Sau 180\,s TFT báo \code{PAY AT BOOTH}; web hiện băng rôn \code{WAITING FOR PAYMENT}; bấm \code{Confirm paid} (nhập PIN) thì thanh chắn ra mở, có hóa đơn và dòng \code{OUT} \\
 S27 & Khi xe thứ nhất đang chờ thanh toán, quẹt thẻ xe thứ hai ở cổng ra & màn hình QR vẫn giữ, dòng cuối đổi thành \code{NEXT CAR: WAIT, ONE IS PAYING}; web \code{WAIT · PAYING}; mã QR của xe thứ nhất không đổi \\
+S28 & Bấm \code{Delete} ở một xe trong bảng \code{Inside now}, nhập PIN & Xe rời danh sách, doanh thu và nhật ký không đổi, thanh chắn đứng yên; nếu xe đang chờ thanh toán thì TFT rời màn hình QR; thẻ đó quẹt vào lại được \\
+S29 & Quẹt ra rồi chuyển dư 1.000\,VNĐ, giữ nguyên nội dung; sau đó chuyển đúng phí & Lần đầu thanh chắn vẫn đóng; lần sau thanh chắn mở, TFT hiện \code{THANK YOU} khoảng 5\,s không có ảnh động đè lên, rồi hóa đơn ở chân màn hình \\
+S30 & Đặt tên mạng của máy chủ thành mạng chỉ phát 5\,GHz & Monitor báo \code{SSID not found} kèm nhắc chip chỉ thấy 2,4\,GHz và tiếp tục thử lại \\
 \bottomrule
 \end{longtable}
 \section{Kết quả thực nghiệm}\label{sec:demo}
@@ -169,8 +180,8 @@ vi điều khiển, cùng kết nối vào mạng Wi-Fi chung của nhóm:
         tên \code{parking.local} luôn trỏ đúng IP; ba bo đều là trạm Wi-Fi nên bật theo
         thứ tự nào cũng được.
   \item \textbf{Hiệu năng}: màn hình phản ánh thay đổi trong khoảng 0,1\,s; thanh chắn mở
-        khoảng 0,2\,s sau khi quẹt thẻ; firmware dùng 31\% RAM tĩnh, còn 20\% flash ứng dụng.
-  \item \textbf{Chất lượng}: 397 phép kiểm thử tự động đều đạt, chạy cả mã nguồn hai
+        khoảng 0,2\,s sau khi quẹt thẻ; firmware dùng 31\% RAM tĩnh, còn 15\% flash ứng dụng.
+  \item \textbf{Chất lượng}: 429 phép kiểm thử tự động đều đạt, chạy cả mã nguồn hai
         client trên phần cứng giả lập.
   \item \textbf{Bền vững}: quẹt thẻ không bị mất (ACK và gửi lại), dữ liệu gửi xe giữ được qua mất điện, giờ thực không cần Internet.
   \item \textbf{Giám sát chủ động}: phát hiện Sensor Client mất kết nối sau 3\,s thay vì
@@ -214,7 +225,7 @@ RFID Client gửi bản tin \code{climate} mỗi 5\,s, độc lập với quẹt
 \file{rfid\_client}, \file{json\_parsers}; S21 \\ \midrule
 Số phiên RFID và cảm biến IR chưa được đối chiếu &
 Máy chủ từ chối thẻ mới khi IR báo đủ 5 ô có xe; trang web cảnh báo \code{CHECK THE LOT}
-khi số thẻ trong bãi lệch số ô có xe quá 15\,s &
+khi số thẻ trong bãi lệch số ô có xe quá 15\,s; số xe nhiều hơn số thẻ quá 15\,s thì còi kêu ngắt quãng và TFT hiện \code{CAR W/O CARD} &
 \file{rfid\_session}: đối chiếu IR; S20 \\
 \bottomrule
 \end{longtable}

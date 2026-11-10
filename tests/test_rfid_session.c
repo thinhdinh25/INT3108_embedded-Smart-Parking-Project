@@ -365,6 +365,109 @@ static void test_revenue_stats(void)
     CHECK(w.revenue_vnd == 0 && w.entries == 0);
 }
 
+static void test_remove_car(void)
+{
+    rfid_payment_t pay;
+    rfid_notice_t n;
+    rfid_receipt_t r, receipt_before;
+    rfid_log_entry_t log[RFID_LOG_SIZE];
+    rfid_active_t active[RFID_MAX_ACTIVE];
+    rfid_day_stats_t before, after, week;
+    rfid_session_enable_payment(180);
+
+    /* A car stuck at the exit with an expired QR: deleting it cancels both. */
+    CHECK(scan("DEL1", RFID_GATE_IN, clock_s()) == RFID_SCAN_ENTERED);
+    CHECK(scan("DEL1", RFID_GATE_OUT, clock_s()) == RFID_SCAN_AWAITING_PAYMENT);
+    fake_time_us += (int64_t)SEC(181);
+    rfid_session_get_payment(&pay);
+    rfid_session_get_notice(&n);
+    CHECK(pay.active && pay.expired && n.valid && strcmp(n.card_id, "DEL1") == 0);
+
+    const size_t inside_before = rfid_session_get_active(active, RFID_MAX_ACTIVE);
+    const size_t log_before = rfid_session_get_log(log, RFID_LOG_SIZE);
+    rfid_session_get_stats(&before, &week);
+    rfid_session_get_receipt(&receipt_before);
+
+    CHECK(rfid_session_remove("DEL1"));
+    CHECK(rfid_session_get_active(active, RFID_MAX_ACTIVE) == inside_before - 1);
+    rfid_session_get_payment(&pay);
+    rfid_session_get_notice(&n);
+    CHECK(!pay.active && !n.valid);
+
+    /* Nothing billed or logged. */
+    rfid_session_get_stats(&after, &week);
+    CHECK(after.revenue_vnd == before.revenue_vnd && after.exits == before.exits);
+    CHECK(rfid_session_get_log(log, RFID_LOG_SIZE) == log_before);
+    rfid_session_get_receipt(&r);
+    CHECK(r.valid == receipt_before.valid && strcmp(r.card_id, receipt_before.card_id) == 0);
+
+    CHECK(!rfid_session_remove("DEL1") && !rfid_session_remove("NOBODY") && !rfid_session_remove(NULL));
+
+    /* The other car's payment survives, and the deleted card can come in again. */
+    CHECK(scan("DEL2", RFID_GATE_IN, clock_s()) == RFID_SCAN_ENTERED);
+    CHECK(scan("DEL3", RFID_GATE_IN, clock_s()) == RFID_SCAN_ENTERED);
+    CHECK(scan("DEL2", RFID_GATE_OUT, clock_s()) == RFID_SCAN_AWAITING_PAYMENT);
+    CHECK(rfid_session_remove("DEL3"));
+    rfid_session_get_payment(&pay);
+    CHECK(pay.active && strcmp(pay.card_id, "DEL2") == 0);
+    CHECK(rfid_session_remove("DEL2"));
+    CHECK(scan("DEL1", RFID_GATE_IN, clock_s()) == RFID_SCAN_ENTERED);
+    CHECK(rfid_session_remove("DEL1"));
+
+    rfid_session_enable_payment(0);
+}
+
+static void test_lot_alarm(void)
+{
+    rfid_active_t active[RFID_MAX_ACTIVE];
+    /* Start from an empty lot: earlier tests leave cars inside. */
+    const size_t left_over = rfid_session_get_active(active, RFID_MAX_ACTIVE);
+    for (size_t i = 0; i < left_over; ++i)
+        CHECK(rfid_session_remove(active[i].card_id));
+    parking_state_t lot = {.slots = {1, 0, 0, 0, 0}};
+    /* One second of time with a fresh sensor update, as in the running system. */
+    #define ADVANCE(s) do { fake_time_us += (int64_t)SEC(s); parking_state_update(&lot); } while (0)
+    #define ALARM() rfid_session_lot_alarm((uint64_t)fake_time_us)
+    ADVANCE(1);
+
+    /* One car, no card: quiet while it might still be a car in transit, then the alarm. */
+    CHECK(!ALARM());
+    ADVANCE(14);
+    CHECK(!ALARM());
+    ADVANCE(1);
+    CHECK(ALARM());
+
+    /* The card is registered: counts match, alarm off. */
+    CHECK(scan("LOT1", RFID_GATE_IN, clock_s()) == RFID_SCAN_ENTERED);
+    CHECK(!ALARM());
+    ADVANCE(20);
+    CHECK(!ALARM());
+
+    /* A second car with no card restarts the wait from zero. */
+    lot.slots[1] = 1;
+    ADVANCE(1);
+    CHECK(!ALARM());
+    ADVANCE(15);
+    CHECK(ALARM());
+
+    /* Sensors silent: stale bays clear it and the wait restarts when they return. */
+    fake_time_us += (int64_t)SEC(SENSOR_TIMEOUT_US / 1000000 + 1);
+    CHECK(!ALARM());
+    ADVANCE(1);
+    CHECK(!ALARM());
+    ADVANCE(15);
+    CHECK(ALARM());
+
+    /* More cards than cars is not this alarm (a car on its way to a bay). */
+    lot.slots[0] = lot.slots[1] = 0;
+    ADVANCE(20);
+    CHECK(!ALARM());
+    CHECK(rfid_session_remove("LOT1"));
+    parking_state_update(&lot);
+    #undef ADVANCE
+    #undef ALARM
+}
+
 static void test_qr_payment(void)
 {
     rfid_payment_t pay;
@@ -459,5 +562,7 @@ int main(void)
     test_retry_dedupe();
     test_revenue_stats();
     test_qr_payment();
+    test_remove_car();
+    test_lot_alarm();
     return TEST_REPORT("rfid_session");
 }

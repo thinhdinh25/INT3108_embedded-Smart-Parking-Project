@@ -4,6 +4,15 @@
 
 #define BUZZER_GPIO GPIO_NUM_9
 
+static volatile bool alarm_on;
+static volatile bool warning_on;
+
+/* Active-low buzzer: LOW sounds. */
+static void buzzer_apply(void)
+{
+    gpio_set_level(BUZZER_GPIO, alarm_on || warning_on ? 0 : 1);
+}
+
 esp_err_t buzzer_start(void)
 {
     gpio_config_t config = {
@@ -24,6 +33,12 @@ esp_err_t buzzer_start(void)
 
 void buzzer_set_alarm(bool alarm)
 {
-    /* Active-low buzzer: LOW sounds. */
-    gpio_set_level(BUZZER_GPIO, alarm ? 0 : 1);
+    alarm_on = alarm;
+    buzzer_apply();
+}
+
+void buzzer_set_warning(bool warning)
+{
+    warning_on = warning;
+    buzzer_apply();
 }

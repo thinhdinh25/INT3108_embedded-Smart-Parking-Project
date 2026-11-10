@@ -143,6 +143,13 @@ void rfid_session_get_payment(rfid_payment_t *out);
 bool rfid_session_payment_done(const char *code);
 /* Paid in cash at the booth: completes the exit of a card that is inside. */
 bool rfid_session_pay_cash(const char *card_id);
+/* Operator deletes a car from the inside list: no fee, receipt, log entry or revenue, and its
+ * pending payment is cancelled. False if the card is not inside. */
+bool rfid_session_remove(const char *card_id);
+/* Call about once a second with a monotonic time. True once the IR sensors have reported more
+ * occupied bays than cards inside for RFID_LOT_ALARM_HOLD_US (a car came in without a card). */
+#define RFID_LOT_ALARM_HOLD_US 15000000ULL
+bool rfid_session_lot_alarm(uint64_t now_us);
 
 /* Today's totals and the totals of the last RFID_STATS_DAYS days, including today. */
 void rfid_session_get_stats(rfid_day_stats_t *today, rfid_day_stats_t *week);
