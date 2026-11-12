@@ -1,85 +1,50 @@
 % =====================================================================
-\chapter{CƠ SỞ LÝ THUYẾT VÀ CÔNG CỤ SỬ DỤNG}\label{chap:coso}\label{chap:thanhphan}
+\chapter{CƠ SỞ LÝ THUYẾT VÀ CÔNG NGHỆ SỬ DỤNG}\label{chap:coso}
 % =====================================================================
 
-Chương này trình bày cơ sở lý thuyết của một hệ thống nhúng thời gian thực, các vi điều
-khiển, thiết bị ngoại vi và linh kiện được chọn kèm thông số quan trọng, các giao tiếp
-ngoại vi và giao thức mạng mà hệ thống dùng, cùng môi trường và công cụ phát triển. Lý do
-chọn từng thành phần được trình bày trong các hộp \emph{Lý do}.
+Chương này trình bày các khái niệm nền tảng của hệ thống nhúng thời gian thực, đặc điểm
+của các vi điều khiển, cảm biến và cơ cấu chấp hành được lựa chọn, các giao tiếp ngoại vi,
+giao thức mạng và công cụ phát triển. Với mỗi thành phần, báo cáo phân tích lý do lựa chọn
+dựa trên yêu cầu của bài toán.
 
 \section{Hệ thống nhúng và hệ điều hành thời gian thực}
-\input{chapters/c2_lythuyet_rtos}
+Hệ thống nhúng là hệ thống máy tính chuyên dụng được gắn vào một thiết bị lớn hơn để thực
+hiện một nhóm chức năng cố định, chạy liên tục với tài nguyên hạn chế và giao tiếp trực tiếp
+với thế giới thực qua cảm biến và cơ cấu chấp hành. Thành phần trung tâm là vi điều khiển,
+tích hợp CPU, bộ nhớ và các khối ngoại vi như GPIO, bộ định thời, PWM, SPI, ADC và Wi-Fi trên
+cùng một chip. Một hệ thống nhúng được gọi là thời gian thực khi tính đúng đắn phụ thuộc cả
+vào thời điểm có kết quả. Trong đề tài, thanh chắn phải đóng đúng thời hạn, cảnh báo cháy
+phải mở thanh chắn ngay và màn hình phải phản ánh chỗ trống gần như tức thời. Đây là các
+ràng buộc thời gian mềm: trễ một chút không gây hỏng hóc nhưng làm giảm chất lượng dịch vụ.
 
-\subsection{Trên thiết bị: FreeRTOS cho máy chủ, vòng lặp Arduino cho client}
-\begin{table}[H]
-\centering\small
-\caption{Hệ điều hành trên từng bo mạch}\label{tab:os}
-\begin{tabularx}{\linewidth}{@{}lXX@{}}
-\toprule
-\textbf{Bo mạch} & \textbf{Hệ điều hành / mô hình chạy} & \textbf{Tính năng được dùng} \\ \midrule
-ESP32-C3 (máy chủ) & FreeRTOS (bản Espressif, đi kèm ESP-IDF 6.1), tick 100\,Hz & Tác vụ có ưu tiên, mutex, critical section, thông báo tác vụ, hẹn giờ \code{esp\_timer} \\
-ESP8266 (client) & Không dùng RTOS: một vòng lặp \code{loop()} không chặn trên Arduino core & Đếm thời gian bằng \code{millis()}, mọi việc chia nhỏ để Wi-Fi luôn được phục vụ \\
-\bottomrule
-\end{tabularx}
-\end{table}
+FreeRTOS là nhân hệ điều hành thời gian thực mã nguồn mở được Espressif tích hợp sẵn trong
+ESP-IDF. Mỗi công việc được tổ chức thành một tác vụ có ngăn xếp và mức ưu tiên riêng; bộ
+lập lịch ưu tiên có chiếm quyền luôn chạy tác vụ sẵn sàng có ưu tiên cao nhất. Tác vụ chờ sự
+kiện như gói tin đến hay thông báo từ tác vụ khác không tiêu tốn thời gian CPU. Để chia sẻ
+dữ liệu an toàn, FreeRTOS cung cấp vùng găng (critical section) cho các đoạn mã rất ngắn,
+mutex cho tài nguyên bị chiếm giữ lâu như bus SPI, và thông báo tác vụ (task notification)
+như cơ chế đánh thức nhẹ nhất giữa hai tác vụ. Ngoài ra, bộ hẹn giờ \code{esp\_timer} cho
+phép gọi một hàm sau một khoảng thời gian với độ phân giải micro giây.
 
-\begin{lydo}[Tại sao máy chủ cần RTOS còn client thì không]
-Máy chủ có nhiều việc chạy song song với chu kỳ khác nhau: nhận UDP bất kỳ lúc nào,
-phục vụ HTTP, vẽ màn hình, chạy ảnh động 10 khung/giây, đóng thanh chắn đúng giờ.
-Viết tất cả trong một vòng lặp buộc phải chia nhỏ mọi việc bằng tay, và chỉ một thao
-tác chậm (vẽ màn hình $\approx$ 23\,ms) cũng làm trễ việc khác. FreeRTOS cho phép mỗi
-việc là một tác vụ có ưu tiên riêng: việc quan trọng (thanh chắn, nhận bản tin)
-luôn chạy trước việc trang trí (ảnh động). Client chỉ làm tuần tự vài việc ngắn
-(đọc cảm biến, gửi gói tin) nên một vòng lặp không chặn là đủ và đơn giản hơn.
-\end{lydo}
-
-\subsection{Trên máy phát triển}
-Toàn bộ công cụ chạy trên \textbf{Windows 10/11, macOS hoặc Linux}. Nhóm đã phát
-triển trên macOS và Windows. Các lệnh trong báo cáo dùng được trên cả ba hệ điều
-hành, khác biệt duy nhất là tên cổng nối tiếp (Bảng~\ref{tab:ports}).
-
+Máy chủ của hệ thống phải đồng thời nhận gói tin, phục vụ trang web, vẽ màn hình và điều
+khiển thanh chắn; nếu viết trong một vòng lặp duy nhất, một thao tác chậm như vẽ toàn màn
+hình (khoảng 23\,ms) sẽ làm trễ mọi việc khác. FreeRTOS cho phép việc quan trọng như điều
+khiển cổng luôn được thực thi trước việc trang trí như ảnh động. Ngược lại, hai bo thu thập
+chỉ thực hiện tuần tự vài thao tác ngắn, nên một vòng lặp không chặn trên nền Arduino là đủ
+và đơn giản hơn.
 
 \section{Vi điều khiển}
-\subsection{Tổng quan ba nút phần cứng}
-\begin{table}[H]
-\centering\small
-\caption{Ba nút phần cứng và vai trò}\label{tab:nodes}
-\begin{tabularx}{\linewidth}{@{}lXl@{}}
-\toprule
-\textbf{Nút} & \textbf{Thiết bị gắn kèm và nhiệm vụ} & \textbf{Mã nguồn} \\ \midrule
-Máy chủ (ESP32-C3) & TFT ST7789, 2 servo SG90, còi. Nhận UDP, quản lý phiên RFID, tính phí, hiển thị mã VietQR và kiểm tra chuyển khoản qua SePay, điều khiển thanh chắn, web server, mDNS & \file{Server/main/} \\
-Sensor Client (ESP8266) & 5 cảm biến IR, cảm biến lửa, cảm biến mực nước. Lọc nhiễu và gửi trạng thái & \file{SensorClient/} \\
-RFID Client (ESP8266) & 2 đầu đọc MFRC522, DHT11. Gửi sự kiện quẹt thẻ và nhiệt độ & \file{RFIDClient/} \\
-\bottomrule
-\end{tabularx}
-\end{table}
-
-
-\subsection{ESP32-C3 SuperMini (máy chủ)}
-\begin{table}[H]
-\centering\small
-\caption{Thông số quan trọng của ESP32-C3 SuperMini}\label{tab:esp32c3}
-\begin{tabularx}{\linewidth}{@{}lX@{}}
-\toprule
-CPU & RISC-V 32 bit, 1 nhân, chạy ở 160\,MHz \\
-Bộ nhớ & 400\,KB SRAM (ứng dụng dùng được $\approx$ 321\,KB DRAM), 384\,KB ROM \\
-Flash & Flash ngoài, cấu hình 2\,MB; phân vùng ứng dụng 1,5\,MB \\
-Không dây & Wi-Fi 802.11 b/g/n 2,4\,GHz, Bluetooth LE 5 \\
-Ngoại vi dùng tới & SPI2 có GDMA, LEDC (PWM 14 bit), GPIO, bộ định thời \code{esp\_timer} 64 bit \\
-Nạp/gỡ lỗi & USB Serial/JTAG tích hợp (không cần chip USB-UART, không cần driver) \\
-Kích thước & $22\times18$\,mm \\
-\bottomrule
-\end{tabularx}
-\end{table}
+Hệ thống dùng ba bo mạch với hai loại vi điều khiển. Bảng~\ref{tab:mcu} so sánh ESP32-C3,
+được chọn cho máy chủ, với các phương án thường gặp trong đồ án sinh viên.
 
 \begin{table}[H]
 \centering\small
-\caption{So sánh phương án vi điều khiển cho máy chủ}\label{tab:mcu}
+\caption{So sánh các phương án vi điều khiển}\label{tab:mcu}
 \begin{tabularx}{\linewidth}{@{}lXXXX@{}}
 \toprule
-\textbf{Tiêu chí} & \textbf{ESP32-C3} & \textbf{ESP32} & \textbf{ESP8266} & \textbf{Arduino Uno} \\ \midrule
-CPU & RISC-V 160\,MHz & Xtensa 2 nhân 240\,MHz & Xtensa 80/160\,MHz & AVR 16\,MHz \\
-SRAM & 400\,KB & 520\,KB & $\sim$80\,KB & 2\,KB \\
+Tiêu chí & ESP32-C3 & ESP32 & ESP8266 & Arduino Uno \\ \midrule
+CPU & RISC-V 160\,MHz & 2 nhân 240\,MHz & Xtensa 80\,MHz & AVR 16\,MHz \\
+SRAM & 400\,KB & 520\,KB & khoảng 80\,KB & 2\,KB \\
 Wi-Fi & Có & Có & Có & Không \\
 PWM phần cứng & LEDC 14 bit & LEDC & PWM mềm & 8 bit \\
 SPI có DMA & Có & Có & Hạn chế & Không \\
@@ -88,189 +53,114 @@ RTOS chính thức & FreeRTOS & FreeRTOS & Hạn chế & Không \\
 \end{tabularx}
 \end{table}
 
-% Bắt đầu trang mới: trang trước đã đầy, hộp bắt đầu ở cuối trang sẽ tràn lên lề trên
-\newpage
-\begin{lydo}
-Máy chủ phải \emph{đồng thời} giữ Wi-Fi, chạy web server và UDP server, vẽ màn hình
-$240\times240$ màu 16 bit và phát PWM cho servo. Chỉ riêng ảnh màn hình đã cần
-$240\times240\times2 = 115\,200$ byte RAM — lớn hơn toàn bộ RAM của ESP8266 hay
-Arduino. ESP32-C3 có đủ RAM, có DMA cho SPI (CPU không phải chờ khi đẩy ảnh), có PWM
-phần cứng (servo không rung khi CPU bận mạng) và được hỗ trợ chính thức bởi
-ESP-IDF/FreeRTOS. So với ESP32 bản gốc, C3 rẻ và nhỏ hơn; một nhân 160\,MHz đã dư
-năng lực cho bài toán này.
-\end{lydo}
+Phân tích trong Bảng~\ref{tab:mcu} cho thấy yếu tố quyết định là bộ nhớ: riêng ảnh màn hình
+$240\times240$ điểm, mỗi điểm 16 bit, đã cần $115\,200$ byte RAM, lớn hơn toàn bộ RAM của
+ESP8266 hay Arduino Uno. ESP32-C3 SuperMini có đủ RAM, có DMA cho SPI để CPU không phải chờ
+khi truyền ảnh, có khối PWM phần cứng giữ xung servo ổn định khi CPU bận xử lý mạng, và được
+hỗ trợ chính thức bởi ESP-IDF cùng FreeRTOS. So với ESP32 bản gốc, ESP32-C3 rẻ và nhỏ hơn
+($22\times18$\,mm) trong khi một nhân 160\,MHz vẫn dư năng lực cho bài toán.
 
-\subsection{ESP8266 NodeMCU (hai client)}
+Hai bo thu thập dùng ESP8266 vì nhu cầu tính toán rất thấp: đọc vài chân số, một kênh ADC,
+giao tiếp SPI với đầu đọc thẻ và gửi gói tin nhỏ. ESP8266 là bo Wi-Fi rẻ, phổ biến và có hệ
+sinh thái thư viện Arduino phong phú cho RC522 và DHT11. Việc tách thành hai bo riêng xuất
+phát từ giới hạn số chân: màn hình, servo, còi và hai cảm biến cổng đã dùng 10 trong số
+khoảng 13 chân khả dụng của ESP32-C3 SuperMini.
+
+\section{Cảm biến và cơ cấu chấp hành}
+Các cảm biến và cơ cấu chấp hành được chọn theo ba tiêu chí: giá thành thấp, làm việc ở mức
+logic 3,3\,V và tốn ít chân. Bảng~\ref{tab:linhkien} tổng hợp thông số chính và vai trò của
+từng linh kiện trong hệ thống.
+
 \begin{table}[H]
 \centering\small
-\caption{Thông số quan trọng của ESP8266}\label{tab:esp8266}
-\begin{tabularx}{\linewidth}{@{}lX@{}}
+\caption{Cảm biến, cơ cấu chấp hành và thông số chính}\label{tab:linhkien}
+\begin{tabularx}{\linewidth}{@{}>{\raggedright\arraybackslash}p{3.4cm}>{\raggedright\arraybackslash}p{5.4cm}X@{}}
 \toprule
-CPU & Tensilica L106 32 bit, 80\,MHz \\
-Bộ nhớ & $\sim$80\,KB RAM dữ liệu cho người dùng, flash 4\,MB trên bo NodeMCU \\
-Ngoại vi dùng tới & 1 kênh ADC 10 bit (A0), SPI phần cứng (HSPI), GPIO \\
-Không dây & Wi-Fi 802.11 b/g/n, chạy được chế độ STA hoặc AP \\
+Linh kiện & Thông số chính & Vai trò \\ \midrule
+Cảm biến hồng ngoại phản xạ $\times7$ & Tầm 2--30\,cm, bộ so sánh LM393, ngõ ra số tích cực mức thấp & 5 ô đỗ và 2 cổng \\
+Cảm biến lửa & Bước sóng 760--1100\,nm, góc khoảng 60°, ngõ ra số có ngưỡng & Phát hiện cháy \\
+Cảm biến mực nước & Vùng đo khoảng 40\,mm, ngõ ra tương tự & Phát hiện ngập \\
+Đầu đọc RFID MFRC522 $\times2$ & 13,56\,MHz, ISO 14443A, giao tiếp SPI, 3,3\,V & Đọc thẻ ở hai cổng \\
+Cảm biến DHT11 & 0--50\,°C, sai số $\pm2$\,°C, giao thức một dây & Nhiệt độ môi trường \\
+Servo SG90 $\times2$ & 4,8--6\,V, mô-men khoảng 1,8\,kg$\cdot$cm, điều khiển PWM 50\,Hz & Nâng hạ thanh chắn \\
+Màn hình TFT ST7789 & 1,54 inch, $240\times240$, IPS, SPI tối đa khoảng 62\,MHz & Hiển thị tại cổng \\
+Còi báo (module) & Tích cực mức thấp & Báo cháy, ngập, xe không thẻ \\
 \bottomrule
 \end{tabularx}
 \end{table}
 
-\begin{lydo}
-Hai client chỉ đọc vài chân số, một chân ADC, giao tiếp SPI với RC522 và gửi gói
-UDP nhỏ — nhu cầu tính toán rất thấp. ESP8266 là bo Wi-Fi rẻ và phổ biến nhất, có
-ADC, có hệ sinh thái thư viện Arduino lớn (MFRC522, DHT, ArduinoOTA). Cần tách thành hai
-bo riêng vì máy chủ không đủ chân: màn hình, servo và còi đã dùng 9 chân trong số khoảng 13
-chân khả dụng của ESP32-C3 SuperMini.
-\end{lydo}
+Theo Bảng~\ref{tab:linhkien}, cảm biến hồng ngoại phản xạ được dùng cho cả ô đỗ và cổng vì
+khoảng cách tới thân xe mô hình chỉ vài centimet, nằm trong tầm đo, và mỗi cảm biến chỉ tốn
+một chân. Cảm biến siêu âm cho khoảng cách chính xác hơn nhưng tốn hai chân và phải đo thời
+gian phản hồi. Cảm biến lửa hồng ngoại phản ứng nhanh hơn cảm biến khói hay nhiệt, phù hợp
+với yêu cầu mở lối thoát kịp thời. Đầu đọc MFRC522 đọc được các loại thẻ MIFARE phổ biến như
+thẻ sinh viên hay móc khóa từ.
 
+\section{Giao tiếp ngoại vi}
+Mỗi thiết bị ngoại vi được nối với vi điều khiển qua một giao tiếp phù hợp với bản chất tín
+hiệu của nó. Bảng~\ref{tab:interfaces} liệt kê các giao tiếp được sử dụng.
 
-\section{Thiết bị ngoại vi và linh kiện}
-\subsection{Thiết bị chấp hành và hiển thị}
 \begin{table}[H]
 \centering\small
-\caption{Thiết bị chấp hành, hiển thị và thông số quan trọng}\label{tab:actuators}
-\begin{tabularx}{\linewidth}{@{}p{3.1cm}X@{}}
+\caption{Các giao tiếp ngoại vi được sử dụng}\label{tab:interfaces}
+\begin{tabularx}{\linewidth}{@{}p{2.3cm}X>{\raggedright\arraybackslash}p{4.2cm}@{}}
 \toprule
-\textbf{Thiết bị} & \textbf{Thông số quan trọng} \\ \midrule
-TFT ST7789 1,54" & $240\times240$, IPS, 262K màu (dùng RGB565 16 bit), SPI chỉ ghi, chu kỳ ghi tối thiểu $\approx$ 16\,ns ($\approx$ 62\,MHz); hệ thống chạy 40\,MHz \\
-Servo SG90 $\times2$ & 4,8–6\,V; mô-men $\approx$ 1,8\,kg$\cdot$cm; tốc độ $\approx$ 0,1\,s/60°; điều khiển PWM 50\,Hz, xung $\approx$ 500–2400\,µs cho 0–180° \\
-Còi (module) & Tích cực mức thấp: kêu khi chân tín hiệu ở mức 0 \\
+Giao tiếp & Nguyên lý & Thiết bị \\ \midrule
+GPIO & Chân vào ra số mức 0 hoặc 1, có điện trở kéo lên hoặc kéo xuống nội & 7 cảm biến IR, cảm biến lửa, còi \\
+PWM (LEDC) & Khối phần cứng phát xung có chu kỳ cố định và độ rộng xung điều chỉnh được, CPU không phải đảo chân & 2 servo SG90 \\
+SPI & Bus nối tiếp đồng bộ gồm SCK, MOSI, MISO và một chân CS cho mỗi thiết bị; có thể dùng DMA & Màn hình ST7789, 2 đầu đọc MFRC522 \\
+ADC & Chuyển điện áp tương tự thành số, ESP8266 có một kênh 10 bit & Cảm biến mực nước \\
+Một dây & Giao thức riêng của DHT11, dữ liệu 40 bit mã hóa bằng độ rộng xung & Cảm biến nhiệt độ \\
 \bottomrule
 \end{tabularx}
 \end{table}
 
-\subsection{Cảm biến}
-\begin{table}[H]
-\centering\small
-\caption{Cảm biến, thông số và lý do lựa chọn}\label{tab:sensors}
-\begin{tabularx}{\linewidth}{@{}p{2.9cm}p{4.0cm}X@{}}
-\toprule
-\textbf{Cảm biến} & \textbf{Thông số} & \textbf{Lý do lựa chọn} \\ \midrule
-IR phản xạ HW-201 (họ FC-51) $\times5$ & 2–30\,cm, bộ so sánh LM393 có biến trở, ngõ ra số tích cực mức thấp & Rẻ, phát hiện vật ở cự ly vài cm hợp với xe mô hình, chỉ tốn 1 chân. Cảm biến siêu âm chính xác hơn nhưng tốn 2 chân/cảm biến và phải đo thời gian. \\
-Cảm biến lửa (module 4 chân AO/DO) & Bước sóng 760–1100\,nm, góc $\approx$ 60°, ngõ ra số có ngưỡng & Phản ứng nhanh hơn cảm biến khói/nhiệt; ngõ ra số có sẵn ngưỡng. \\
-Mực nước (điện trở) & Vùng đo $\approx$ 40\,mm, ngõ ra tương tự & Đơn giản, chỉ cần 1 chân ADC, hợp với mô hình tầng hầm. \\
-RFID MFRC522 $\times2$ & 13,56\,MHz, ISO 14443A (MIFARE), SPI, 3,3\,V, khoảng cách đọc vài cm & Đọc được thẻ phổ biến (thẻ sinh viên, móc khóa), thư viện ổn định, giá rẻ. \\
-DHT11 & 0–50\,°C ($\pm$2\,°C), 20–90\%RH, đọc tối đa 1 lần/giây & Đủ cho giám sát môi trường, chỉ cần 1 chân. \\
-\bottomrule
-\end{tabularx}
-\end{table}
+Điểm chung của các lựa chọn trong Bảng~\ref{tab:interfaces} là ưu tiên khối ngoại vi phần
+cứng thay vì điều khiển chân bằng phần mềm. PWM phần cứng giữ xung servo ổn định ngay cả khi
+CPU bận vẽ màn hình, còn SPI có DMA truyền 115\,KB dữ liệu ảnh mà CPU không phải sao chép từng
+byte. Nếu tạo xung bằng phần mềm, chỉ một ngắt Wi-Fi cũng đủ làm servo rung.
 
+\section{Giao thức mạng và thanh toán}
+Các bo mạch và điện thoại của người vận hành liên lạc qua một mạng Wi-Fi chung. Hệ thống sử
+dụng các giao thức sau:
+\begin{itemize}
+  \item Wi-Fi 802.11 b/g/n băng tần 2,4\,GHz ở chế độ trạm, địa chỉ IP do router cấp qua DHCP;
+  \item UDP, giao thức không kết nối, độ trễ thấp, cho phép gửi quảng bá (broadcast) tới mọi
+        thiết bị trong mạng nên bo thu thập không cần biết địa chỉ của máy chủ;
+  \item HTTP cho trang web quản lý và các API dạng JSON, HTTPS khi máy chủ truy vấn SePay;
+  \item mDNS để phân giải tên \code{parking.local} trong mạng cục bộ mà không cần máy chủ DNS;
+  \item VietQR, chuẩn mã QR chuyển khoản liên ngân hàng của NAPAS dựa trên chuẩn EMVCo, gồm
+        chuỗi các trường dạng mã, độ dài và giá trị, kết thúc bằng mã kiểm tra CRC16.
+\end{itemize}
 
-\input{chapters/c2_giaotiep}
+UDP được chọn thay cho TCP hay MQTT vì phần lớn dữ liệu là trạng thái được gửi lặp lại mỗi
+giây: mất một gói chỉ làm trễ tối đa một giây, trong khi chi phí bắt tay, bộ đệm cho mỗi kết
+nối và máy chủ trung gian (broker) là đáng kể trên vi điều khiển. Riêng sự kiện quẹt thẻ
+không được gửi lặp lại, nên hệ thống bổ sung cơ chế xác nhận và gửi lại ở tầng ứng dụng
+(Mục~\ref{sec:uc02}).
 
-\section{Môi trường và công cụ phát triển}\label{chap:caidat}
-\subsection{Thành phần phần mềm}
+\section{Công cụ phát triển}
+Toàn bộ phần mềm sử dụng trong đề tài là miễn phí và mã nguồn mở. Bảng~\ref{tab:software}
+liệt kê các thành phần chính.
+
 \begin{table}[H]
 \centering\small
 \caption{Thành phần phần mềm và vai trò}\label{tab:software}
-\begin{tabularx}{\linewidth}{@{}p{4.3cm}p{2.5cm}X@{}}
+\begin{tabularx}{\linewidth}{@{}p{4.6cm}X@{}}
 \toprule
-\textbf{Thành phần} & \textbf{Phiên bản} & \textbf{Vai trò} \\ \midrule
-ESP-IDF & 6.1 & Framework chính thức cho ESP32-C3: driver, Wi-Fi, lwIP, HTTP server \\
-FreeRTOS & đi kèm ESP-IDF & Hệ điều hành thời gian thực: tác vụ, ưu tiên, mutex, thông báo tác vụ \\
-\code{esp\_lcd} + SPI master & ESP-IDF & Driver ST7789, truyền ảnh qua DMA \\
-LEDC, \code{esp\_timer} & ESP-IDF & PWM servo; hẹn giờ đóng thanh chắn \\
-\code{esp\_http\_server} & ESP-IDF & Phục vụ trang web và API JSON \\
-\code{espressif/mdns} & 1.14.1 & Tên \code{parking.local} trong mạng cục bộ \\
-\code{espressif/qrcode} & 0.1.0 & Mã hóa mã QR (thư viện qrcodegen của Nayuki) cho màn hình thanh toán \\
-\code{esp\_http\_client},\newline\code{esp\_crt\_bundle} & ESP-IDF & Gọi API SePay qua HTTPS, kiểm tra chứng chỉ bằng bộ chứng chỉ gốc có sẵn \\
-Arduino core ESP8266 & 3.x & Nền tảng cho hai client \\
-MFRC522, DHT sensor library & thư viện Arduino & Đọc RFID, đọc DHT11 \\
-ArduinoOTA & đi kèm core & Nạp firmware client qua Wi-Fi \\
-HTML/CSS/JavaScript & thuần & Trang web, không framework, không CDN \\
+Thành phần & Vai trò \\ \midrule
+ESP-IDF 6.1 và FreeRTOS & Framework cho máy chủ: driver, Wi-Fi, TCP/IP, HTTP, NVS, hệ điều hành \\
+\code{esp\_lcd}, LEDC, \code{esp\_timer} & Driver màn hình qua SPI DMA, PWM cho servo, hẹn giờ đóng thanh chắn \\
+\code{espressif/mdns}, \code{espressif/qrcode} & Tên \code{parking.local}; mã hóa mã QR thanh toán \\
+Arduino core ESP8266, thư viện MFRC522 và DHT & Nền tảng và thư viện thiết bị cho hai bo thu thập \\
+HTML, CSS, JavaScript thuần & Trang web quản lý nhúng trong firmware, không phụ thuộc thư viện ngoài \\
+Trình biên dịch C/C++ trên máy tính & Chạy bộ kiểm thử tự động không cần phần cứng \\
 \bottomrule
 \end{tabularx}
 \end{table}
 
-\subsection{Bản quyền phần mềm}
-Mọi phần mềm dùng trong đề tài đều \textbf{miễn phí và mã nguồn mở}, nên không cần
-bản dùng thử (trial) hay giấy phép trả phí:
-\begin{table}[H]
-\centering\small
-\caption{Phần mềm cần cài và giấy phép}\label{tab:licenses}
-\begin{tabularx}{\linewidth}{@{}lXl@{}}
-\toprule
-\textbf{Phần mềm} & \textbf{Dùng để} & \textbf{Giấy phép} \\ \midrule
-ESP-IDF 6.1 (qua ESP-IDF Installation Manager) & Biên dịch, nạp firmware máy chủ & Apache 2.0 \\
-Visual Studio Code + ESP-IDF extension (tùy chọn) & Soạn thảo, biên dịch/nạp bằng giao diện & MIT / Apache 2.0 \\
-Arduino IDE 2.x & Biên dịch, nạp hai client & AGPL-3.0 \\
-Arduino core ESP8266 & Hỗ trợ bo ESP8266 & LGPL-2.1 \\
-MFRC522, DHT sensor library & Thư viện thiết bị & Unlicense / MIT \\
-Python 3 & Chạy công cụ giả lập client & PSF \\
-Trình biên dịch C/C++ (clang hoặc gcc) & Chạy bộ kiểm thử trên máy tính & Apache 2.0 / GPL \\
-Git & Lấy mã nguồn & GPL-2.0 \\
-\bottomrule
-\end{tabularx}
-\end{table}
-
-\section{Cài đặt từng phần mềm}
-\subsection{ESP-IDF 6.1 (cho máy chủ)}
-\begin{enumerate}
-  \item Tải \textbf{ESP-IDF Installation Manager (EIM)} tại
-        \url{https://dl.espressif.com/dl/eim/} và cài như ứng dụng thông thường.
-  \item Mở EIM, chọn \textbf{ESP-IDF v6.1}, mục tiêu \textbf{esp32c3}, bấm cài đặt.
-        EIM tự tải trình biên dịch RISC-V, Python và các công cụ.
-  \item Mở terminal ESP-IDF. Windows: lối tắt ``ESP-IDF 6.1 PowerShell'' do EIM tạo.
-        macOS/Linux: nạp script kích hoạt do EIM tạo, ví dụ:
-\begin{lstlisting}[style=shell]
-source ~/.espressif/tools/activate_idf_v6.1.sh
-\end{lstlisting}
-  \item Kiểm tra: \code{idf.py --version} phải in \code{ESP-IDF v6.1}.
-\end{enumerate}
-ESP32-C3 SuperMini dùng USB Serial/JTAG tích hợp nên \textbf{không cần cài driver}.
-
-\subsection{Arduino IDE và ESP8266 (cho hai client)}
-\begin{enumerate}
-  \item Cài Arduino IDE 2.x từ \url{https://www.arduino.cc/en/software}.
-  \item \emph{File → Preferences → Additional boards manager URLs}, thêm:\\
-        \url{https://arduino.esp8266.com/stable/package_esp8266com_index.json}
-  \item \emph{Tools → Board → Boards Manager}, tìm \textbf{esp8266}, cài.
-  \item \emph{Tools → Manage Libraries}, cài \textbf{MFRC522} (GithubCommunity) và
-        \textbf{DHT sensor library} (Adafruit, chấp nhận cài kèm Adafruit Unified Sensor).
-  \item Bo NodeMCU dùng chip USB-UART CH340 hoặc CP2102: nếu máy không nhận cổng,
-        cài driver tương ứng của nhà sản xuất chip.
-\end{enumerate}
-
-\subsection{Công cụ cho giả lập và kiểm thử}
-\begin{itemize}
-  \item \textbf{Python 3.8+}: có sẵn trên macOS/Linux; Windows tải tại python.org. Không cần thư viện ngoài.
-  \item \textbf{Trình biên dịch C/C++}: macOS \code{xcode-select --install}; Ubuntu
-        \code{sudo apt install build-essential}; Windows dùng MSYS2/MinGW hoặc WSL.
-\end{itemize}
-
-\section{Phần mềm mô phỏng và các tính năng chính}
-Đề tài dùng hai công cụ mô phỏng do nhóm tự viết, giúp phát triển và kiểm tra hệ
-thống khi chưa có (hoặc không mang theo) đủ phần cứng.
-
-\subsection{Bộ giả lập client bằng Python (\file{examples/})}
-\begin{table}[H]
-\centering\small
-\caption{Công cụ giả lập client}\label{tab:simulators}
-\begin{tabularx}{\linewidth}{@{}lX@{}}
-\toprule
-\textbf{Công cụ} & \textbf{Tính năng} \\ \midrule
-\file{udp\_sender.py} & Giả lập Sensor Client: gửi một bản tin \code{parking\_update} (5 ô đỗ, mực nước, cháy) tới máy chủ thật qua UDP broadcast \code{255.255.255.255} \\
-\file{udp\_rfid\_sender.py} & Giả lập RFID Client: gửi \code{rfid\_event} với UID bất kỳ và cổng \code{--gate in|out}; chạy hai lần để giả lập vào rồi ra \\
-\file{udp\_sender\_espidf.c} & Ví dụ gửi bản tin từ một bo ESP-IDF khác \\
-\bottomrule
-\end{tabularx}
-\end{table}
-Máy tính chỉ cần kết nối cùng mạng Wi-Fi chung với máy chủ (script mặc định gửi tới \code{255.255.255.255:3333}); máy chủ không phân biệt bản tin đến từ ESP8266 thật hay từ script, nên toàn bộ màn hình, thanh chắn, còi, trang web và
-nhật ký đều được kiểm tra như thật.
-
-\subsection{Mô phỏng phần cứng Arduino trên máy tính (\file{tests/arduino/})}
-Đây là lớp giả lập các thư viện Arduino/ESP8266: đồng hồ \code{millis()} điều khiển
-được, mức logic của từng chân, giá trị ADC, Wi-Fi bật/tắt, gói UDP được ghi lại,
-đầu đọc RFID có thể ``đặt thẻ'' và DHT11 trả nhiệt độ tùy ý. Nhờ vậy \emph{chính mã
-nguồn} \file{SensorClient.ino} và \file{RFIDClient.ino} được biên dịch và chạy trên
-máy tính, mỗi bản tin chúng gửi được đọc bằng chính bộ đọc JSON của máy chủ
-để bảo đảm hai bên ``nói cùng một ngôn ngữ''. Lớp giả lập còn có hàng đợi gói UDP đến (để gửi ACK cho RFID Client) và bộ sinh số
-ngẫu nhiên của ESP8266. Chi tiết ở Chương~\ref{chap:kiemthu}.
-
-\begin{lydo}[Tại sao tự viết công cụ mô phỏng thay vì dùng trình mô phỏng có sẵn]
-Các trình mô phỏng vi điều khiển trực tuyến hỗ trợ ESP32-C3 nhưng không mô phỏng
-được việc ba bo mạch nói chuyện với nhau qua Wi-Fi, và không có mô hình cho cả
-MFRC522 lẫn module lửa/nước cụ thể của nhóm. Giả lập ở mức \emph{giao thức} (script
-Python gửi bản tin thật) và ở mức \emph{thư viện} (đồng hồ, chân, UDP giả) kiểm tra
-đúng phần logic nhóm tự viết, chạy trong vài giây, lặp lại được và không phụ thuộc
-dịch vụ bên ngoài.
-\end{lydo}
+Như Bảng~\ref{tab:software} cho thấy, trang web được viết bằng HTML, CSS và JavaScript thuần
+và nhúng trực tiếp vào firmware, nên vẫn mở được khi router mất kết nối Internet. Bộ kiểm thử
+biên dịch mã nghiệp vụ của máy chủ và mã nguồn hai bo thu thập trên máy tính cùng các thư viện
+giả lập phần cứng, giúp kiểm tra logic trong vài giây mà không cần mô hình
+(Chương~\ref{chap:kiemthu}).

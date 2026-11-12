@@ -17,7 +17,9 @@ sequenceDiagram
   S->>S: Lưu phiên + nhật ký vào NVS
   S->>B: servo_open_for(IN, 3000)
   S-)L: thông báo tác vụ: vẽ lại
-  B->>B: Mở 90°, hẹn giờ 3 s → đóng 0°
+  B->>B: Mở 90°, hẹn giờ 3 s
+  B->>B: Hết 3 s: IR cổng còn bị che → giữ mở, kiểm lại mỗi 50 ms
+  B->>B: Tia IR thông liên tục 1 s → đóng 0°
   end
   rect rgb(255, 243, 224)
   Note over C,S: Gói tin bị mất
@@ -29,6 +31,6 @@ sequenceDiagram
   Note over U,L: Lấy xe
   S->>R: rfid_session_scan()
   R-->>S: EXITED, phí = max(1, ⌈t/3600⌉) × 5000
-  S->>B: servo_open_for(OUT, 3000)
+  S->>B: servo_open_for(OUT, 3000), đóng theo cùng điều kiện IR
   S-)L: Hóa đơn 60 s: UID, thời gian, phí
   end

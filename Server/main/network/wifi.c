@@ -14,6 +14,12 @@
 #define WIFI_STA_PASSWORD CONFIG_PARKING_WIFI_PASSWORD
 
 static const char *TAG = "WIFI_STA";
+static esp_netif_t *s_wifi_sta_netif;
+
+esp_netif_t *wifi_sta_netif(void)
+{
+    return s_wifi_sta_netif;
+}
 
 static void wifi_event_handler(void *arg, esp_event_base_t event_base,
                                int32_t event_id, void *event_data)
@@ -74,7 +80,8 @@ esp_err_t wifi_start(void)
         return err;
     }
 
-    if (esp_netif_create_default_wifi_sta() == NULL)
+    s_wifi_sta_netif = esp_netif_create_default_wifi_sta();
+    if (s_wifi_sta_netif == NULL)
     {
         ESP_LOGE(TAG, "Failed to create Wi-Fi STA interface");
         return ESP_FAIL;

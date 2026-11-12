@@ -2,85 +2,119 @@
 \chapter{GIỚI THIỆU ĐỀ TÀI}\label{chap:gioithieu}
 % =====================================================================
 
-\section{Bối cảnh}
-Tại các đô thị lớn như Hà Nội, số lượng ô tô và xe máy tăng nhanh hơn nhiều so với
-diện tích bãi đỗ. Người lái thường phải đi vòng nhiều lần để tìm chỗ trống, gây ùn
-tắc cục bộ và lãng phí nhiên liệu. Phần lớn bãi xe hiện nay vẫn vận hành thủ công:
-vé giấy, ghi biển số bằng tay, tính tiền bằng ước lượng, không biết trước còn bao
-nhiêu chỗ và hầu như không có cơ chế cảnh báo an toàn khi xảy ra cháy hoặc ngập
-nước — hai rủi ro thường gặp ở tầng hầm.
+\section{Đặt vấn đề}
+Tại các đô thị lớn, số lượng ô tô tăng nhanh hơn nhiều so với diện tích bãi đỗ. Người lái
+thường phải đi vòng để tìm chỗ trống, gây ùn tắc cục bộ và lãng phí nhiên liệu. Ở các bãi
+quy mô nhỏ như bãi của chung cư mini, văn phòng hay trường học, việc vận hành phần lớn vẫn
+thủ công: vé giấy, ghi giờ bằng tay, tính tiền theo ước lượng của người trông xe và hầu như
+không có cơ chế cảnh báo khi xảy ra cháy hoặc ngập nước, hai rủi ro thường gặp ở tầng hầm.
 
-Một \textbf{bãi đỗ xe thông minh} tự động hóa các công việc này: cảm biến phát hiện
-chỗ trống, thẻ RFID kiểm soát ra vào và tính phí, thanh chắn tự mở/đóng, cảm biến
-môi trường cảnh báo sự cố và mọi thông tin được hiển thị trực tiếp tại bãi lẫn trên
-điện thoại của người quản lý.
+Từ thực trạng trên, đề tài đặt ra bài toán: với linh kiện phổ thông giá rẻ, xây dựng một hệ
+thống tự động hóa trọn vẹn quy trình của một bãi xe nhỏ, từ lúc xe vào cổng, đỗ vào ô, cho
+tới lúc thanh toán và rời bãi, đồng thời bảo đảm an toàn cho bãi trong suốt thời gian đó.
+Bài toán này cũng là một ứng dụng điển hình của môn học, đòi hỏi lập trình đa tác vụ trên
+hệ điều hành thời gian thực, điều khiển ngoại vi bằng phần cứng chuyên dụng và giao tiếp
+không dây giữa nhiều vi điều khiển.
 
-\section{Mục tiêu của bài toán}
-Đề tài xây dựng một mô hình bãi xe 5 chỗ, 2 cổng, đáp ứng các mục tiêu:
-\begin{enumerate}
-  \item \textbf{Giám sát chỗ đỗ theo thời gian thực}: biết chính xác chỗ nào trống,
-        chỗ nào có xe; màn hình tại bãi cập nhật trong khoảng 0,1 giây, trang web trong
-        khoảng 1 giây.
-  \item \textbf{Kiểm soát ra vào bằng thẻ RFID}: thẻ quẹt ở cổng vào mở thanh chắn
-        vào, cùng thẻ đó quẹt ở cổng ra mở thanh chắn ra; thanh chắn tự đóng sau 3 giây;
-        quẹt sai cổng hoặc bãi đầy bị từ chối và thông báo rõ trên màn hình.
-  \item \textbf{Tính phí tự động}: 5.000\,VNĐ mỗi giờ, làm tròn lên, tối thiểu 1 giờ;
-        hiển thị mã VietQR ở cổng ra, tự mở thanh chắn khi nhận được chuyển khoản
-        (kiểm tra qua SePay) và hiển thị hóa đơn khi xe ra.
-  \item \textbf{An toàn}: phát hiện lửa — bật còi, hiển thị cảnh báo, \emph{mở cả hai
-        thanh chắn} để sơ tán; theo dõi mực nước và nhiệt độ.
-  \item \textbf{Giám sát và điều khiển từ xa}: trang web tại \code{http://parking.local}
-        dùng được trên mọi điện thoại, không cần cài ứng dụng, có nhật ký xe vào/ra.
-  \item \textbf{Triển khai đơn giản}: cả ba bo cùng kết nối vào mạng Wi-Fi chung của
-        nhóm (router hoặc điểm phát có Internet); tự phục hồi khi mất kết nối. Mất
-        Internet thì mọi chức năng vẫn chạy, chỉ việc xác nhận chuyển khoản chuyển sang
-        người vận hành.
-\end{enumerate}
+\section{Tổng quan về hệ thống}\label{sec:tongquan}
+Hệ thống được hiện thực trên một mô hình bãi xe gồm 5 ô đỗ và hai cổng vào, ra có thanh
+chắn. Hình~\ref{fig:overview} là ảnh chụp mô hình hoàn thiện nhìn từ trên xuống. Dãy ô đỗ
+nằm dọc vách sau, mỗi ô có một cảm biến hồng ngoại xác định ô đó có xe hay không. Hộp điều
+khiển ở giữa bãi chứa vi điều khiển trung tâm, màn hình hiển thị quay ra phía người lái và
+hai đầu đọc thẻ RFID gắn ở hai bên hông, mỗi đầu đọc phục vụ một làn. Hai động cơ servo ở hai
+góc trước nâng hạ thanh chắn của cổng vào (bên trái) và cổng ra (bên phải).
 
-\section{Ý nghĩa}
-\paragraph{Ý nghĩa thực tiễn.} Mô hình chứng minh rằng một bãi xe nhỏ (chung cư mini,
-văn phòng, trường học) có thể được tự động hóa bằng linh kiện phổ thông giá rẻ.
-Người lái biết ngay còn chỗ hay không; người quản lý thu phí chính xác, có nhật ký
-xe ra vào, được cảnh báo cháy/ngập kịp thời; khi cháy, thanh chắn tự mở giúp sơ tán
-nhanh.
+\begin{figure}[!t]
+\centering
+\includegraphics[width=\linewidth,height=0.42\textheight,keepaspectratio]{photos/model_top.jpg}
+\caption{Mô hình bãi đỗ xe thông minh nhìn từ trên xuống}\label{fig:overview}
+\end{figure}
 
-\paragraph{Ý nghĩa học thuật.} Đây là bài toán nhúng điển hình, vận dụng gần như toàn
-bộ kiến thức của môn học: lập trình đa tác vụ với \textbf{hệ điều hành thời gian
-thực FreeRTOS}, đồng bộ giữa các tác vụ, điều khiển ngoại vi bằng phần cứng chuyên
-dụng (PWM, SPI có DMA, ADC, GPIO), giao tiếp không dây, quản lý bộ nhớ hạn chế
-(vài trăm KB RAM), xử lý dữ liệu không tin cậy từ mạng và kiểm thử phần mềm nhúng
-khi không có phần cứng.
+Từ góc nhìn của người sử dụng, hệ thống vận hành như sau. Khi tới cổng vào, người lái xem
+số chỗ trống trên màn hình và quẹt thẻ RFID; thanh chắn tự nâng lên, xe đi qua và thanh
+chắn chỉ hạ xuống khi cảm biến ở cổng xác nhận xe đã ra khỏi vùng thanh chắn. Khi xe đỗ vào
+một ô, màn hình và trang web quản lý cập nhật trạng thái ô đó trong khoảng một phần mười
+giây. Khi ra, người lái quẹt cùng thẻ ở cổng ra; màn hình hiển thị phí gửi xe và một mã
+VietQR mà mọi ứng dụng ngân hàng đều quét được. Ngay khi giao dịch chuyển khoản được xác
+nhận, thanh chắn cổng ra mở và màn hình hiển thị hóa đơn. Người quản lý theo dõi toàn bộ
+bãi, nhật ký xe vào ra và doanh thu trên trang web từ điện thoại mà không cần cài ứng dụng.
+Nếu cảm biến phát hiện lửa, còi báo động kêu và cả hai thanh chắn mở để xe thoát ra; nếu
+mực nước vượt ngưỡng, hệ thống ngừng nhận xe mới.
 
-\input{chapters/c1_thitruong}
-
-\section{Phạm vi và giới hạn}
-Hệ thống là \textbf{mô hình} quy mô phòng thí nghiệm: 5 chỗ đỗ, 2 cổng, xe mô hình,
-thẻ RFID MIFARE. Thanh toán điện tử chỉ gồm chuyển khoản qua mã VietQR tới một tài
-khoản BIDV (xác nhận qua SePay hoặc người vận hành); cổng thanh toán thẻ, nhận dạng
-biển số và lưu trữ đám mây nằm ngoài phạm vi và được nêu ở phần hướng phát triển (Kết luận).
-
-\section{Kết quả đạt được (tóm tắt)}
+\section{Mục tiêu và phạm vi}
+Mục tiêu của đề tài được xác định thành các yêu cầu có thể kiểm chứng trên mô hình. Các mục
+tiêu cụ thể gồm:
 \begin{itemize}
-  \item Ba bo mạch hoạt động phối hợp, 10 use case (Mục~\ref{chap:usecase}) đều
-        được hiện thực và có phép kiểm thử tương ứng.
-  \item Firmware máy chủ 1,24\,MB, dùng 31\% RAM tĩnh; còn 15\% phân vùng ứng dụng.
-  \item 429 phép kiểm thử tự động đều đạt (Chương~\ref{chap:kiemthu}).
+  \item xác định trạng thái từng ô đỗ theo thời gian thực, với độ trễ hiển thị tại bãi dưới
+        0,2\,s và trên trang web khoảng 1\,s;
+  \item kiểm soát xe ra vào bằng thẻ RFID, từ chối các lần quẹt sai cổng hoặc khi bãi đầy,
+        và không hạ thanh chắn khi xe còn nằm trong cổng;
+  \item tính phí tự động theo giờ và thu phí bằng chuyển khoản VietQR với số tiền cố định,
+        tự xác nhận giao dịch trước khi mở cổng ra;
+  \item phát hiện cháy và ngập nước, cảnh báo tại chỗ và trên trang web, mở lối thoát khi
+        có cháy;
+  \item cho phép người vận hành quản lý bãi và điều khiển thanh chắn từ xa qua trình duyệt, có xác thực
+        bằng mã PIN cho các thao tác điều khiển.
 \end{itemize}
 
-\section{Cấu trúc báo cáo}
+Phạm vi của đề tài giới hạn ở quy mô mô hình phòng thí nghiệm với xe mô hình và thẻ MIFARE.
+Các chức năng nhận dạng biển số, thanh toán qua cổng thẻ quốc tế và lưu trữ dữ liệu trên đám
+mây không thuộc phạm vi đề tài và được nêu trong phần hướng phát triển.
+
+\section{Khảo sát các giải pháp hiện có}\label{sec:thitruong}
+Bãi đỗ xe thông minh không phải là ý tưởng mới. Theo Knowledge Sourcing Intelligence, thị
+trường toàn cầu đạt khoảng 8,8 tỷ USD năm 2025 và được dự báo đạt 20,4 tỷ USD năm 2030, trong
+đó khu vực châu Á -- Thái Bình Dương tăng trưởng nhanh nhất [16]; Meticulous Research dự báo
+quy mô 22,9 tỷ USD vào năm 2032 [17]. Các sản phẩm hiện có có thể chia thành ba nhóm theo
+chức năng chính.
+
+Nhóm thứ nhất là phần mềm quản lý bãi giữ xe như eParking, HTG Parking hay Megaparking. Các
+phần mềm này ghi nhận lượt xe vào ra, quản lý vé và doanh thu, một số sản phẩm có nhận dạng
+biển số hoặc dùng thẻ RFID [22], nhưng không biết xe đang đỗ ở vị trí nào. Nhóm thứ hai là
+hệ thống kiểm soát ra vào trọn gói của các nhà tích hợp như KPS System hay Hikvision, gồm
+thanh chắn, camera nhận dạng biển số, đầu đọc RFID tầm xa và phần mềm quản lý có kết nối với
+hệ thống tòa nhà [18], [19]. Nhóm thứ ba là hệ thống phát hiện xe theo từng chỗ đỗ, tiêu biểu là
+cảm biến không dây Nedap SENSIT và hệ thống dẫn hướng của SKIDATA [20], [21], vốn trả lời
+câu hỏi chỗ nào còn trống nhưng cần một nền tảng khác để thu phí.
+
+Ở quy mô đô thị, Hà Nội thí điểm ứng dụng iParking từ năm 2017 nhưng dừng chức năng thanh
+toán tại 12 đơn vị từ tháng 9/2020, một phần do nhân viên nhập sai số xe khiến doanh thu
+không khớp với thực tế [23], [24]. Trong khi đó, thu phí không dừng đang được mở rộng: từ
+tháng 5/2024 đã áp dụng tại 5 sân bay lớn [25], và Kế hoạch 198/KH-UBND yêu cầu từ ngày
+1/7/2026, toàn bộ bãi đỗ ô tô tại Hà Nội thu giá dịch vụ theo hình thức điện tử không dừng [26].
+
 \begin{table}[H]
 \centering\small
-\caption{Cấu trúc báo cáo}\label{tab:cautruc}
-\begin{tabularx}{\linewidth}{@{}lX@{}}
+\caption{So sánh đề tài với các nhóm giải pháp đã khảo sát}\label{tab:sosanh}
+\begin{tabularx}{\linewidth}{@{}>{\raggedright\arraybackslash}p{2.9cm}*{3}{>{\raggedright\arraybackslash}X}@{}}
 \toprule
-\textbf{Phần} & \textbf{Nội dung} \\ \midrule
-Chương~\ref{chap:gioithieu} & Bối cảnh, mục tiêu, ý nghĩa, khảo sát thị trường, lợi thế của giải pháp, phạm vi và giới hạn của đề tài \\
-Chương~\ref{chap:coso} & Hệ thống nhúng và FreeRTOS, vi điều khiển, thiết bị ngoại vi, các giao tiếp ngoại vi và giao thức mạng, môi trường và công cụ phát triển \\
-Chương~\ref{chap:thietke} & Yêu cầu chức năng (10 use case) và phi chức năng, thiết kế phần cứng, kiến trúc, mô hình tác vụ, luồng hoạt động, máy trạng thái \\
-Chương~\ref{chap:trienkhai} & Tổ chức mã nguồn, giao thức, hiện thực từng thành phần, triển khai trên phần cứng thực tế \\
-Chương~\ref{chap:kiemthu} & Kiểm thử tự động và trên phần cứng, kết quả thực nghiệm, đánh giá và hạn chế \\
-Kết luận & Tổng kết và hướng phát triển \\
-Phụ lục~\ref{chap:donggop} & Đóng góp của các thành viên và phân chia điểm \\
+Tiêu chí & Kiểm soát ra vào (KPS, Hikvision) & Cảm biến từng chỗ (Nedap, SKIDATA) & Đề tài \\ \midrule
+Nhận dạng xe & Biển số, RFID tầm xa, QR & Không & RFID tầm gần \\
+Trạng thái từng chỗ & Không có trong tài liệu & Có, là chức năng chính & Có, 5 cảm biến hồng ngoại \\
+Tính phí, thanh toán & Có, nhiều quy tắc giá & Cần hệ thống khác & Tự tính phí, VietQR tự đối soát \\
+Cảnh báo cháy, ngập gắn với thanh chắn & Không có trong tài liệu & Không có trong tài liệu & Có, cháy thì mở cả hai cổng \\
+Hạ tầng & Máy chủ và phần mềm riêng & Nền tảng quản lý riêng & Chạy trên một vi điều khiển \\
+Mức hoàn thiện & Vận hành thực tế nhiều năm & Triển khai quy mô đô thị & Mô hình 5 chỗ, 2 cổng \\
 \bottomrule
 \end{tabularx}
 \end{table}
+
+Bảng~\ref{tab:sosanh} đối chiếu đề tài với hai nhóm giải pháp có chức năng gần nhất. Phân
+tích cho thấy ở quy mô lớn, các giải pháp thương mại đã rất hoàn thiện về nhận dạng xe, tốc
+độ qua cổng và khả năng tích hợp; đề tài không nhằm cạnh tranh ở quy mô đó. Khoảng trống
+nằm ở các bãi nhỏ: phát hiện chỗ trống, kiểm soát ra vào, thanh toán và cảnh báo an toàn thường
+thuộc những sản phẩm riêng biệt, phải qua nhà tích hợp và không có giá niêm yết [27]. Bài
+học từ iParking cũng cho thấy việc phụ thuộc vào người nhập liệu là nguồn sai lệch doanh thu.
+Đề tài hướng tới khoảng trống này với ba đặc điểm: gộp đủ các chức năng trong một hệ thống
+chi phí thấp, tính phí và đối soát giao dịch hoàn toàn tự động, và gắn cảnh báo an toàn
+trực tiếp với cơ cấu thanh chắn. Đổi lại, hệ thống chưa có nhận dạng biển số và đầu đọc tầm
+xa, nên xe vẫn phải dừng để quẹt thẻ.
+
+\section{Cấu trúc báo cáo}
+Ngoài phần mở đầu, báo cáo gồm năm chương và phần kết luận. Chương~\ref{chap:coso} trình
+bày cơ sở lý thuyết về hệ thống nhúng thời gian thực, các linh kiện và giao thức được sử
+dụng. Chương~\ref{chap:thietke} phân tích yêu cầu dưới dạng use case, thiết kế phần cứng
+kèm thuyết minh mạch và kiến trúc phần mềm. Chương~\ref{chap:hienthuc} trình bày quá trình
+hiện thực theo thứ tự các use case. Chương~\ref{chap:kiemthu} trình bày kết quả kiểm thử và
+đánh giá. Phần kết luận tổng kết kết quả và nêu hướng phát triển; phụ lục ghi nhận đóng góp
+của từng thành viên.

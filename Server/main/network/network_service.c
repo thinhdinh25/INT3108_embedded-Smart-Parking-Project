@@ -31,6 +31,17 @@ static void mdns_ip_event_handler(void *arg, esp_event_base_t base, int32_t id, 
         ESP_LOGW(TAG, "mDNS announce failed: %s", esp_err_to_name(err));
 }
 
+static void mdns_ip_lost_handler(void *arg, esp_event_base_t base, int32_t id, void *data)
+{
+    (void)arg;
+    (void)base;
+    (void)id;
+    (void)data;
+    esp_err_t err = mdns_netif_action(wifi_sta_netif(), MDNS_EVENT_DISABLE_IP4);
+    if (err != ESP_OK)
+        ESP_LOGW(TAG, "mDNS disable failed: %s", esp_err_to_name(err));
+}
+
 /* Answer "parking.local" on the joined Wi-Fi so browsers need not know the DHCP address. */
 static esp_err_t mdns_service_start(void)
 {
@@ -44,6 +55,19 @@ static esp_err_t mdns_service_start(void)
     /* Registered after mdns_init so it runs after the component's own handler. */
     if (err == ESP_OK)
         err = esp_event_handler_register(IP_EVENT, IP_EVENT_STA_GOT_IP, mdns_ip_event_handler, NULL);
+    if (err == ESP_OK)
+        err = esp_event_handler_register(IP_EVENT, IP_EVENT_STA_LOST_IP, mdns_ip_lost_handler, NULL);
+    /* Wi-Fi starts before mDNS, so catch an address event that arrived during setup. */
+    if (err == ESP_OK)
+    {
+        esp_netif_t *netif = wifi_sta_netif();
+        esp_netif_ip_info_t ip_info;
+        if (netif != NULL && esp_netif_get_ip_info(netif, &ip_info) == ESP_OK && ip_info.ip.addr != 0)
+        {
+            ip_event_got_ip_t event = {.esp_netif = netif, .ip_info = ip_info};
+            mdns_ip_event_handler(NULL, IP_EVENT, IP_EVENT_STA_GOT_IP, &event);
+        }
+    }
     return err;
 }
 

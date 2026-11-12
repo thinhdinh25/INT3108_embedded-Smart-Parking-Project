@@ -48,14 +48,18 @@
 \AtBeginEnvironment{longtable}{\setstretch{1.0}}
 \AtBeginEnvironment{figure}{\setstretch{1.0}}
 \AtBeginEnvironment{lstlisting}{\setstretch{1.0}}
-\AtBeginEnvironment{tcolorbox}{\setstretch{1.15}}
 \usepackage{amsmath,amssymb}
 \usepackage{graphicx}
 \usepackage{pdflscape}
 \usepackage{xcolor}
 \usepackage{booktabs,longtable,tabularx,array,multirow}
 \usepackage{enumitem}
-\setlist{itemsep=2pt,topsep=4pt}
+% Một kiểu danh sách duy nhất trong toàn báo cáo: gạch đầu dòng
+\setlist[itemize]{label=--,itemsep=1pt,topsep=3pt,leftmargin=1.6cm,labelsep=0.4cm}
+% Thụt dòng đầu mọi đoạn văn, kể cả đoạn ngay sau tiêu đề
+\usepackage{indentfirst}
+\setlength{\parindent}{1cm}
+\setlength{\parskip}{3pt}
 \usepackage{float}
 \usepackage{caption}
 \usepackage{subcaption}
@@ -133,30 +137,17 @@
 %   \mmd[tỉ lệ rộng][tỉ lệ cao tối đa]{tên}
 % Tạo lại PDF: npx -p @mermaid-js/mermaid-cli mmdc -i diagrams/x.mmd -o diagrams/x.pdf -f
 \NewDocumentCommand{\mmd}{O{1} O{0.6} m}{\includegraphics[width=#1\linewidth,height=#2\textheight,keepaspectratio]{diagrams/#3.pdf}}
-% Hộp "Lý do lựa chọn" (có màu)
-\usepackage[most]{tcolorbox}
-\newtcolorbox{lydo}[1][Lý do lựa chọn]{breakable,enhanced,colback=boxA!55,
-  colframe=accent,boxrule=0pt,leftrule=3pt,arc=0pt,outer arc=0pt,
-  left=6pt,right=6pt,top=4pt,bottom=4pt,before skip=8pt,after skip=8pt,
-  fonttitle=\bfseries,coltitle=accent,colbacktitle=boxA!55,
-  title={#1},attach title to upper={.\ }}
+% Bảng đặc tả use case: cột trái là mục, cột phải là nội dung; \bul mở một dòng gạch đầu dòng
+\newcommand{\bul}{\par\noindent\hangindent=0.9em\hangafter=1 --\hspace{0.4em}}
+\newenvironment{ucspec}[2]{%
+  \setstretch{1.0}\small
+  \begin{longtable}{@{}>{\raggedright\arraybackslash}p{3cm}>{\raggedright\arraybackslash}p{12.3cm}@{}}
+  \caption{#1}\label{#2}\\ \toprule Mục & Nội dung \\ \midrule \endfirsthead
+  \toprule Mục & Nội dung \\ \midrule \endhead
+  \bottomrule \endlastfoot}{\end{longtable}}
 
 % Không để dòng đơn của một đoạn nằm tách ở đầu hoặc cuối trang
 \widowpenalty=10000 \clubpenalty=10000 \displaywidowpenalty=10000
-
-% Đặc tả use case: nhãn bên trái, nội dung bên phải, ngắt trang tự nhiên
-\newenvironment{usecase}[2]{%
-  \par\needspace{9\baselineskip}\medskip\noindent\rule{\linewidth}{0.8pt}\par\nobreak
-  \noindent{\large\bfseries #1 — #2}\par\nobreak\vspace{-2pt}
-  \noindent\rule{\linewidth}{0.4pt}\par\nobreak
-  \begin{description}[style=multiline,leftmargin=3.3cm,font=\bfseries\normalsize,
-    itemsep=3pt,topsep=2pt]}{%
-  \end{description}\vspace{-4pt}\noindent\rule{\linewidth}{0.8pt}\par\medskip}
-
-% Bước trong hướng dẫn chạy
-\newcounter{buoc}
-\newcommand{\buoc}[1]{\stepcounter{buoc}\par\needspace{5\baselineskip}\medskip\noindent
-  {\bfseries Bước \thebuoc.\ #1}\par\nobreak\smallskip}
 
 \begin{document}
 
@@ -231,34 +222,31 @@ tham khảo. Nhóm xin chịu hoàn toàn trách nhiệm về lời cam đoan n�
 \noindent\hfill Nhóm sinh viên thực hiện\hspace*{1cm}\par
 
 \chapter*{TÓM TẮT}
-Báo cáo trình bày việc phân tích, thiết kế, hiện thực và kiểm thử một \textbf{hệ
-thống bãi đỗ xe thông minh} quy mô mô hình gồm 5 chỗ đỗ và 2 cổng ra/vào. Hệ thống
-sử dụng ba vi điều khiển Wi-Fi của Espressif phối hợp qua một mạng Wi-Fi cục bộ:
+Tại các bãi đỗ xe quy mô nhỏ như bãi của chung cư mini, văn phòng hay trường học, việc
+vận hành phần lớn vẫn thủ công: người lái không biết trước còn chỗ trống hay không, phí
+gửi xe được tính và thu bằng tay, còn các sự cố cháy hoặc ngập nước thường chỉ được phát
+hiện khi đã lan rộng. Đề tài xây dựng một hệ thống bãi đỗ xe thông minh nhằm tự động hóa
+ba công việc này: xác định trạng thái từng chỗ đỗ, kiểm soát xe ra vào kèm tính phí và thanh toán
+không tiền mặt, cảnh báo sự cố và tự mở lối thoát.
 
-\begin{itemize}
-  \item \textbf{Máy chủ} ESP32-C3 SuperMini chạy ESP-IDF 6.1 và hệ điều hành thời gian
-        thực FreeRTOS: nhận dữ liệu qua UDP, quản lý phiên gửi xe và tính phí, điều
-        khiển hai thanh chắn servo và còi báo cháy, hiển thị trên màn hình TFT ST7789
-        và phục vụ trang web giám sát tại \code{http://parking.local} (mDNS).
-  \item \textbf{Sensor Client} (ESP8266) đọc 5 cảm biến hồng ngoại, cảm biến lửa và
-        cảm biến mực nước; gửi trạng thái ngay khi có thay đổi và nhắc lại mỗi giây.
-  \item \textbf{RFID Client} (ESP8266) đọc hai đầu đọc
-        RFID MFRC522 (cổng vào, cổng ra) và cảm biến nhiệt độ DHT11.
-\end{itemize}
-Cả ba bo là trạm Wi-Fi trong cùng một mạng Wi-Fi chung của nhóm (router hoặc điểm
-phát có Internet); không bo nào phát điểm truy cập. Ở cổng ra, máy chủ hiển thị mã
-VietQR để người lái chuyển khoản và tự xác nhận giao dịch qua SePay.
+Sản phẩm là một mô hình bãi xe 5 chỗ đỗ, 2 cổng có thanh chắn, điều khiển bởi ba vi điều
+khiển Wi-Fi. Máy chủ ESP32-C3 chạy hệ điều hành thời gian thực FreeRTOS, quản lý phiên gửi
+xe, điều khiển thanh chắn và còi, hiển thị trên màn hình TFT tại cổng và phục vụ trang web
+quản lý tại địa chỉ \code{parking.local}. Hai bo ESP8266 đóng vai trò trạm thu thập: một bo
+đọc năm cảm biến hồng ngoại ở các ô đỗ cùng cảm biến lửa và mực nước, bo còn lại đọc thẻ
+RFID ở hai cổng và cảm biến nhiệt độ. Người lái quẹt thẻ để vào; khi ra, màn hình hiển thị
+mã VietQR với số tiền đúng bằng phí gửi xe, hệ thống đối soát giao dịch qua dịch vụ SePay
+và chỉ mở thanh chắn khi đã nhận đủ tiền. Cảm biến hồng ngoại đặt dưới mỗi thanh chắn giữ
+thanh chắn mở khi xe còn nằm trong cổng. Khi phát hiện lửa, hệ thống bật còi và mở cả hai
+thanh chắn để sơ tán; khi nước ngập vượt ngưỡng, hệ thống ngừng cho xe vào.
 
-Báo cáo gồm năm chương theo mẫu của học phần: giới thiệu đề tài; cơ sở lý thuyết và công cụ
-sử dụng; phân tích thiết kế hệ thống (10 use case, yêu cầu phi chức năng, kiến trúc, tác vụ,
-máy trạng thái); triển khai và lập trình hệ thống; kiểm thử và đánh giá. Bộ kiểm thử tự động
-gồm 6 bộ với 429 phép kiểm tra chạy trên máy tính — kể cả chạy lại chính mã nguồn Arduino
-của hai client trên phần cứng giả lập — và tất cả đều đạt.
+Báo cáo trình bày cơ sở lý thuyết, thiết kế phần cứng kèm thuyết minh mạch, kiến trúc phần
+mềm, hiện thực theo từng use case và kết quả kiểm thử. Bộ kiểm thử tự động gồm 439 phép
+kiểm tra chạy trên máy tính, cùng các kịch bản thử trên mô hình thật, đều cho kết quả đạt.
 
 \medskip
-\noindent\textbf{Từ khóa:} ESP32-C3, ESP8266, FreeRTOS, ESP-IDF, RFID, UDP, mDNS,
-LEDC PWM, SPI DMA, ST7789, hệ thống nhúng thời gian thực.
-
+\noindent Từ khóa: bãi đỗ xe thông minh, ESP32-C3, ESP8266, FreeRTOS, RFID, VietQR, hệ thống
+nhúng thời gian thực.
 
 \tableofcontents
 
@@ -266,39 +254,27 @@ LEDC PWM, SPI DMA, ST7789, hệ thống nhúng thời gian thực.
 \addcontentsline{toc}{chapter}{DANH SÁCH THUẬT NGỮ VIẾT TẮT}
 \begin{longtable}{@{}p{2.6cm}p{12.4cm}@{}}
 \toprule
-\textbf{Viết tắt} & \textbf{Ý nghĩa} \\ \midrule
-ACK & Acknowledgement — bản tin xác nhận đã nhận \\
-ADC & Analog-to-Digital Converter — bộ chuyển đổi tương tự–số \\
-AP & Access Point — điểm truy cập Wi-Fi \\
-API & Application Programming Interface \\
-DHCP & Dynamic Host Configuration Protocol — cấp địa chỉ IP tự động \\
-CRC & Cyclic Redundancy Check — mã kiểm tra dư vòng \\
-DMA & Direct Memory Access — truy cập bộ nhớ trực tiếp, không qua CPU \\
-GPIO & General Purpose Input/Output \\
-HTTP & HyperText Transfer Protocol \\
-HTTPS & HTTP qua TLS — HTTP được mã hóa \\
-IDF & IoT Development Framework (ESP-IDF) \\
-IR & Infrared — hồng ngoại \\
+Viết tắt & Ý nghĩa \\ \midrule
+ACK & Acknowledgement, bản tin xác nhận đã nhận \\
+ADC & Analog-to-Digital Converter, bộ chuyển đổi tương tự sang số \\
+API & Application Programming Interface, giao diện lập trình ứng dụng \\
+DMA & Direct Memory Access, truy cập bộ nhớ trực tiếp \\
+GPIO & General Purpose Input/Output, chân vào ra đa dụng \\
+HTTP(S) & HyperText Transfer Protocol (qua TLS) \\
+IR & Infrared, hồng ngoại \\
 JSON & JavaScript Object Notation \\
-NAPAS & Công ty Cổ phần Thanh toán Quốc gia Việt Nam \\
-LEDC & LED Control — khối phát PWM phần cứng của ESP32 \\
-LZSS & Lempel–Ziv–Storer–Szymanski — thuật toán nén từ điển \\
-mDNS & Multicast DNS — phân giải tên miền \code{.local} trong mạng cục bộ \\
-NVS & Non-Volatile Storage — kho khóa–giá trị trên flash của ESP-IDF \\
-OTA & Over-The-Air — nạp firmware qua mạng \\
-PWM & Pulse Width Modulation — điều chế độ rộng xung \\
-RFID & Radio Frequency Identification \\
-RTOS & Real-Time Operating System \\
-SPI & Serial Peripheral Interface \\
-TLS & Transport Layer Security \\
-SSID & Service Set Identifier — tên mạng Wi-Fi \\
-STA & Station — thiết bị kết nối vào một AP \\
-TFT & Thin-Film Transistor (màn hình) \\
-UC & Use case — ca sử dụng \\
-VA & Virtual Account — tài khoản ảo nhận chuyển khoản \\
-VietQR & Chuẩn mã QR chuyển khoản liên ngân hàng của NAPAS \\
+LEDC & LED Control, khối phát PWM phần cứng của ESP32 \\
+mDNS & Multicast DNS, phân giải tên miền \code{.local} trong mạng cục bộ \\
+NVS & Non-Volatile Storage, vùng lưu trữ khóa và giá trị trên flash \\
+PWM & Pulse Width Modulation, điều chế độ rộng xung \\
+RFID & Radio Frequency Identification, nhận dạng bằng sóng vô tuyến \\
+RTOS & Real-Time Operating System, hệ điều hành thời gian thực \\
+SPI & Serial Peripheral Interface, giao tiếp ngoại vi nối tiếp \\
+TFT & Thin-Film Transistor, công nghệ màn hình tinh thể lỏng \\
+UC & Use case, ca sử dụng \\
 UDP & User Datagram Protocol \\
-UID & Unique Identifier — mã định danh của thẻ RFID \\
+UID & Unique Identifier, mã định danh của thẻ RFID \\
+VietQR & Chuẩn mã QR chuyển khoản liên ngân hàng của NAPAS \\
 \bottomrule
 \end{longtable}
 
@@ -309,8 +285,8 @@ UID & Unique Identifier — mã định danh của thẻ RFID \\
 
 \input{chapters/c1_gioithieu}
 \input{chapters/c2_coso}
-\input{chapters/c3_phantich}
-\input{chapters/c4_trienkhai}
+\input{chapters/c3_thietke}
+\input{chapters/c4_hienthuc}
 \input{chapters/c5_kiemthu}
 \input{chapters/kl_ketluan}
 
