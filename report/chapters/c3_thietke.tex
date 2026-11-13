@@ -2,11 +2,6 @@
 \chapter{PHÂN TÍCH VÀ THIẾT KẾ HỆ THỐNG}\label{chap:thietke}
 % =====================================================================
 
-Chương này đi từ yêu cầu tới thiết kế. Yêu cầu chức năng được mô hình hóa bằng 10 use case,
-yêu cầu phi chức năng được lượng hóa thành các chỉ tiêu cụ thể. Phần thiết kế trình bày kiến
-trúc tổng thể, bố trí phần cứng trên mô hình, thuyết minh ba mạch điện, kiến trúc phần mềm
-của máy chủ và giao thức truyền thông giữa các bo mạch.
-
 \section{Yêu cầu chức năng}\label{chap:usecase}
 Yêu cầu chức năng được mô hình hóa bằng use case. Mỗi use case biểu diễn một mục tiêu có ý
 nghĩa của một tác nhân và cho ra một kết quả quan sát được; các tình huống phụ như quẹt sai
@@ -107,7 +102,7 @@ tới việc bổ sung cảm biến hồng ngoại dưới mỗi thanh chắn; y
 phải quản lý bộ nhớ động một cách có chủ đích khi thực hiện kết nối HTTPS.
 
 \section{Kiến trúc tổng thể}\label{sec:trienkhai}
-Hệ thống gồm ba bo mạch cùng kết nối vào một mạng Wi-Fi chung có Internet. Hình~\ref{fig:deploy}
+Hệ thống gồm ba thiết bị cùng kết nối vào một mạng Wi-Fi chung có Internet. Hình~\ref{fig:deploy}
 mô tả kiến trúc triển khai và luồng dữ liệu giữa các thành phần.
 
 \begin{figure}[H]
@@ -116,96 +111,21 @@ mô tả kiến trúc triển khai và luồng dữ liệu giữa các thành ph
 \caption{Kiến trúc triển khai và luồng dữ liệu}\label{fig:deploy}
 \end{figure}
 
-Theo Hình~\ref{fig:deploy}, mạng có cấu trúc hình sao quanh router; cả ba bo và điện thoại
-của người vận hành đều là trạm Wi-Fi, nên thứ tự bật nguồn không quan trọng. Hai bo thu thập
-gửi gói UDP tới địa chỉ quảng bá \code{255.255.255.255}, cổng 3333, nên không cần biết dải
-mạng hay địa chỉ IP của máy chủ. Người vận hành truy cập máy chủ bằng tên cố định
-\code{parking.local}; máy chủ chủ động thông báo lại tên này mỗi khi được cấp địa chỉ mới, nên
-tên luôn trỏ đúng thiết bị dù DHCP thay đổi địa chỉ. Router đồng thời là đường ra Internet để
-máy chủ truy vấn giao dịch trên SePay. Yêu cầu duy nhất đối với router là phát sóng 2,4\,GHz,
-vì cả ESP32-C3 và ESP8266 đều không có sóng 5\,GHz, và tắt chế độ cô lập thiết bị để các gói
-quảng bá được chuyển tiếp.
+Theo Hình~\ref{fig:deploy}, mạng có cấu trúc hình sao quanh router; cả ba thiết bị và điện
+thoại của người vận hành đều kết nối tới router như các thiết bị Wi-Fi thông thường, nên thứ
+tự bật nguồn không quan trọng. Sensor Client và RFID Client gửi gói UDP tới địa chỉ quảng bá
+\code{255.255.255.255}, cổng 3333, nên không cần biết dải mạng hay địa chỉ IP của máy chủ.
+Người vận hành truy cập máy chủ bằng tên cố định \code{parking.local}; máy chủ chủ động thông
+báo lại tên này mỗi khi được cấp địa chỉ mới, nên tên luôn trỏ đúng thiết bị dù DHCP thay đổi
+địa chỉ. Router đồng thời là đường ra Internet để máy chủ truy vấn giao dịch trên SePay.
 
-Kiến trúc tách thành ba bo mang lại ba lợi ích: đủ chân cho toàn bộ thiết bị, đặt cảm biến
-gần nơi cần đo để dây ngắn, và cô lập lỗi khi một bo mất điện. Đổi lại, hệ thống phụ thuộc
-vào mạng Wi-Fi; Mục~\ref{sec:uc08} trình bày cách máy chủ phát hiện bo thu thập mất kết nối.
+Kiến trúc tách thành ba thiết bị mang lại hai lợi ích: đặt cảm biến gần nơi cần đo để dây
+ngắn, và cô lập lỗi khi một thiết bị mất điện. Đổi lại, hệ thống phụ thuộc vào mạng Wi-Fi;
+Mục~\ref{sec:uc08} trình bày cách máy chủ phát hiện client mất kết nối.
 
 \section{Thiết kế phần cứng}\label{sec:phancung}
-\subsection{Bố trí thiết bị trên mô hình}\label{sec:mohinh}
-Mô hình được làm bằng bìa formex trắng, vật liệu nhẹ, cách điện và dễ khoét lỗ cho cảm biến.
-Hình~\ref{fig:hw-photos} cho thấy ba khu vực lắp thiết bị chính ngoài hộp điều khiển đã giới
-thiệu ở Hình~\ref{fig:overview}.
-
-\begin{figure}[H]
-\centering
-\begin{subfigure}[t]{0.56\linewidth}\centering
-  \includegraphics[width=\linewidth,height=0.3\textheight,keepaspectratio]{photos/model_back.jpg}
-  \caption{Mặt ngoài vách sau: Sensor Client với 5 module IR, module lửa, mạch nguồn}\label{fig:model-back}
-\end{subfigure}\hfill
-\begin{subfigure}[t]{0.4\linewidth}\centering
-  \includegraphics[width=\linewidth,height=0.3\textheight,keepaspectratio]{photos/gate_ir.jpg}
-  \caption{Cổng ra: servo SG90 và module IR phát hiện xe trong cổng}\label{fig:gate-ir}
-\end{subfigure}
-
-\vspace{4pt}
-\begin{subfigure}[t]{0.42\linewidth}\centering
-  \includegraphics[width=\linewidth,height=0.3\textheight,keepaspectratio]{photos/box_inside.jpg}
-  \caption{Bên trong hộp điều khiển: ESP32-C3, còi, mạch nguồn, hai đầu đọc RC522 ở hai thành hộp}\label{fig:box}
-\end{subfigure}\hfill
-\begin{subfigure}[t]{0.42\linewidth}\centering
-  \includegraphics[width=\linewidth,height=0.3\textheight,keepaspectratio]{photos/tft_live.jpg}
-  \caption{Màn hình TFT ở mặt trước hộp điều khiển}\label{fig:tft-live}
-\end{subfigure}
-\caption{Bố trí phần cứng trên mô hình}\label{fig:hw-photos}
-\end{figure}
-
-Hình~\ref{fig:model-back} là mặt ngoài vách sau, nơi đặt toàn bộ Sensor Client: năm module
-hồng ngoại có đầu phát và thu xuyên qua lỗ khoét, hướng vào giữa từng ô; module lửa màu đỏ
-nằm giữa dãy để góc nhìn khoảng 60° bao quát cả năm ô; module ESP8266, tụ lọc, hai diode và
-jack nguồn nằm cùng mặt vách. Bố trí bo mạch và dây ở mặt ngoài giữ cho lòng bãi gọn và mỗi
-module vẫn có biến trở để chỉnh ngưỡng theo độ phản xạ thực tế. Cảm biến mực nước đặt sát
-sàn ở góc trong của vách sau, nơi nước đọng trước tiên. Hình~\ref{fig:gate-ir} là cổng ra:
-module hồng ngoại gắn ngay trước trục servo, tia hồng ngoại chiếu ngang làn xe dưới cần chắn.
-Hình~\ref{fig:box} là bên trong hộp điều khiển, nơi đặt máy chủ ESP32-C3, còi, RFID Client
-cùng mạch nguồn của nó; hai đầu đọc RC522 gắn ở hai thành hộp, mỗi đầu đọc quay ra một làn,
-và cảm biến DHT11 gắn ở mặt ngoài hộp để không đo nhầm nhiệt tỏa ra từ bo mạch.
-Hình~\ref{fig:tft-live} là màn hình ở mặt trước hộp, quay về phía người lái.
-
-\subsection{Sơ đồ chân}
-Việc gán chân tuân theo hai nguyên tắc: tránh các chân UART dùng để nạp chương trình, và chỉ
-nối vào chân strapping những tín hiệu có mức nghỉ phù hợp với chế độ khởi động bình thường.
-Bảng~\ref{tab:pins} tổng hợp sơ đồ chân của cả ba bo.
-
-\begin{table}[H]
-\centering\small
-\caption{Sơ đồ chân của ba bo mạch}\label{tab:pins}
-\begin{tabularx}{\linewidth}{@{}>{\raggedright\arraybackslash}p{4.2cm}>{\raggedright\arraybackslash}p{3.4cm}X@{}}
-\toprule
-Tín hiệu & Chân & Ghi chú \\ \midrule
-\multicolumn{3}{@{}l}{\itshape Máy chủ ESP32-C3} \\
-TFT SCK, MOSI, RES, DC, CS & GPIO4, 6, 3, 7, 10 & SPI2 qua ma trận GPIO, màn hình không cần MISO \\
-Servo cổng vào, cổng ra & GPIO0, 1 & PWM LEDC kênh 0 và 1 \\
-Còi & GPIO9 & Tích cực mức thấp, mức nghỉ cao trùng yêu cầu strapping \\
-IR cổng vào, cổng ra & GPIO5, 2 & Tích cực mức thấp, có điện trở kéo lên nội \\
-Đèn nền TFT (BL) & nối 3,3\,V & Luôn sáng, nhường GPIO5 cho cảm biến cổng \\ \midrule
-\multicolumn{3}{@{}l}{\itshape Sensor Client ESP8266} \\
-IR ô S1 đến S5 & GPIO16, 4, 14, 13, 12 & Tránh chân strapping 0, 2, 15 và UART 1, 3 \\
-Cảm biến lửa, mực nước & GPIO5, A0 & A0 là kênh ADC duy nhất của ESP8266 \\ \midrule
-\multicolumn{3}{@{}l}{\itshape RFID Client ESP8266} \\
-SPI SCK, MOSI, MISO & GPIO14, 13, 12 & Dùng chung cho hai đầu đọc \\
-SS cổng vào, cổng ra; RST & GPIO5, 4; GPIO16 & Chân chọn chip riêng, chân reset chung \\
-DHT11 & GPIO2 & Module có điện trở kéo lên, mức nghỉ cao \\
-\bottomrule
-\end{tabularx}
-\end{table}
-
-Bảng~\ref{tab:pins} cho thấy máy chủ đã dùng 10 chân, trong đó GPIO5 vốn điều khiển đèn nền
-màn hình được chuyển cho cảm biến cổng vào; đèn nền được nối thẳng lên nguồn 3,3\,V và luôn
-sáng. Trên RFID Client, hai đầu đọc dùng chung ba dây SPI và chân reset, chỉ khác nhau ở chân
-chọn chip, giúp tiết kiệm hai chân so với hai bus riêng.
-
 \subsection{Thuyết minh mạch điện}\label{sec:schematic}
-Mạch điện của hệ thống gồm ba bản vẽ, mỗi bản vẽ ứng với một bo mạch và có đầu vào nguồn
+Mạch điện của hệ thống gồm ba bản vẽ, mỗi bản vẽ ứng với một thiết bị và có đầu vào nguồn
 5\,V riêng. Trước khi đi vào từng bản vẽ, Hình~\ref{fig:power} tóm tắt đường đi của nguồn
 điện, phần quyết định độ ổn định của toàn hệ thống.
 
@@ -244,29 +164,18 @@ Hình~\ref{fig:power} cho thấy hai cách cấp nguồn khác nhau. Máy chủ 
 cấp trực tiếp cho servo, nhánh còn lại đi qua bộ ổn áp 3,3\,V có sẵn trên bo ESP32-C3 SuperMini
 để cấp cho màn hình, còi và hai cảm biến cổng. Mỗi client hạ 5\,V xuống khoảng 3,6\,V bằng hai
 diode mắc nối tiếp rồi cấp chung cho ESP8266 và các cảm biến. Ba bản vẽ chi tiết ở
-Hình~\ref{fig:sch-server}, \ref{fig:sch-sensor} và \ref{fig:sch-rfid} được thuyết minh ngay
-sau đây.
-
-% Số trang của trang ngang được đặt ngay trong trang, đọc cùng chiều với hình
-\newcommand{\schpage}[3]{%
-  \noindent\begin{minipage}[t][\dimexpr\textheight-\baselineskip][t]{\linewidth}\centering
-  \vspace*{\fill}
-  \includegraphics[width=\linewidth,height=0.8\textheight,keepaspectratio]{#1}
-  \captionof{figure}{#2}\label{#3}
-  \vspace*{\fill}
-  \thepage
-  \end{minipage}\clearpage}
-\begin{landscape}
-\pagestyle{empty}
-\schpage{schematic/sheet1.pdf}{Sơ đồ nguyên lý máy chủ: ESP32-C3, màn hình ST7789, 2 servo, còi và 2 cảm biến IR ở cổng}{fig:sch-server}
-\schpage{schematic/sheet2.pdf}{Sơ đồ nguyên lý Sensor Client: ESP8266, 5 cảm biến IR ô đỗ, cảm biến lửa và mực nước}{fig:sch-sensor}
-\schpage{schematic/sheet3.pdf}{Sơ đồ nguyên lý RFID Client: ESP8266, 2 đầu đọc RC522 dùng chung SPI và DHT11}{fig:sch-rfid}
-\end{landscape}
+Hình~\ref{fig:sch-server}, \ref{fig:sch-sensor} và \ref{fig:sch-rfid} được thuyết minh lần
+lượt trong ba mục sau.
 
 \subsubsection{Mạch máy chủ}
+\begin{sidewaysfigure}
+\centering
+\includegraphics[width=\linewidth,height=0.82\textwidth,keepaspectratio]{schematic/sheet1.pdf}
+\caption{Sơ đồ nguyên lý máy chủ: ESP32-C3, màn hình ST7789, 2 servo, còi và 2 cảm biến IR ở cổng}\label{fig:sch-server}
+\end{sidewaysfigure}
+
 Hình~\ref{fig:sch-server} là mạch máy chủ. Adapter J\_PWR1 cấp đường 5\,V chung; tụ hóa C1
-100\,µF đặt ngay đầu vào san phẳng gợn sóng của adapter và đóng vai trò kho năng lượng cho
-toàn mạch. Hai servo SG90 lấy nguồn trực tiếp từ đường 5\,V thay vì từ chân 3V3 của bo, vì
+100\,µF đặt ngay đầu vào san phẳng gợn sóng của adapter. Hai servo SG90 lấy nguồn trực tiếp từ đường 5\,V thay vì từ chân 3V3 của bo, vì
 SG90 cần 4,8--6\,V và kéo dòng vài trăm mA lúc bắt đầu quay, vượt khả năng của bộ ổn áp nhỏ
 trên bo. Mỗi servo có một tụ 100\,µF riêng (C2, C3) đặt sát chân nguồn. Khi động cơ khởi
 động, dòng tức thời tăng vọt; nếu không có tụ, điện áp đường 5\,V sụt xuống và có thể làm
@@ -276,20 +185,19 @@ ESP32-C3 để xung PWM trên GPIO0 và GPIO1 có cùng mức tham chiếu với
 
 Tụ C4 10\,µF đặt sát chân 5V của ESP32-C3 lọc nhiễu tần số cao và giữ ổn định điện áp vào bộ
 ổn áp 3,3\,V trên bo trong các đợt phát Wi-Fi công suất cao. Đầu ra 3V3 của bo cấp cho màn
-hình, còi và hai cảm biến hồng ngoại ở cổng. Cấp 3,3\,V cho cảm biến cổng là yêu cầu bắt
-buộc: ESP32-C3 không chịu được mức 5\,V ở chân vào, nên ngõ ra của module phải nằm trong dải
-0--3,3\,V. Hai cảm biến này tích cực mức thấp, nối vào GPIO5 (cổng vào) và GPIO2 (cổng ra)
-với điện trở kéo lên nội được bật trong firmware.
-
-Còi được nối vào GPIO9 và hai cảm biến cổng dùng GPIO5, GPIO2; trong đó GPIO9 và GPIO2 là chân
-strapping được đọc lúc khởi động để chọn chế độ, và mức cao ở cả hai chân ứng với chế độ chạy
-chương trình bình thường. Module còi tích cực mức thấp nên mức nghỉ là mức cao, trùng với yêu
-cầu này; firmware cũng đặt GPIO9 ở mức cao ngay khi khởi tạo. Cảm biến cổng ra có mức nghỉ
-cao khi làn trống, vì vậy không được che tia hồng ngoại cổng ra trong lúc cấp nguồn hoặc nạp
-chương trình. Màn hình ST7789 nối qua SPI2 với năm tín hiệu SCK, MOSI, RES, DC và CS; chân
-đèn nền BL nối thẳng lên 3,3\,V.
+hình, còi và hai cảm biến hồng ngoại ở cổng. Ngõ ra của hai cảm biến cổng nối vào GPIO5
+(cổng vào) và GPIO2 (cổng ra) với điện trở kéo lên nội được bật trong firmware. Còi nối vào
+GPIO9 và được firmware đặt ở mức cao ngay khi khởi tạo để còi im lặng. Màn hình ST7789 nối qua
+SPI2 với năm tín hiệu SCK, MOSI, RES, DC và CS; chân đèn nền BL nối thẳng lên 3,3\,V nên màn
+hình luôn sáng.
 
 \subsubsection{Mạch Sensor Client}
+\begin{sidewaysfigure}
+\centering
+\includegraphics[width=\linewidth,height=0.82\textwidth,keepaspectratio]{schematic/sheet2.pdf}
+\caption{Sơ đồ nguyên lý Sensor Client: ESP8266, 5 cảm biến IR ô đỗ, cảm biến lửa và mực nước}\label{fig:sch-sensor}
+\end{sidewaysfigure}
+
 Hình~\ref{fig:sch-sensor} là mạch Sensor Client. Adapter J\_PWR2 cấp 5\,V qua tụ C5 100\,µF,
 sau đó qua hai diode chỉnh lưu 1N4007 (D1, D2) mắc nối tiếp để tạo đường VCC khoảng 3,6\,V cấp
 chung cho module ESP8266 và các cảm biến. Mỗi diode silic có điện áp rơi thuận khoảng 0,7\,V
@@ -303,15 +211,20 @@ của client. Chức năng thứ hai là bảo vệ ngược cực: nếu adapte
 ngược và chặn dòng, bảo vệ ESP8266 cùng các module. Công suất tiêu tán trên mỗi diode là
 $P = V_F \cdot I \approx 0{,}7 \times 0{,}3 \approx 0{,}2$\,W ở đỉnh dòng khi phát Wi-Fi,
 thấp hơn nhiều so với định mức 1\,A của 1N4007. Hạn chế của phương án là $V_F$ thay đổi theo
-dòng tải, nên điện áp VCC dao động quanh 3,6\,V; tụ C5 phía trước giữ ổn định đầu vào, còn
-trong sản phẩm thực tế nên thay bằng bộ ổn áp LDO 3,3\,V.
+dòng tải, nên điện áp VCC dao động quanh 3,6\,V; tụ C5 phía trước giữ ổn định đầu vào.
 
 Năm cảm biến hồng ngoại IR1 đến IR5 cùng lấy nguồn từ đường VCC, ngõ ra OUT nối lần lượt vào
 GPIO16, 4, 14, 13 và 12. Vì cảm biến dùng chung nguồn với ESP8266, mức cao ở ngõ ra không vượt
-quá điện áp chịu đựng của chân vào. Cảm biến lửa FLM1 nối ngõ ra số DO vào GPIO5, cảm biến mực
-nước WTR1 nối ngõ ra tương tự AO vào chân ADC A0.
+quá điện áp chịu đựng của chân vào. Cảm biến lửa FLM1 nối ngõ ra digital DO vào GPIO5, cảm biến mực
+nước WTR1 nối ngõ ra analog AO vào chân ADC A0.
 
 \subsubsection{Mạch RFID Client}
+\begin{sidewaysfigure}
+\centering
+\includegraphics[width=\linewidth,height=0.82\textwidth,keepaspectratio]{schematic/sheet3.pdf}
+\caption{Sơ đồ nguyên lý RFID Client: ESP8266, 2 đầu đọc RC522 dùng chung SPI và DHT11}\label{fig:sch-rfid}
+\end{sidewaysfigure}
+
 Hình~\ref{fig:sch-rfid} là mạch RFID Client, có đường nguồn giống Sensor Client gồm adapter
 J\_PWR3, tụ C6 100\,µF và hai diode D3, D4. Tụ C6 có thêm vai trò ổn định điện áp khi hai
 ăng-ten RC522 đóng cắt trường từ 13,56\,MHz và khi ESP8266 phát gói tin. Hai đầu đọc U4 (cổng
@@ -321,112 +234,48 @@ một đầu đọc giao tiếp trên bus. Cảm biến DHT11 nối chân DATA v
 của ESP8266, cần mức cao khi khởi động, và điện trở kéo lên sẵn có trên module DHT11 bảo đảm
 điều kiện này.
 
-Bảng~\ref{tab:components} tổng hợp chức năng của các linh kiện thụ động và linh kiện nguồn
-xuất hiện trong ba bản vẽ, làm cơ sở đối chiếu khi lắp ráp hoặc sửa chữa.
-
-\begin{table}[H]
-\centering\small
-\caption{Chức năng của các linh kiện nguồn và linh kiện thụ động}\label{tab:components}
-\begin{tabularx}{\linewidth}{@{}>{\raggedright\arraybackslash}p{2.4cm}p{2.6cm}X@{}}
-\toprule
-Ký hiệu & Giá trị & Chức năng \\ \midrule
-J\_PWR1, 2, 3 & Adapter 5\,V & Nguồn cho máy chủ, Sensor Client, RFID Client \\
-C1 & 100\,µF & Lọc gợn sóng và dự trữ năng lượng ở đầu vào máy chủ \\
-C2, C3 & 100\,µF & Cấp dòng khởi động cho servo cổng vào, cổng ra, chống sụt áp \\
-C4 & 10\,µF & Lọc nhiễu cao tần tại chân 5V của ESP32-C3 \\
-C5, C6 & 100\,µF & Lọc nguồn 5\,V trước cặp diode của mỗi client \\
-D1, D2 và D3, D4 & 1N4007 & Hạ áp 5\,V xuống khoảng 3,6\,V và bảo vệ ngược cực \\
-\bottomrule
-\end{tabularx}
-\end{table}
-
-\section{Kiến trúc phần mềm máy chủ}\label{sec:phanlop}
-Firmware máy chủ được tổ chức theo kiến trúc phân lớp như Hình~\ref{fig:layers}, trong đó mỗi
-lớp chỉ gọi lớp nằm dưới nó.
+\subsection{Bố trí thiết bị trên mô hình}\label{sec:mohinh}
+Mô hình được làm bằng bìa formex trắng, vật liệu nhẹ, cách điện và dễ khoét lỗ cho cảm biến.
+Hình~\ref{fig:hw-photos} cho thấy ba khu vực lắp thiết bị chính ngoài hộp điều khiển đã giới
+thiệu ở Hình~\ref{fig:overview}.
 
 \begin{figure}[H]
 \centering
-\begin{tikzpicture}[
-  lay/.style={draw,thick,rounded corners=2pt,minimum width=16cm,minimum height=1.15cm},
-  name/.style={anchor=west,font=\footnotesize\bfseries},
-  mod/.style={draw,rounded corners=2pt,fill=white,font=\scriptsize,align=center,minimum height=0.8cm,inner sep=1pt}]
-\node[lay,fill=boxE] at (0,4.05) {};
-\node[name] at (-7.95,4.05) {Ứng dụng};
-\node[mod,minimum width=13.85cm] at (0.925,4.05) {\texttt{main.c}: khởi động theo thứ tự, dừng ngay khi lỗi};
-\node[lay,fill=boxA] at (0,2.75) {};
-\node[name] at (-7.95,2.75) {Dịch vụ};
-\foreach \x/\m/\d in {-4.9/udp\_server/điều phối, -2.57/http\_server/web + API, -0.24/lcd\_display/giao diện TFT,
-                      2.09/servo/thanh chắn, 4.42/sepay\_client/thanh toán, 6.75/network/{Wi-Fi, mDNS}}
-  \node[mod,minimum width=2.2cm] at (\x,2.75) {\texttt{\m}\\\d};
-\node[lay,fill=boxB] at (0,1.45) {};
-\node[name] at (-7.95,1.45) {Nghiệp vụ};
-\node[mod,minimum width=3cm] at (-4.5,1.45) {\texttt{parking\_state}\\trạng thái, đồng hồ};
-\node[mod,minimum width=4.9cm] at (-0.4,1.45) {\texttt{json\_scan}, \texttt{payment}\\kiểm tra bản tin, VietQR};
-\node[mod,minimum width=5.65cm] at (5.025,1.45) {\texttt{rfid\_session}\\phiên, phí, nhật ký, lưu và khôi phục};
-\node[lay,fill=boxC] at (0,0.15) {};
-\node[name] at (-7.95,0.15) {ESP-IDF};
-\node[mod,minimum width=3.1cm] at (-4.45,0.15) {\texttt{esp\_lcd}, SPI DMA};
-\node[mod,minimum width=2.15cm] at (-1.675,0.15) {LEDC, GPIO};
-\node[mod,minimum width=2cm] at (0.55,0.15) {\texttt{esp\_timer}};
-\node[mod,minimum width=2.5cm] at (2.95,0.15) {lwIP, HTTP};
-\node[mod,minimum width=3.5cm] at (6.1,0.15) {Wi-Fi, mDNS, NVS};
-\node[lay,fill=boxD] at (0,-1.15) {};
-\node[name] at (-7.95,-1.15) {RTOS};
-\node[mod,minimum width=13.85cm] at (0.925,-1.15) {FreeRTOS: tác vụ, mutex, vùng găng, thông báo tác vụ};
-\end{tikzpicture}
-\caption{Kiến trúc phân lớp của firmware máy chủ}\label{fig:layers}
+\begin{subfigure}[t]{0.56\linewidth}\centering
+  \includegraphics[width=\linewidth,height=0.3\textheight,keepaspectratio]{photos/model_back.jpg}
+  \caption{Mặt ngoài vách sau: Sensor Client với 5 module IR, module lửa, mạch nguồn}\label{fig:model-back}
+\end{subfigure}\hfill
+\begin{subfigure}[t]{0.4\linewidth}\centering
+  \includegraphics[width=\linewidth,height=0.3\textheight,keepaspectratio]{photos/gate_ir.jpg}
+  \caption{Cổng ra: servo SG90 và module IR phát hiện xe trong cổng}\label{fig:gate-ir}
+\end{subfigure}
+
+\vspace{4pt}
+\begin{subfigure}[t]{0.42\linewidth}\centering
+  \includegraphics[width=\linewidth,height=0.3\textheight,keepaspectratio]{photos/box_inside.jpg}
+  \caption{Bên trong hộp điều khiển: ESP32-C3, còi, mạch nguồn, hai đầu đọc RC522 ở hai thành hộp}\label{fig:box}
+\end{subfigure}\hfill
+\begin{subfigure}[t]{0.42\linewidth}\centering
+  \includegraphics[width=\linewidth,height=0.3\textheight,keepaspectratio]{photos/tft_live.jpg}
+  \caption{Màn hình TFT ở mặt trước hộp điều khiển}\label{fig:tft-live}
+\end{subfigure}
+\caption{Bố trí phần cứng trên mô hình}\label{fig:hw-photos}
 \end{figure}
 
-Theo Hình~\ref{fig:layers}, lớp nghiệp vụ gồm trạng thái bãi, kiểm tra bản tin, phiên gửi xe
-và thanh toán không gọi trực tiếp phần cứng hay mạng, chỉ cần hai macro vùng găng và một hàm
-đọc đồng hồ. Thay hai phần này bằng phiên bản giả, toàn bộ lớp nghiệp vụ được biên dịch và
-kiểm thử trên máy tính. Lớp dịch vụ chứa các module điều khiển thiết bị và mạng; trong đó
-\code{udp\_server} đóng vai trò điều phối, nhận bản tin, gọi lớp nghiệp vụ rồi ra lệnh cho
-servo, còi và màn hình, nhờ vậy các module thiết bị không phụ thuộc lẫn nhau. Đổi màn hình
-khác chỉ cần sửa \code{lcd\_display}, đổi giao thức mạng chỉ cần sửa \code{udp\_server}.
-
-Các module trên chạy trong bảy tác vụ FreeRTOS với mức ưu tiên khác nhau, được liệt kê ở
-Bảng~\ref{tab:tasks}.
-
-\begin{table}[H]
-\centering\small
-\caption{Các tác vụ chạy trên máy chủ}\label{tab:tasks}
-\begin{tabularx}{\linewidth}{@{}lc>{\raggedright\arraybackslash}p{4cm}X@{}}
-\toprule
-Tác vụ & Ưu tiên & Được đánh thức bởi & Nhiệm vụ \\ \midrule
-\code{udp\_server} & 5 & Gói UDP đến & Kiểm tra bản tin, cập nhật trạng thái, ra lệnh thiết bị \\
-\code{httpd} & 5 & Yêu cầu HTTP & Trang web và API \\
-\code{esp\_timer} & cao & Hẹn giờ & Kiểm tra cảm biến cổng và đóng thanh chắn \\
-\code{lcd\_display} & 4 & Thông báo tác vụ, chu kỳ 1\,s & Vẽ lại màn hình khi dữ liệu đổi, nhịp còi cảnh báo \\
-\code{lcd\_animation} & 3 & Mỗi 100\,ms & Ảnh động trang trí trên màn hình chính \\
-\code{sepay} & 3 & Mỗi 3\,s khi có xe đang thanh toán & Truy vấn giao dịch qua HTTPS \\
-\code{mdns} & 1 & Gói mDNS & Trả lời truy vấn \code{parking.local} \\
-\bottomrule
-\end{tabularx}
-\end{table}
-
-Mức ưu tiên trong Bảng~\ref{tab:tasks} phản ánh mức độ quan trọng đối với người dùng: nhận bản
-tin và điều khiển thanh chắn liên quan trực tiếp tới xe đang chờ ở cổng nên có ưu tiên cao
-nhất; màn hình thông tin quan trọng hơn ảnh động trang trí; tác vụ SePay chờ mạng hàng trăm
-mili giây mỗi lần nên không được chen trước tác vụ điều khiển. Khi CPU bận, ảnh động chậm lại
-còn thông tin vẫn kịp thời. Hình~\ref{fig:tasks} cho thấy các tác vụ cùng truy cập những tài
-nguyên dùng chung nào và cơ chế bảo vệ tương ứng.
-
-\begin{figure}[H]
-\centering
-\mmd[1][0.62]{tasks}
-\caption{Tác vụ, tài nguyên dùng chung và cơ chế đồng bộ}\label{fig:tasks}
-\end{figure}
-
-Hình~\ref{fig:tasks} thể hiện ba cơ chế đồng bộ được dùng cho ba loại tình huống. Trạng thái
-bãi và bảng phiên gửi xe được bảo vệ bằng vùng găng, vì đoạn cần bảo vệ chỉ là vài lệnh sao
-chép cấu trúc nhỏ, rẻ hơn mutex. Servo và màn hình được bảo vệ bằng mutex, vì thao tác ghi
-thanh ghi LEDC hay truyền SPI kéo dài hơn và mutex có cơ chế kế thừa ưu tiên chống đảo ưu
-tiên. Đường nét đứt màu đỏ là thông báo tác vụ: \code{udp\_server} đánh thức
-\code{lcd\_display} ngay khi có dữ liệu mới, thay cho việc hỏi vòng định kỳ.
+Hình~\ref{fig:model-back} là mặt ngoài vách sau, nơi đặt toàn bộ Sensor Client: năm module
+hồng ngoại có đầu phát và thu xuyên qua lỗ khoét, hướng vào giữa từng ô; module lửa màu đỏ
+nằm giữa dãy để góc nhìn khoảng 60° bao quát cả năm ô; module ESP8266, tụ lọc, hai diode và
+jack nguồn nằm cùng mặt vách. Bố trí module và dây ở mặt ngoài giữ cho lòng bãi gọn và mỗi
+module vẫn có biến trở để chỉnh ngưỡng theo độ phản xạ thực tế. Cảm biến mực nước đặt sát
+sàn ở góc trong của vách sau, nơi nước đọng trước tiên. Hình~\ref{fig:gate-ir} là cổng ra:
+module hồng ngoại gắn ngay trước trục servo, tia hồng ngoại chiếu ngang làn xe dưới cần chắn.
+Hình~\ref{fig:box} là bên trong hộp điều khiển, nơi đặt máy chủ ESP32-C3, còi, RFID Client
+cùng mạch nguồn của nó; hai đầu đọc RC522 gắn ở hai thành hộp, mỗi đầu đọc quay ra một làn,
+và cảm biến DHT11 gắn ở mặt ngoài hộp để không đo nhầm nhiệt tỏa ra từ các module.
+Hình~\ref{fig:tft-live} là màn hình ở mặt trước hộp, quay về phía người lái.
 
 \section{Thiết kế giao thức truyền thông}\label{sec:giaothuc}
-Hai bo thu thập gửi ba loại bản tin JSON tới máy chủ qua UDP. Mã nguồn~\ref{lst:msg} là ví dụ
+Sensor Client và RFID Client gửi ba loại bản tin JSON tới máy chủ qua UDP. Mã nguồn~\ref{lst:msg} là ví dụ
 của từng loại cùng gói xác nhận mà máy chủ gửi lại.
 
 \begin{lstlisting}[language=json,caption={Các bản tin UDP giữa client và máy chủ},label={lst:msg}]

@@ -10,7 +10,7 @@ còn tồn tại.
 Lỗi trong bộ đọc bản tin, cách tính phí hay logic lọc nhiễu rất khó tái hiện trên phần cứng
 vì phụ thuộc chính xác vào thời điểm và chuỗi byte. Do đó, nhóm tổ chức kiểm thử ở hai mức.
 Mức thứ nhất là kiểm thử tự động trên máy tính: các module nghiệp vụ của máy chủ được biên
-dịch cùng hai tệp header giả thay cho vùng găng và đồng hồ; mã nguồn của hai bo thu thập được
+dịch cùng hai tệp header giả thay cho vùng găng và đồng hồ; mã nguồn của hai client được
 biên dịch nguyên vẹn cùng một lớp giả lập thư viện Arduino gồm đồng hồ điều khiển được, mức
 logic từng chân, ADC, Wi-Fi, UDP, đầu đọc MFRC522 và DHT11. Mỗi gói tin mà client giả lập gửi
 ra đều được đưa vào chính bộ đọc JSON của máy chủ, bảo đảm hai phía luôn thống nhất định dạng.
@@ -45,7 +45,7 @@ bài kiểm thử: khi kiểm tra bãi đầy, một thẻ từ bài kiểm th�
 còn 4 chỗ trống; bài kiểm thử được sửa để tự dọn trạng thái trước khi chạy.
 
 \section{Kết quả kiểm thử trên mô hình}
-Các kịch bản kiểm thử hệ thống được thực hiện trên mô hình thật với cả ba bo mạch.
+Các kịch bản kiểm thử hệ thống được thực hiện trên mô hình thật với cả ba thiết bị.
 Bảng~\ref{tab:systest} liệt kê các kịch bản chính theo thứ tự use case, cùng hành vi mong đợi
 mà nhóm đã quan sát được.
 
@@ -106,25 +106,3 @@ máy chủ có kích thước 1\,300\,560 byte, chiếm khoảng 85\% phân vùn
 dùng khoảng 31\% trong số 321\,KB, phần lớn RAM động dành cho bộ đệm khung 115\,KB. Các con số
 này cho thấy ESP32-C3 đáp ứng được toàn bộ chức năng, nhưng dung lượng flash còn lại không đủ
 cho cơ chế nạp firmware qua mạng với hai phân vùng ứng dụng.
-
-\section{Hạn chế còn tồn tại}\label{sec:conlai}
-Bên cạnh các kết quả đạt được, hệ thống còn một số hạn chế, phần lớn là đánh đổi có chủ đích
-ở quy mô mô hình. Bảng~\ref{tab:conlai} phân tích nguyên nhân và hướng khắc phục của từng hạn
-chế.
-
-\begin{longtable}{@{}>{\raggedright\arraybackslash}p{4.2cm}>{\raggedright\arraybackslash}p{4.9cm}>{\raggedright\arraybackslash}p{5.1cm}@{}}
-\caption{Hạn chế, nguyên nhân và hướng khắc phục}\label{tab:conlai}\\
-\toprule Hạn chế & Nguyên nhân & Hướng khắc phục \\ \midrule \endfirsthead
-\toprule Hạn chế & Nguyên nhân & Hướng khắc phục \\ \midrule \endhead
-Bản tin UDP không được ký, thiết bị trong mạng có thể gửi thẻ giả & Ưu tiên giao thức đơn giản trên mạng Wi-Fi riêng có WPA2 & Ký bản tin bằng HMAC kèm số thứ tự chống phát lại \\
-Trang web dùng HTTP, mã PIN có thể bị nghe lén trong mạng & HTTPS phía máy chủ cần thêm khoảng 40\,KB RAM & Dùng chip có PSRAM như ESP32-S3 \\
-Mỗi lúc chỉ một xe thanh toán ở cổng ra & Một cổng ra, một màn hình; một số ví thay nội dung chuyển khoản & Mỗi lượt dùng một tài khoản ảo riêng \\
-Chuyển sai số tiền không được hoàn tự động & Máy chủ chỉ đọc được giao dịch & Quy trình hoàn tiền của người vận hành \\
-Nguồn client hạ áp bằng diode, điện áp thay đổi theo tải & Tận dụng linh kiện sẵn có & Thay bằng ổn áp LDO 3,3\,V \\
-Cảm biến cổng ra bị che khi cấp nguồn có thể làm sai chế độ khởi động & GPIO2 là chân strapping & Chuyển cảm biến sang chân không phải strapping trên bo nhiều chân hơn \\
-Chưa có giờ thực trước khi trình duyệt kết nối & Máy chủ không có đồng hồ thời gian thực & Thêm module RTC hoặc đồng bộ giờ qua SNTP \\
-\bottomrule
-\end{longtable}
-
-Các hạn chế trong Bảng~\ref{tab:conlai} không ảnh hưởng tới việc trình diễn và đánh giá chức
-năng trên mô hình, nhưng cần được giải quyết trước khi đưa hệ thống vào vận hành thực tế.

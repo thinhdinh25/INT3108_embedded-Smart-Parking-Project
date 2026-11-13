@@ -38,28 +38,25 @@ giây. Khi ra, người lái quẹt cùng thẻ ở cổng ra; màn hình hiển
 VietQR mà mọi ứng dụng ngân hàng đều quét được. Ngay khi giao dịch chuyển khoản được xác
 nhận, thanh chắn cổng ra mở và màn hình hiển thị hóa đơn. Người quản lý theo dõi toàn bộ
 bãi, nhật ký xe vào ra và doanh thu trên trang web từ điện thoại mà không cần cài ứng dụng.
-Nếu cảm biến phát hiện lửa, còi báo động kêu và cả hai thanh chắn mở để xe thoát ra; nếu
-mực nước vượt ngưỡng, hệ thống ngừng nhận xe mới.
+Khi xảy ra sự cố, phản ứng của hệ thống phụ thuộc vào loại sự cố: với cháy, còi báo động
+được kích hoạt và cả hai thanh chắn được nâng lên để giải phóng lối thoát; với ngập nước, hệ
+thống tạm dừng tiếp nhận xe cho tới khi mực nước trở về mức an toàn.
 
-\section{Mục tiêu và phạm vi}
+\section{Mục tiêu}
 Mục tiêu của đề tài được xác định thành các yêu cầu có thể kiểm chứng trên mô hình. Các mục
 tiêu cụ thể gồm:
 \begin{itemize}
-  \item xác định trạng thái từng ô đỗ theo thời gian thực, với độ trễ hiển thị tại bãi dưới
+  \item Xác định trạng thái từng ô đỗ theo thời gian thực, với độ trễ hiển thị tại bãi dưới
         0,2\,s và trên trang web khoảng 1\,s;
-  \item kiểm soát xe ra vào bằng thẻ RFID, từ chối các lần quẹt sai cổng hoặc khi bãi đầy,
+  \item Kiểm soát xe ra vào bằng thẻ RFID, từ chối các lần quẹt sai cổng hoặc khi bãi đầy,
         và không hạ thanh chắn khi xe còn nằm trong cổng;
-  \item tính phí tự động theo giờ và thu phí bằng chuyển khoản VietQR với số tiền cố định,
+  \item Tính phí tự động theo giờ và thu phí bằng chuyển khoản VietQR với số tiền cố định,
         tự xác nhận giao dịch trước khi mở cổng ra;
-  \item phát hiện cháy và ngập nước, cảnh báo tại chỗ và trên trang web, mở lối thoát khi
+  \item Phát hiện cháy và ngập nước, cảnh báo tại chỗ và trên trang web, mở lối thoát khi
         có cháy;
-  \item cho phép người vận hành quản lý bãi và điều khiển thanh chắn từ xa qua trình duyệt, có xác thực
+  \item Cho phép người vận hành quản lý bãi và điều khiển thanh chắn từ xa qua trình duyệt, có xác thực
         bằng mã PIN cho các thao tác điều khiển.
 \end{itemize}
-
-Phạm vi của đề tài giới hạn ở quy mô mô hình phòng thí nghiệm với xe mô hình và thẻ MIFARE.
-Các chức năng nhận dạng biển số, thanh toán qua cổng thẻ quốc tế và lưu trữ dữ liệu trên đám
-mây không thuộc phạm vi đề tài và được nêu trong phần hướng phát triển.
 
 \section{Khảo sát các giải pháp hiện có}\label{sec:thitruong}
 Bãi đỗ xe thông minh không phải là ý tưởng mới. Theo Knowledge Sourcing Intelligence, thị
@@ -109,12 +106,3 @@ học từ iParking cũng cho thấy việc phụ thuộc vào người nhập l
 chi phí thấp, tính phí và đối soát giao dịch hoàn toàn tự động, và gắn cảnh báo an toàn
 trực tiếp với cơ cấu thanh chắn. Đổi lại, hệ thống chưa có nhận dạng biển số và đầu đọc tầm
 xa, nên xe vẫn phải dừng để quẹt thẻ.
-
-\section{Cấu trúc báo cáo}
-Ngoài phần mở đầu, báo cáo gồm năm chương và phần kết luận. Chương~\ref{chap:coso} trình
-bày cơ sở lý thuyết về hệ thống nhúng thời gian thực, các linh kiện và giao thức được sử
-dụng. Chương~\ref{chap:thietke} phân tích yêu cầu dưới dạng use case, thiết kế phần cứng
-kèm thuyết minh mạch và kiến trúc phần mềm. Chương~\ref{chap:hienthuc} trình bày quá trình
-hiện thực theo thứ tự các use case. Chương~\ref{chap:kiemthu} trình bày kết quả kiểm thử và
-đánh giá. Phần kết luận tổng kết kết quả và nêu hướng phát triển; phụ lục ghi nhận đóng góp
-của từng thành viên.

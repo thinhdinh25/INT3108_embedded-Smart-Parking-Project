@@ -4,7 +4,7 @@
 Đề tài đã xây dựng hoàn chỉnh một hệ thống bãi đỗ xe thông minh quy mô mô hình gồm ba vi điều
 khiển phối hợp qua Wi-Fi. Máy chủ ESP32-C3 chạy FreeRTOS quản lý phiên gửi xe, tính phí, điều
 khiển hai thanh chắn có cảm biến chống hạ xuống thân xe, hiển thị trên màn hình TFT và phục vụ
-trang web quản lý; hai bo ESP8266 thu thập trạng thái ô đỗ, cháy, mực nước, nhiệt độ và sự
+trang web quản lý; Sensor Client và RFID Client dùng ESP8266 thu thập trạng thái ô đỗ, cháy, mực nước, nhiệt độ và sự
 kiện quẹt thẻ. Cả 10 use case, từ gửi xe, thanh toán tới xử lý sự cố và quản lý bãi, đều được hiện thực và kiểm chứng; người lái thanh toán bằng mã
 VietQR với số tiền cố định, hệ thống tự đối soát giao dịch qua SePay trước khi mở cổng ra.
 
@@ -13,12 +13,3 @@ Về mặt học thuật, đề tài vận dụng các kiến thức trọng tâ
 như PWM, SPI có DMA, ADC, thiết kế nguồn và ghép nối mức logic giữa các linh kiện, giao tiếp
 mạng không dây với cơ chế tin cậy ở tầng ứng dụng, quản lý bộ nhớ hạn chế, và kiểm thử phần
 mềm nhúng không cần phần cứng với 439 phép kiểm tra tự động.
-
-Từ các hạn chế đã phân tích, nhóm đề xuất các hướng phát triển sau:
-\begin{itemize}
-  \item quản lý danh sách thẻ đăng ký như vé tháng và khóa thẻ bị mất từ trang web;
-  \item ghép thẻ với ô đỗ để biết chính xác xe nào đỗ ở ô nào;
-  \item ký bản tin UDP bằng HMAC và dùng HTTPS cho trang quản trị;
-  \item thay mạch hạ áp bằng diode bằng ổn áp LDO và bổ sung module đồng hồ thời gian thực;
-  \item kết nối lên nền tảng đám mây qua MQTT để quản lý nhiều bãi, thống kê và đặt chỗ trước.
-\end{itemize}

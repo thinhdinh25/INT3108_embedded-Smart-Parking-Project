@@ -50,7 +50,7 @@
 \AtBeginEnvironment{lstlisting}{\setstretch{1.0}}
 \usepackage{amsmath,amssymb}
 \usepackage{graphicx}
-\usepackage{pdflscape}
+\usepackage{rotating}
 \usepackage{xcolor}
 \usepackage{booktabs,longtable,tabularx,array,multirow}
 \usepackage{enumitem}
@@ -195,6 +195,8 @@
 \renewcommand{\listtablename}{DANH SÁCH BẢNG BIỂU}
 \renewcommand{\bibname}{TÀI LIỆU THAM KHẢO}
 
+\input{chapters/pl_donggop}
+
 \chapter*{LỜI CẢM ƠN}
 Nhóm xin gửi lời cảm ơn chân thành tới thầy \giangvien{}, giảng viên học phần \tenmon{},
 đã tận tình giảng dạy và định hướng trong suốt quá trình học tập và thực hiện đề tài.
@@ -221,32 +223,6 @@ tham khảo. Nhóm xin chịu hoàn toàn trách nhiệm về lời cam đoan n�
 \noindent\hfill Hà Nội, tháng 11 năm 2026\par
 \noindent\hfill Nhóm sinh viên thực hiện\hspace*{1cm}\par
 
-\chapter*{TÓM TẮT}
-Tại các bãi đỗ xe quy mô nhỏ như bãi của chung cư mini, văn phòng hay trường học, việc
-vận hành phần lớn vẫn thủ công: người lái không biết trước còn chỗ trống hay không, phí
-gửi xe được tính và thu bằng tay, còn các sự cố cháy hoặc ngập nước thường chỉ được phát
-hiện khi đã lan rộng. Đề tài xây dựng một hệ thống bãi đỗ xe thông minh nhằm tự động hóa
-ba công việc này: xác định trạng thái từng chỗ đỗ, kiểm soát xe ra vào kèm tính phí và thanh toán
-không tiền mặt, cảnh báo sự cố và tự mở lối thoát.
-
-Sản phẩm là một mô hình bãi xe 5 chỗ đỗ, 2 cổng có thanh chắn, điều khiển bởi ba vi điều
-khiển Wi-Fi. Máy chủ ESP32-C3 chạy hệ điều hành thời gian thực FreeRTOS, quản lý phiên gửi
-xe, điều khiển thanh chắn và còi, hiển thị trên màn hình TFT tại cổng và phục vụ trang web
-quản lý tại địa chỉ \code{parking.local}. Hai bo ESP8266 đóng vai trò trạm thu thập: một bo
-đọc năm cảm biến hồng ngoại ở các ô đỗ cùng cảm biến lửa và mực nước, bo còn lại đọc thẻ
-RFID ở hai cổng và cảm biến nhiệt độ. Người lái quẹt thẻ để vào; khi ra, màn hình hiển thị
-mã VietQR với số tiền đúng bằng phí gửi xe, hệ thống đối soát giao dịch qua dịch vụ SePay
-và chỉ mở thanh chắn khi đã nhận đủ tiền. Cảm biến hồng ngoại đặt dưới mỗi thanh chắn giữ
-thanh chắn mở khi xe còn nằm trong cổng. Khi phát hiện lửa, hệ thống bật còi và mở cả hai
-thanh chắn để sơ tán; khi nước ngập vượt ngưỡng, hệ thống ngừng cho xe vào.
-
-Báo cáo trình bày cơ sở lý thuyết, thiết kế phần cứng kèm thuyết minh mạch, kiến trúc phần
-mềm, hiện thực theo từng use case và kết quả kiểm thử. Bộ kiểm thử tự động gồm 439 phép
-kiểm tra chạy trên máy tính, cùng các kịch bản thử trên mô hình thật, đều cho kết quả đạt.
-
-\medskip
-\noindent Từ khóa: bãi đỗ xe thông minh, ESP32-C3, ESP8266, FreeRTOS, RFID, VietQR, hệ thống
-nhúng thời gian thực.
 
 \tableofcontents
 
@@ -343,9 +319,5 @@ VietQR & Chuẩn mã QR chuyển khoản liên ngân hàng của NAPAS \\
 \item Capterra, \emph{SKIDATA}. \url{https://www.capterra.com/p/141629/SKIDATA/alternatives/}
 \end{enumerate}
 
-\appendix
-\renewcommand{\chapprefix}{PHỤ LỤC}
-\addtocontents{toc}{\protect\renewcommand{\protect\chapprefix}{PHỤ LỤC}}
-\input{chapters/pl_donggop}
 
 \end{document}

@@ -2,11 +2,6 @@
 \chapter{CƠ SỞ LÝ THUYẾT VÀ CÔNG NGHỆ SỬ DỤNG}\label{chap:coso}
 % =====================================================================
 
-Chương này trình bày các khái niệm nền tảng của hệ thống nhúng thời gian thực, đặc điểm
-của các vi điều khiển, cảm biến và cơ cấu chấp hành được lựa chọn, các giao tiếp ngoại vi,
-giao thức mạng và công cụ phát triển. Với mỗi thành phần, báo cáo phân tích lý do lựa chọn
-dựa trên yêu cầu của bài toán.
-
 \section{Hệ thống nhúng và hệ điều hành thời gian thực}
 Hệ thống nhúng là hệ thống máy tính chuyên dụng được gắn vào một thiết bị lớn hơn để thực
 hiện một nhóm chức năng cố định, chạy liên tục với tài nguyên hạn chế và giao tiếp trực tiếp
@@ -29,13 +24,13 @@ phép gọi một hàm sau một khoảng thời gian với độ phân giải m
 Máy chủ của hệ thống phải đồng thời nhận gói tin, phục vụ trang web, vẽ màn hình và điều
 khiển thanh chắn; nếu viết trong một vòng lặp duy nhất, một thao tác chậm như vẽ toàn màn
 hình (khoảng 23\,ms) sẽ làm trễ mọi việc khác. FreeRTOS cho phép việc quan trọng như điều
-khiển cổng luôn được thực thi trước việc trang trí như ảnh động. Ngược lại, hai bo thu thập
-chỉ thực hiện tuần tự vài thao tác ngắn, nên một vòng lặp không chặn trên nền Arduino là đủ
+khiển cổng luôn được thực thi trước việc trang trí như ảnh động. Ngược lại, Sensor Client và
+RFID Client chỉ thực hiện tuần tự vài thao tác ngắn, nên một vòng lặp không chặn trên nền Arduino là đủ
 và đơn giản hơn.
 
 \section{Vi điều khiển}
-Hệ thống dùng ba bo mạch với hai loại vi điều khiển. Bảng~\ref{tab:mcu} so sánh ESP32-C3,
-được chọn cho máy chủ, với các phương án thường gặp trong đồ án sinh viên.
+Hệ thống gồm ba thiết bị: máy chủ dùng ESP32-C3, Sensor Client và RFID Client dùng ESP8266.
+Bảng~\ref{tab:mcu} so sánh ESP32-C3, được chọn cho máy chủ, với các phương án thường gặp.
 
 \begin{table}[H]
 \centering\small
@@ -60,73 +55,54 @@ khi truyền ảnh, có khối PWM phần cứng giữ xung servo ổn định k
 hỗ trợ chính thức bởi ESP-IDF cùng FreeRTOS. So với ESP32 bản gốc, ESP32-C3 rẻ và nhỏ hơn
 ($22\times18$\,mm) trong khi một nhân 160\,MHz vẫn dư năng lực cho bài toán.
 
-Hai bo thu thập dùng ESP8266 vì nhu cầu tính toán rất thấp: đọc vài chân số, một kênh ADC,
-giao tiếp SPI với đầu đọc thẻ và gửi gói tin nhỏ. ESP8266 là bo Wi-Fi rẻ, phổ biến và có hệ
-sinh thái thư viện Arduino phong phú cho RC522 và DHT11. Việc tách thành hai bo riêng xuất
-phát từ giới hạn số chân: màn hình, servo, còi và hai cảm biến cổng đã dùng 10 trong số
-khoảng 13 chân khả dụng của ESP32-C3 SuperMini.
+Sensor Client và RFID Client dùng ESP8266 vì nhiệm vụ của chúng đơn giản: đọc cảm biến hoặc
+đầu đọc thẻ rồi gửi bản tin ngắn qua Wi-Fi. ESP8266 có giá thấp, phổ biến và có sẵn thư viện
+cho RC522 và DHT11. Hệ thống được tách thành ba thiết bị theo vị trí lắp đặt: đầu đọc thẻ đặt
+tại cổng, cảm biến ô đỗ và cảm biến môi trường phân bố trong bãi, còn máy chủ đặt tại vị trí
+điều hành. Mỗi client nằm gần nhóm cảm biến của nó nên dây tín hiệu ngắn, các thiết bị chỉ liên
+lạc với nhau qua Wi-Fi, và khi mở rộng bãi chỉ cần bổ sung client mà không phải kéo thêm dây
+về máy chủ.
 
 \section{Cảm biến và cơ cấu chấp hành}
-Các cảm biến và cơ cấu chấp hành được chọn theo ba tiêu chí: giá thành thấp, làm việc ở mức
-logic 3,3\,V và tốn ít chân. Bảng~\ref{tab:linhkien} tổng hợp thông số chính và vai trò của
+Các cảm biến và cơ cấu chấp hành được chọn theo hai tiêu chí: giá thành thấp và làm việc ở
+mức logic 3,3\,V. Bảng~\ref{tab:linhkien} tổng hợp thông số chính và vai trò của
 từng linh kiện trong hệ thống.
 
 \begin{table}[H]
 \centering\small
 \caption{Cảm biến, cơ cấu chấp hành và thông số chính}\label{tab:linhkien}
-\begin{tabularx}{\linewidth}{@{}>{\raggedright\arraybackslash}p{3.4cm}>{\raggedright\arraybackslash}p{5.4cm}X@{}}
+\begin{tabularx}{\linewidth}{@{}>{\raggedright\arraybackslash}p{3.4cm}>{\raggedright\arraybackslash}p{4.6cm}>{\raggedright\arraybackslash}p{2.4cm}X@{}}
 \toprule
-Linh kiện & Thông số chính & Vai trò \\ \midrule
-Cảm biến hồng ngoại phản xạ $\times7$ & Tầm 2--30\,cm, bộ so sánh LM393, ngõ ra số tích cực mức thấp & 5 ô đỗ và 2 cổng \\
-Cảm biến lửa & Bước sóng 760--1100\,nm, góc khoảng 60°, ngõ ra số có ngưỡng & Phát hiện cháy \\
-Cảm biến mực nước & Vùng đo khoảng 40\,mm, ngõ ra tương tự & Phát hiện ngập \\
-Đầu đọc RFID MFRC522 $\times2$ & 13,56\,MHz, ISO 14443A, giao tiếp SPI, 3,3\,V & Đọc thẻ ở hai cổng \\
-Cảm biến DHT11 & 0--50\,°C, sai số $\pm2$\,°C, giao thức một dây & Nhiệt độ môi trường \\
-Servo SG90 $\times2$ & 4,8--6\,V, mô-men khoảng 1,8\,kg$\cdot$cm, điều khiển PWM 50\,Hz & Nâng hạ thanh chắn \\
-Màn hình TFT ST7789 & 1,54 inch, $240\times240$, IPS, SPI tối đa khoảng 62\,MHz & Hiển thị tại cổng \\
-Còi báo (module) & Tích cực mức thấp & Báo cháy, ngập, xe không thẻ \\
+Linh kiện & Thông số chính & Tín hiệu & Vai trò \\ \midrule
+Cảm biến hồng ngoại phản xạ $\times7$ & Tầm 2--30\,cm, bộ so sánh LM393 & Digital & 5 ô đỗ và 2 cổng \\
+Cảm biến lửa & Bước sóng 760--1100\,nm & Digital & Phát hiện cháy \\
+Cảm biến mực nước & Vùng đo khoảng 40\,mm & Analog & Phát hiện ngập \\
+Đầu đọc RFID MFRC522 $\times2$ & Chuẩn ISO 14443A, thẻ MIFARE & Digital (SPI) & Đọc thẻ ở hai cổng \\
+Cảm biến DHT11 & 0--50\,°C, sai số $\pm2$\,°C & Digital (một dây) & Nhiệt độ môi trường \\
+Servo SG90 $\times2$ & 4,8--6\,V, mô-men khoảng 1,8\,kg$\cdot$cm & Digital (PWM) & Nâng hạ thanh chắn \\
+Màn hình TFT ST7789 & 1,54 inch, $240\times240$, IPS & Digital (SPI) & Hiển thị tại cổng \\
+Còi báo (module) & Điện áp 3,3--5\,V & Digital & Báo cháy, ngập, xe không thẻ \\
 \bottomrule
 \end{tabularx}
 \end{table}
 
-Theo Bảng~\ref{tab:linhkien}, cảm biến hồng ngoại phản xạ được dùng cho cả ô đỗ và cổng vì
-khoảng cách tới thân xe mô hình chỉ vài centimet, nằm trong tầm đo, và mỗi cảm biến chỉ tốn
-một chân. Cảm biến siêu âm cho khoảng cách chính xác hơn nhưng tốn hai chân và phải đo thời
-gian phản hồi. Cảm biến lửa hồng ngoại phản ứng nhanh hơn cảm biến khói hay nhiệt, phù hợp
-với yêu cầu mở lối thoát kịp thời. Đầu đọc MFRC522 đọc được các loại thẻ MIFARE phổ biến như
-thẻ sinh viên hay móc khóa từ.
-
-\section{Giao tiếp ngoại vi}
-Mỗi thiết bị ngoại vi được nối với vi điều khiển qua một giao tiếp phù hợp với bản chất tín
-hiệu của nó. Bảng~\ref{tab:interfaces} liệt kê các giao tiếp được sử dụng.
-
-\begin{table}[H]
-\centering\small
-\caption{Các giao tiếp ngoại vi được sử dụng}\label{tab:interfaces}
-\begin{tabularx}{\linewidth}{@{}p{2.3cm}X>{\raggedright\arraybackslash}p{4.2cm}@{}}
-\toprule
-Giao tiếp & Nguyên lý & Thiết bị \\ \midrule
-GPIO & Chân vào ra số mức 0 hoặc 1, có điện trở kéo lên hoặc kéo xuống nội & 7 cảm biến IR, cảm biến lửa, còi \\
-PWM (LEDC) & Khối phần cứng phát xung có chu kỳ cố định và độ rộng xung điều chỉnh được, CPU không phải đảo chân & 2 servo SG90 \\
-SPI & Bus nối tiếp đồng bộ gồm SCK, MOSI, MISO và một chân CS cho mỗi thiết bị; có thể dùng DMA & Màn hình ST7789, 2 đầu đọc MFRC522 \\
-ADC & Chuyển điện áp tương tự thành số, ESP8266 có một kênh 10 bit & Cảm biến mực nước \\
-Một dây & Giao thức riêng của DHT11, dữ liệu 40 bit mã hóa bằng độ rộng xung & Cảm biến nhiệt độ \\
-\bottomrule
-\end{tabularx}
-\end{table}
-
-Điểm chung của các lựa chọn trong Bảng~\ref{tab:interfaces} là ưu tiên khối ngoại vi phần
-cứng thay vì điều khiển chân bằng phần mềm. PWM phần cứng giữ xung servo ổn định ngay cả khi
-CPU bận vẽ màn hình, còn SPI có DMA truyền 115\,KB dữ liệu ảnh mà CPU không phải sao chép từng
-byte. Nếu tạo xung bằng phần mềm, chỉ một ngắt Wi-Fi cũng đủ làm servo rung.
+Bảng~\ref{tab:linhkien} cho thấy phần lớn linh kiện giao tiếp bằng tín hiệu digital. Trong
+một bãi đỗ thực tế, cảm biến tại ô đỗ chỉ cần trả lời ô đó có xe hay không, nên tín hiệu
+digital là đủ; khi triển khai ở bãi lớn, cảm biến hồng ngoại có thể được thay bằng cảm biến từ
+trường hoặc siêu âm gắn trần mà không phải thay đổi phần còn lại, vì máy chủ chỉ nhận trạng
+thái có hoặc không có xe. Cảm biến lửa cho tín hiệu digital để hệ thống phản ứng ngay khi xuất
+hiện ngọn lửa. Ngược lại, cảm biến mực nước cho tín hiệu analog, cho phép máy chủ hiển thị mực
+nước và so sánh với một ngưỡng có thể điều chỉnh theo từng bãi. Đầu đọc RFID dùng chuẩn
+ISO 14443A tương thích với thẻ MIFARE vốn phổ biến trong thẻ nhân viên và thẻ cư dân, nên
+người dùng có thể dùng thẻ sẵn có.
 
 \section{Giao thức mạng và thanh toán}
-Các bo mạch và điện thoại của người vận hành liên lạc qua một mạng Wi-Fi chung. Hệ thống sử
+Các thiết bị của hệ thống và điện thoại của người vận hành liên lạc qua một mạng Wi-Fi chung. Hệ thống sử
 dụng các giao thức sau:
 \begin{itemize}
   \item Wi-Fi 802.11 b/g/n băng tần 2,4\,GHz ở chế độ trạm, địa chỉ IP do router cấp qua DHCP;
   \item UDP, giao thức không kết nối, độ trễ thấp, cho phép gửi quảng bá (broadcast) tới mọi
-        thiết bị trong mạng nên bo thu thập không cần biết địa chỉ của máy chủ;
+        thiết bị trong mạng nên các client không cần biết địa chỉ của máy chủ;
   \item HTTP cho trang web quản lý và các API dạng JSON, HTTPS khi máy chủ truy vấn SePay;
   \item mDNS để phân giải tên \code{parking.local} trong mạng cục bộ mà không cần máy chủ DNS;
   \item VietQR, chuẩn mã QR chuyển khoản liên ngân hàng của NAPAS dựa trên chuẩn EMVCo, gồm
@@ -152,7 +128,7 @@ Thành phần & Vai trò \\ \midrule
 ESP-IDF 6.1 và FreeRTOS & Framework cho máy chủ: driver, Wi-Fi, TCP/IP, HTTP, NVS, hệ điều hành \\
 \code{esp\_lcd}, LEDC, \code{esp\_timer} & Driver màn hình qua SPI DMA, PWM cho servo, hẹn giờ đóng thanh chắn \\
 \code{espressif/mdns}, \code{espressif/qrcode} & Tên \code{parking.local}; mã hóa mã QR thanh toán \\
-Arduino core ESP8266, thư viện MFRC522 và DHT & Nền tảng và thư viện thiết bị cho hai bo thu thập \\
+Arduino core ESP8266, thư viện MFRC522 và DHT & Nền tảng và thư viện thiết bị cho Sensor Client và RFID Client \\
 HTML, CSS, JavaScript thuần & Trang web quản lý nhúng trong firmware, không phụ thuộc thư viện ngoài \\
 Trình biên dịch C/C++ trên máy tính & Chạy bộ kiểm thử tự động không cần phần cứng \\
 \bottomrule
@@ -161,6 +137,6 @@ Trình biên dịch C/C++ trên máy tính & Chạy bộ kiểm thử tự độ
 
 Như Bảng~\ref{tab:software} cho thấy, trang web được viết bằng HTML, CSS và JavaScript thuần
 và nhúng trực tiếp vào firmware, nên vẫn mở được khi router mất kết nối Internet. Bộ kiểm thử
-biên dịch mã nghiệp vụ của máy chủ và mã nguồn hai bo thu thập trên máy tính cùng các thư viện
+biên dịch mã nghiệp vụ của máy chủ và mã nguồn hai client trên máy tính cùng các thư viện
 giả lập phần cứng, giúp kiểm tra logic trong vài giây mà không cần mô hình
 (Chương~\ref{chap:kiemthu}).
