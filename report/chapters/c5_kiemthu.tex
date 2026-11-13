@@ -23,18 +23,18 @@ tóm tắt nội dung và kết quả của từng nhóm.
 \begin{table}[H]
 \centering\small
 \caption{Kết quả kiểm thử tự động}\label{tab:unittests}
-\begin{tabularx}{\linewidth}{@{}lXr@{}}
-\toprule
-Nhóm & Nội dung kiểm tra chính & Kết quả \\ \midrule
-\code{payment} & CRC16 với giá trị chuẩn; chuỗi VietQR trùng từng byte với mã mẫu; từ chối tài khoản, số tiền không hợp lệ; chỉ chấp nhận giao dịch đúng mã và đúng số tiền & 38/38 \\
-\code{json\_parsers} & Bản tin hợp lệ với mọi thứ tự khóa; 46 dạng bản tin sai đều bị từ chối; biên của trường \code{seq} & 78/78 \\
-\code{rfid\_session} & Phí theo giờ tại các biên; vào, ra, sai cổng, bãi đầy; nhật ký vòng; lưu và khôi phục sau mất điện; đặt giờ; ngập có trễ; doanh thu theo ngày; chống xử lý trùng; luồng thanh toán QR; xóa xe; cảnh báo xe không thẻ & 181/181 \\
-\code{gate\_hold} & Giữ thanh chắn khi tia bị che, chỉ đóng sau 1\,s thông suốt liên tục, đếm lại khi tia bị che giữa chừng & 10/10 \\
-\code{gif\_frames} & Giải nén đủ 28 khung ảnh động, từ chối yêu cầu sai kích thước & 89/89 \\
-\code{sensor\_client} & Chạy mã Sensor Client: gửi định kỳ 1\,s, gửi ngay sau 50\,ms, lọc nhiễu, báo cháy, quy đổi mực nước, mất Wi-Fi & 18/18 \\
-\code{rfid\_client} & Chạy mã RFID Client: định dạng UID, chống đọc lặp 2\,s, gửi \code{climate}, gửi lại khi chưa có xác nhận, bỏ cuộc sau 6 lần & 25/25 \\ \midrule
+\begin{tabularx}{\linewidth}{|l|X|r|}
+\hline
+Nhóm & Nội dung kiểm tra chính & Kết quả \\ \hline
+\code{payment} & CRC16 với giá trị chuẩn; chuỗi VietQR trùng từng byte với mã mẫu; từ chối tài khoản, số tiền không hợp lệ; chỉ chấp nhận giao dịch đúng mã và đúng số tiền & 38/38 \\ \hline
+\code{json\_parsers} & Bản tin hợp lệ với mọi thứ tự khóa; 46 dạng bản tin sai đều bị từ chối; biên của trường \code{seq} & 78/78 \\ \hline
+\code{rfid\_session} & Phí theo giờ tại các biên; vào, ra, sai cổng, bãi đầy; nhật ký vòng; lưu và khôi phục sau mất điện; đặt giờ; ngập có trễ; doanh thu theo ngày; chống xử lý trùng; luồng thanh toán QR; xóa xe; cảnh báo xe không thẻ & 181/181 \\ \hline
+\code{gate\_hold} & Giữ thanh chắn khi tia bị che, chỉ đóng sau 1\,s thông suốt liên tục, đếm lại khi tia bị che giữa chừng & 10/10 \\ \hline
+\code{gif\_frames} & Giải nén đủ 28 khung ảnh động, từ chối yêu cầu sai kích thước & 89/89 \\ \hline
+\code{sensor\_client} & Chạy mã Sensor Client: gửi định kỳ 1\,s, gửi ngay sau 50\,ms, lọc nhiễu, báo cháy, quy đổi mực nước, mất Wi-Fi & 18/18 \\ \hline
+\code{rfid\_client} & Chạy mã RFID Client: định dạng UID, chống đọc lặp 2\,s, gửi \code{climate}, gửi lại khi chưa có xác nhận, bỏ cuộc sau 6 lần & 25/25 \\ \hline
 Tổng & & 439/439 \\
-\bottomrule
+\hline
 \end{tabularx}
 \end{table}
 
@@ -49,30 +49,30 @@ Các kịch bản kiểm thử hệ thống được thực hiện trên mô hì
 Bảng~\ref{tab:systest} liệt kê các kịch bản chính theo thứ tự use case, cùng hành vi mong đợi
 mà nhóm đã quan sát được.
 
-\begin{longtable}{@{}p{1.2cm}>{\raggedright\arraybackslash}p{5.4cm}>{\raggedright\arraybackslash}p{7.8cm}@{}}
+\begin{longtable}{|p{1.2cm}|>{\raggedright\arraybackslash}p{5.2cm}|>{\raggedright\arraybackslash}p{7.4cm}|}
 \caption{Kịch bản kiểm thử trên mô hình và kết quả quan sát}\label{tab:systest}\\
-\toprule UC & Thao tác & Kết quả \\ \midrule \endfirsthead
-\toprule UC & Thao tác & Kết quả \\ \midrule \endhead
-UC01 & Đặt xe vào ô S2 & Ô S2 trên màn hình chuyển đỏ gần như tức thì \\
-UC01 & Đưa vật nhanh qua cảm biến dưới 50\,ms & Trạng thái không đổi \\
-UC01 & Rút điện Sensor Client & Sau khoảng 3\,s màn hình báo \code{SENSOR OFFLINE} \\
-UC02 & Quẹt thẻ mới ở cổng vào & Thanh chắn mở, đóng sau 3\,s; nhật ký có dòng \code{IN} \\
-UC02 & Giữ vật chắn tia IR cổng vào quá 3\,s & Thanh chắn giữ mở, chỉ đóng sau khi bỏ vật chắn khoảng 1\,s \\
-UC02 & Gửi lặp lại một gói quẹt thẻ cùng \code{seq} & Hai lần đều nhận xác nhận, cổng chỉ mở một lần \\
-UC02 & Quẹt lại thẻ đã vào ở cổng vào & Không mở, báo \code{WRONG GATE} trong 5\,s \\
-UC02 & Quẹt thẻ thứ 6 khi đã có 5 xe & Không mở, báo \code{PARKING FULL} \\
-UC02 & Đặt xe vào ô mà không quẹt thẻ & Sau 15\,s còi kêu ngắt quãng, màn hình báo \code{CAR W/O CARD} \\
-UC03 & Quẹt ra, chuyển khoản bằng ứng dụng ngân hàng & Màn hình hiện mã QR; vài giây sau khi chuyển, cổng ra mở, có hóa đơn và dòng \code{OUT} \\
-UC03 & Chuyển dư 1.000\,VNĐ, sau đó chuyển đúng phí & Lần đầu cổng vẫn đóng, lần sau cổng mở \\
-UC04 & Quẹt ra, không chuyển khoản, sau đó bấm \code{Confirm paid} & Sau 180\,s màn hình báo \code{PAY AT BOOTH}; xác nhận thì cổng mở, có hóa đơn \\
-UC05 & Bấm \code{OPEN}, \code{CLOSE} của từng cổng & Thanh chắn tương ứng chuyển động, trạng thái trên web đúng \\
-UC05 & Bấm \code{CLOSE} khi đang che tia IR cổng & Trang web báo \code{CAR IN GATE}, thanh chắn giữ mở \\
-UC06 & Đưa lửa gần cảm biến, bấm \code{CLOSE} trên web & Còi kêu, hai thanh chắn mở; lệnh đóng bị từ chối \\
-UC07 & Nhúng cảm biến nước sâu hơn 20\,mm & Còi kêu, \code{FLOOD WARNING}; thẻ mới bị từ chối, xe trong bãi vẫn ra được \\
-UC08 & Mở \code{parking.local} trên điện thoại, để yên 1 phút & Sơ đồ bãi khớp màn hình TFT; nhiệt độ vẫn cập nhật khi không có xe quẹt thẻ \\
-UC09 & Gửi rồi lấy 2 xe, rút điện máy chủ 1 phút rồi cấp lại & Doanh thu và nhật ký đúng; xe còn trong bãi vẫn ở danh sách sau khi cấp điện lại \\
+\hline UC & Thao tác & Kết quả \\ \hline \endfirsthead
+\hline UC & Thao tác & Kết quả \\ \hline \endhead
+UC01 & Đặt xe vào ô S2 & Ô S2 trên màn hình chuyển đỏ gần như tức thì \\ \hline
+UC01 & Đưa vật nhanh qua cảm biến dưới 50\,ms & Trạng thái không đổi \\ \hline
+UC01 & Rút điện Sensor Client & Sau khoảng 3\,s màn hình báo \code{SENSOR OFFLINE} \\ \hline
+UC02 & Quẹt thẻ mới ở cổng vào & Thanh chắn mở, đóng sau 3\,s; nhật ký có dòng \code{IN} \\ \hline
+UC02 & Giữ vật chắn tia IR cổng vào quá 3\,s & Thanh chắn giữ mở, chỉ đóng sau khi bỏ vật chắn khoảng 1\,s \\ \hline
+UC02 & Gửi lặp lại một gói quẹt thẻ cùng \code{seq} & Hai lần đều nhận xác nhận, cổng chỉ mở một lần \\ \hline
+UC02 & Quẹt lại thẻ đã vào ở cổng vào & Không mở, báo \code{WRONG GATE} trong 5\,s \\ \hline
+UC02 & Quẹt thẻ thứ 6 khi đã có 5 xe & Không mở, báo \code{PARKING FULL} \\ \hline
+UC02 & Đặt xe vào ô mà không quẹt thẻ & Sau 15\,s còi kêu ngắt quãng, màn hình báo \code{CAR W/O CARD} \\ \hline
+UC03 & Quẹt ra, chuyển khoản bằng ứng dụng ngân hàng & Màn hình hiện mã QR; vài giây sau khi chuyển, cổng ra mở, có hóa đơn và dòng \code{OUT} \\ \hline
+UC03 & Chuyển dư 1.000\,VNĐ, sau đó chuyển đúng phí & Lần đầu cổng vẫn đóng, lần sau cổng mở \\ \hline
+UC04 & Quẹt ra, không chuyển khoản, sau đó bấm \code{Confirm paid} & Sau 180\,s màn hình báo \code{PAY AT BOOTH}; xác nhận thì cổng mở, có hóa đơn \\ \hline
+UC05 & Bấm \code{OPEN}, \code{CLOSE} của từng cổng & Thanh chắn tương ứng chuyển động, trạng thái trên web đúng \\ \hline
+UC05 & Bấm \code{CLOSE} khi đang che tia IR cổng & Trang web báo \code{CAR IN GATE}, thanh chắn giữ mở \\ \hline
+UC06 & Đưa lửa gần cảm biến, bấm \code{CLOSE} trên web & Còi kêu, hai thanh chắn mở; lệnh đóng bị từ chối \\ \hline
+UC07 & Nhúng cảm biến nước sâu hơn 20\,mm & Còi kêu, \code{FLOOD WARNING}; thẻ mới bị từ chối, xe trong bãi vẫn ra được \\ \hline
+UC08 & Mở \code{parking.local} trên điện thoại, để yên 1 phút & Sơ đồ bãi khớp màn hình TFT; nhiệt độ vẫn cập nhật khi không có xe quẹt thẻ \\ \hline
+UC09 & Gửi rồi lấy 2 xe, rút điện máy chủ 1 phút rồi cấp lại & Doanh thu và nhật ký đúng; xe còn trong bãi vẫn ở danh sách sau khi cấp điện lại \\ \hline
 UC10 & Bấm \code{Delete} ở một xe, nhập mã PIN & Xe rời danh sách, doanh thu và nhật ký không đổi, thanh chắn đứng yên \\
-\bottomrule
+\hline
 \end{longtable}
 
 Các kịch bản trong Bảng~\ref{tab:systest} đều cho kết quả đúng như mong đợi. Kịch bản quan
@@ -88,15 +88,15 @@ với chỉ tiêu ở Bảng~\ref{tab:nfr}.
 \begin{table}[H]
 \centering\small
 \caption{Độ trễ của các luồng chính}\label{tab:latency}
-\begin{tabularx}{\linewidth}{@{}lXr@{}}
-\toprule
-Luồng & Thành phần & Tổng \\ \midrule
-Xe vào ô, màn hình cập nhật & Lọc 50\,ms, UDP vài ms, vẽ 23\,ms & khoảng 0,1\,s \\
-Xe vào ô, trang web cập nhật & Như trên cộng chu kỳ hỏi tối đa 1\,s & tối đa 1,1\,s \\
-Quẹt thẻ, thanh chắn mở & Quét đầu đọc 10\,ms, UDP, xử lý dưới 1\,ms, servo quay 90° & khoảng 0,2\,s \\
-Có lửa, còi kêu & Lọc 50\,ms, UDP & khoảng 0,06\,s \\
+\begin{tabularx}{\linewidth}{|l|X|r|}
+\hline
+Luồng & Thành phần & Tổng \\ \hline
+Xe vào ô, màn hình cập nhật & Lọc 50\,ms, UDP vài ms, vẽ 23\,ms & khoảng 0,1\,s \\ \hline
+Xe vào ô, trang web cập nhật & Như trên cộng chu kỳ hỏi tối đa 1\,s & tối đa 1,1\,s \\ \hline
+Quẹt thẻ, thanh chắn mở & Quét đầu đọc 10\,ms, UDP, xử lý dưới 1\,ms, servo quay 90° & khoảng 0,2\,s \\ \hline
+Có lửa, còi kêu & Lọc 50\,ms, UDP & khoảng 0,06\,s \\ \hline
 Mất một gói quẹt thẻ & Gửi lại sau 300\,ms & khoảng 0,5\,s \\
-\bottomrule
+\hline
 \end{tabularx}
 \end{table}
 

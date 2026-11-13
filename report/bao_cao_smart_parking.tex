@@ -50,7 +50,6 @@
 \AtBeginEnvironment{lstlisting}{\setstretch{1.0}}
 \usepackage{amsmath,amssymb}
 \usepackage{graphicx}
-\usepackage{rotating}
 \usepackage{xcolor}
 \usepackage{booktabs,longtable,tabularx,array,multirow}
 \usepackage{enumitem}
@@ -141,10 +140,10 @@
 \newcommand{\bul}{\par\noindent\hangindent=0.9em\hangafter=1 --\hspace{0.4em}}
 \newenvironment{ucspec}[2]{%
   \setstretch{1.0}\small
-  \begin{longtable}{@{}>{\raggedright\arraybackslash}p{3cm}>{\raggedright\arraybackslash}p{12.3cm}@{}}
-  \caption{#1}\label{#2}\\ \toprule Mục & Nội dung \\ \midrule \endfirsthead
-  \toprule Mục & Nội dung \\ \midrule \endhead
-  \bottomrule \endlastfoot}{\end{longtable}}
+  \begin{longtable}{|>{\raggedright\arraybackslash}p{2.8cm}|>{\raggedright\arraybackslash}p{11.6cm}|}
+  \caption{#1}\label{#2}\\ \hline Mục & Nội dung \\ \hline \endfirsthead
+  \hline Mục & Nội dung \\ \hline \endhead
+  \hline \endlastfoot}{\end{longtable}}
 
 % Không để dòng đơn của một đoạn nằm tách ở đầu hoặc cuối trang
 \widowpenalty=10000 \clubpenalty=10000 \displaywidowpenalty=10000
@@ -228,30 +227,30 @@ tham khảo. Nhóm xin chịu hoàn toàn trách nhiệm về lời cam đoan n�
 
 \chapter*{DANH SÁCH THUẬT NGỮ VIẾT TẮT}
 \addcontentsline{toc}{chapter}{DANH SÁCH THUẬT NGỮ VIẾT TẮT}
-\begin{longtable}{@{}p{2.6cm}p{12.4cm}@{}}
-\toprule
-Viết tắt & Ý nghĩa \\ \midrule
-ACK & Acknowledgement, bản tin xác nhận đã nhận \\
-ADC & Analog-to-Digital Converter, bộ chuyển đổi tương tự sang số \\
-API & Application Programming Interface, giao diện lập trình ứng dụng \\
-DMA & Direct Memory Access, truy cập bộ nhớ trực tiếp \\
-GPIO & General Purpose Input/Output, chân vào ra đa dụng \\
-HTTP(S) & HyperText Transfer Protocol (qua TLS) \\
-IR & Infrared, hồng ngoại \\
-JSON & JavaScript Object Notation \\
-LEDC & LED Control, khối phát PWM phần cứng của ESP32 \\
-mDNS & Multicast DNS, phân giải tên miền \code{.local} trong mạng cục bộ \\
-NVS & Non-Volatile Storage, vùng lưu trữ khóa và giá trị trên flash \\
-PWM & Pulse Width Modulation, điều chế độ rộng xung \\
-RFID & Radio Frequency Identification, nhận dạng bằng sóng vô tuyến \\
-RTOS & Real-Time Operating System, hệ điều hành thời gian thực \\
-SPI & Serial Peripheral Interface, giao tiếp ngoại vi nối tiếp \\
-TFT & Thin-Film Transistor, công nghệ màn hình tinh thể lỏng \\
-UC & Use case, ca sử dụng \\
-UDP & User Datagram Protocol \\
-UID & Unique Identifier, mã định danh của thẻ RFID \\
+\begin{longtable}{|p{2.4cm}|p{11.8cm}|}
+\hline
+Viết tắt & Ý nghĩa \\ \hline
+ACK & Acknowledgement, bản tin xác nhận đã nhận \\ \hline
+ADC & Analog-to-Digital Converter, bộ chuyển đổi tương tự sang số \\ \hline
+API & Application Programming Interface, giao diện lập trình ứng dụng \\ \hline
+DMA & Direct Memory Access, truy cập bộ nhớ trực tiếp \\ \hline
+GPIO & General Purpose Input/Output, chân vào ra đa dụng \\ \hline
+HTTP(S) & HyperText Transfer Protocol (qua TLS) \\ \hline
+IR & Infrared, hồng ngoại \\ \hline
+JSON & JavaScript Object Notation \\ \hline
+LEDC & LED Control, khối phát PWM phần cứng của ESP32 \\ \hline
+mDNS & Multicast DNS, phân giải tên miền \code{.local} trong mạng cục bộ \\ \hline
+NVS & Non-Volatile Storage, vùng lưu trữ khóa và giá trị trên flash \\ \hline
+PWM & Pulse Width Modulation, điều chế độ rộng xung \\ \hline
+RFID & Radio Frequency Identification, nhận dạng bằng sóng vô tuyến \\ \hline
+RTOS & Real-Time Operating System, hệ điều hành thời gian thực \\ \hline
+SPI & Serial Peripheral Interface, giao tiếp ngoại vi nối tiếp \\ \hline
+TFT & Thin-Film Transistor, công nghệ màn hình tinh thể lỏng \\ \hline
+UC & Use case, ca sử dụng \\ \hline
+UDP & User Datagram Protocol \\ \hline
+UID & Unique Identifier, mã định danh của thẻ RFID \\ \hline
 VietQR & Chuẩn mã QR chuyển khoản liên ngân hàng của NAPAS \\
-\bottomrule
+\hline
 \end{longtable}
 
 \cleardoublepage\phantomsection\addcontentsline{toc}{chapter}{DANH SÁCH BẢNG BIỂU}

@@ -2,79 +2,30 @@
 \chapter{PHÂN TÍCH VÀ THIẾT KẾ HỆ THỐNG}\label{chap:thietke}
 % =====================================================================
 
-\section{Yêu cầu chức năng}\label{chap:usecase}
-Yêu cầu chức năng được mô hình hóa bằng use case. Mỗi use case biểu diễn một mục tiêu có ý
-nghĩa của một tác nhân và cho ra một kết quả quan sát được; các tình huống phụ như quẹt sai
-cổng hay mất gói tin được xem là luồng ngoại lệ của use case chứa nó, không tách thành use case
-riêng. Theo nguyên tắc này, hệ thống có 10 use case không chồng lấn nhau.
+\section{Yêu cầu chức năng}\label{sec:yeucau}
+Từ bài toán nêu ở Chương~\ref{chap:gioithieu}, hệ thống phục vụ hai nhóm người dùng: người lái
+xe tương tác với hệ thống tại cổng qua thẻ RFID, màn hình và mã QR; người vận hành tương tác qua
+trang web quản lý. Hệ thống cần cung cấp các chức năng sau:
+\begin{itemize}
+  \item Xác định trạng thái từng ô đỗ và hiển thị số chỗ trống, vị trí chỗ trống tại cổng vào.
+  \item Kiểm soát xe vào bằng thẻ RFID: mở thanh chắn cho thẻ hợp lệ, từ chối thẻ đã ở trong
+        bãi, từ chối khi bãi đầy hoặc khi đang ngập.
+  \item Ghi nhận thời gian gửi xe, tính phí theo giờ, thu phí bằng mã VietQR và tự động đối soát
+        giao dịch trước khi mở cổng ra.
+  \item Cho phép người vận hành xác nhận thanh toán khi khách trả tiền mặt hoặc khi đối soát tự
+        động không thực hiện được.
+  \item Tự động đóng thanh chắn sau khi xe đi qua và không hạ thanh chắn khi xe còn nằm trong
+        cổng; cho phép người vận hành mở, đóng thanh chắn từ xa.
+  \item Phát hiện cháy, bật còi và mở cả hai thanh chắn; phát hiện ngập nước, cảnh báo và ngừng
+        nhận xe.
+  \item Phát hiện xe đi vào bãi mà không quẹt thẻ.
+  \item Hiển thị trên trang web trạng thái bãi, nhiệt độ, mực nước, thanh chắn, danh sách xe
+        trong bãi, nhật ký vào ra và doanh thu.
+  \item Lưu phiên gửi xe, nhật ký và doanh thu để không mất dữ liệu khi mất điện, và cho phép
+        người vận hành hiệu chỉnh danh sách xe trong bãi.
+\end{itemize}
 
-Hệ thống có hai tác nhân chính và bốn tác nhân phụ. Người lái xe là tác nhân chính của các use
-case gửi xe, lấy xe và xem chỗ trống. Người vận hành là tác nhân chính của các use case quản lý
-bãi thực hiện qua trang web. Sensor Client và RFID Client là hai tác nhân thiết bị cung cấp dữ
-liệu cảm biến và sự kiện quẹt thẻ. Đồng hồ hệ thống là tác nhân thời gian kích hoạt việc đóng
-thanh chắn và hết hạn chờ thanh toán. SePay là hệ thống bên ngoài cung cấp danh sách giao dịch
-chuyển khoản vào tài khoản của bãi.
-
-\begin{figure}[H]
-\centering
-\begin{tikzpicture}[
-  uc/.style={draw=accent,fill=boxA,rounded corners=8pt,font=\footnotesize,align=center,text width=6.4cm,minimum height=0.74cm,inner sep=2pt},
-  who/.style={draw,rounded corners=8pt,fill=white,font=\footnotesize,align=center,text width=2.6cm,minimum height=0.8cm,inner sep=2pt},
-  dev/.style={draw,font=\footnotesize,align=center,text width=2.9cm,inner sep=3pt},
-  link/.style={draw=black!65}]
-\foreach \id/\txt [count=\i from 0] in {
-  01/Xem chỗ trống tại cổng, 02/Gửi xe bằng thẻ RFID, 03/Thanh toán phí và lấy xe,
-  06/Báo cháy và mở lối thoát, 07/Báo ngập và ngừng nhận xe, 08/Xem tình trạng bãi trên trang web,
-  04/Xác nhận thanh toán tại quầy, 05/Điều khiển thanh chắn từ xa,
-  09/Tra cứu nhật ký và doanh thu, 10/Hiệu chỉnh danh sách xe trong bãi}
-  \node[uc] (UC\id) at (0,-\i*0.94) {UC\id\ \txt};
-\begin{scope}[on background layer]
-  \node[fill=boxC,draw=black!25,fit=(UC01)(UC10),inner xsep=6pt,inner ysep=6pt,
-        label={[font=\footnotesize\bfseries,anchor=south]north:Hệ thống bãi đỗ xe thông minh}] {};
-\end{scope}
-\node[who] (driver) at (-6.7,-1.4) {Người lái xe};
-\node[who] (oper) at (-6.7,-6.1) {Người vận hành};
-\node[dev,fill=boxB] (sensor) at (6.75,-3.3) {«thiết bị»\\Sensor Client};
-\node[dev,fill=boxC] (rfid) at (6.75,-0.9) {«thiết bị»\\RFID Client};
-\node[dev,fill=boxE] (clock) at (6.75,-5.4) {«thời gian»\\Đồng hồ hệ thống};
-\node[dev,fill=boxE] (sepay) at (6.75,-7.4) {«hệ thống ngoài»\\SePay};
-\foreach \u in {01,02,03,06} \draw[link] (driver.east) -- (UC\u.west);
-\foreach \u in {06,07,08,04,05,09,10} \draw[link] (oper.east) -- (UC\u.west);
-\foreach \u in {01,06,07,08} \draw[link] (UC\u.east) -- (sensor.west);
-\foreach \u in {02,03,08} \draw[link] (UC\u.east) -- (rfid.west);
-\foreach \u in {02,03} \draw[link,densely dashed] (UC\u.east) -- (clock.west);
-\draw[link] (UC03.east) -- (sepay.west);
-\end{tikzpicture}
-\caption{Sơ đồ use case tổng quát}\label{fig:usecase}
-\end{figure}
-
-Hình~\ref{fig:usecase} thể hiện quan hệ giữa các tác nhân và 10 use case. Ba use case đầu phục
-vụ người lái xe trong một lượt gửi xe trọn vẹn; hai use case tiếp theo là phản ứng tự động của hệ
-thống trước sự cố, có cả người lái và người vận hành tham gia; năm use case còn lại là nghiệp vụ
-của người vận hành trên trang web. Đường nét đứt biểu diễn sự kiện theo thời gian như đóng thanh
-chắn hay hết hạn chờ thanh toán. Bảng~\ref{tab:uc-summary} tóm tắt tác nhân chính và mục tiêu của
-từng use case; đặc tả đầy đủ và cách hiện thực được trình bày theo đúng thứ tự này ở
-Chương~\ref{chap:hienthuc}.
-
-\begin{table}[H]
-\centering\small
-\caption{Tổng hợp các use case}\label{tab:uc-summary}
-\begin{tabularx}{\linewidth}{@{}l>{\raggedright\arraybackslash}p{4.3cm}>{\raggedright\arraybackslash}p{2.6cm}X@{}}
-\toprule
-Mã & Tên use case & Tác nhân chính & Mục tiêu \\ \midrule
-UC01 & Xem chỗ trống tại cổng & Người lái xe & Biết bãi còn bao nhiêu chỗ và chỗ nào trống trước khi vào \\
-UC02 & Gửi xe bằng thẻ RFID & Người lái xe & Được mở cổng vào và bắt đầu tính thời gian gửi xe \\
-UC03 & Thanh toán phí và lấy xe & Người lái xe & Trả đúng phí bằng VietQR và được mở cổng ra \\
-UC04 & Xác nhận thanh toán tại quầy & Người vận hành & Cho xe ra khi khách trả tiền mặt hoặc không đối soát tự động được \\
-UC05 & Điều khiển thanh chắn từ xa & Người vận hành & Mở hoặc đóng từng cổng hay cả hai cổng khi cần \\
-UC06 & Báo cháy và mở lối thoát & Sensor Client & Báo động và giải phóng lối ra ngay khi có lửa \\
-UC07 & Báo ngập và ngừng nhận xe & Sensor Client & Báo động và không cho thêm xe vào khi nước dâng \\
-UC08 & Xem tình trạng bãi trên trang web & Người vận hành & Nắm được trạng thái ô đỗ, môi trường và thanh chắn từ xa \\
-UC09 & Tra cứu nhật ký và doanh thu & Người vận hành & Đối soát lượt xe vào ra và tiền thu được \\
-UC10 & Hiệu chỉnh danh sách xe trong bãi & Người vận hành & Xóa xe đã rời bãi mà không qua quy trình ra bình thường \\
-\bottomrule
-\end{tabularx}
-\end{table}
+Các chức năng trên được đặc tả chi tiết dưới dạng use case ở Chương~\ref{chap:hienthuc}.
 
 \section{Yêu cầu phi chức năng}\label{sec:nfr}
 Bên cạnh chức năng, hệ thống phải đáp ứng các yêu cầu về thời gian, an toàn, độ tin cậy và
@@ -83,23 +34,49 @@ tài nguyên. Bảng~\ref{tab:nfr} lượng hóa từng yêu cầu và nêu gi�
 \begin{table}[H]
 \centering\small
 \caption{Yêu cầu phi chức năng và giải pháp đáp ứng}\label{tab:nfr}
-\begin{tabularx}{\linewidth}{@{}p{2.6cm}X>{\raggedright\arraybackslash}p{5cm}@{}}
-\toprule
-Yêu cầu & Chỉ tiêu & Giải pháp thiết kế \\ \midrule
-Thời gian đáp ứng & Màn hình cập nhật dưới 0,2\,s sau khi xe vào ô; thanh chắn mở dưới 0,5\,s sau khi quẹt thẻ & Gửi dữ liệu khi có thay đổi, vẽ màn hình theo sự kiện, tác vụ mạng có ưu tiên cao \\
-An toàn & Có cháy thì mở cả hai cổng ngay; không hạ thanh chắn khi xe còn trong cổng; có ngập thì không nhận xe & Chế độ cháy ưu tiên cao nhất; cảm biến IR tại cổng; chặn quẹt thẻ vào khi ngập \\
-Độ tin cậy & Không mất lượt quẹt thẻ khi mất gói; không mất dữ liệu gửi xe khi mất điện & Xác nhận và gửi lại; lưu phiên vào bộ nhớ flash \\
-Tài nguyên & Chạy trong khoảng 321\,KB RAM cùng ảnh màn hình 115\,KB và kết nối TLS & Cấp phát bộ đệm TLS động, giải phóng bộ đệm ảnh động khi thanh toán \\
-Bảo mật & Thao tác điều khiển cần xác thực; thông tin bí mật không nằm trong mã nguồn & Mã PIN quản trị; cấu hình bí mật qua menuconfig \\
+\begin{tabularx}{\linewidth}{|p{2.6cm}|X|>{\raggedright\arraybackslash}p{5cm}|}
+\hline
+Yêu cầu & Chỉ tiêu & Giải pháp thiết kế \\ \hline
+Thời gian đáp ứng & Màn hình cập nhật dưới 0,2\,s sau khi xe vào ô; thanh chắn mở dưới 0,5\,s sau khi quẹt thẻ & Gửi dữ liệu khi có thay đổi, vẽ màn hình theo sự kiện, tác vụ mạng có ưu tiên cao \\ \hline
+An toàn & Có cháy thì mở cả hai cổng ngay; không hạ thanh chắn khi xe còn trong cổng; có ngập thì không nhận xe & Chế độ cháy ưu tiên cao nhất; cảm biến IR tại cổng; chặn quẹt thẻ vào khi ngập \\ \hline
+Độ tin cậy & Không mất lượt quẹt thẻ khi mất gói; không mất dữ liệu gửi xe khi mất điện & Xác nhận và gửi lại; lưu phiên vào bộ nhớ flash \\ \hline
+Tài nguyên & Chạy trong khoảng 321\,KB RAM cùng ảnh màn hình 115\,KB và kết nối TLS & Cấp phát bộ đệm TLS động, giải phóng bộ đệm ảnh động khi thanh toán \\ \hline
+Bảo mật & Thao tác điều khiển cần xác thực; thông tin bí mật không nằm trong mã nguồn & Mã PIN quản trị; cấu hình bí mật qua menuconfig \\ \hline
 Dễ sử dụng & Dùng được trên mọi điện thoại, thanh toán bằng ứng dụng ngân hàng bất kỳ & Trang web tại \code{parking.local}, mã VietQR \\
-\bottomrule
+\hline
 \end{tabularx}
 \end{table}
 
-Các chỉ tiêu trong Bảng~\ref{tab:nfr} chi phối nhiều quyết định thiết kế ở các mục sau. Yêu
-cầu thời gian dẫn tới việc gửi dữ liệu theo sự kiện thay vì theo chu kỳ; yêu cầu an toàn dẫn
-tới việc bổ sung cảm biến hồng ngoại dưới mỗi thanh chắn; yêu cầu tài nguyên buộc máy chủ
-phải quản lý bộ nhớ động một cách có chủ đích khi thực hiện kết nối HTTPS.
+Mỗi yêu cầu trong Bảng~\ref{tab:nfr} xuất phát từ một rủi ro cụ thể khi vận hành bãi đỗ.
+
+Yêu cầu về thời gian đáp ứng xuất phát từ cách người lái sử dụng hệ thống. Người lái quyết
+định vào bãi và chọn ô ngay khi tới cổng, nên nếu màn hình chậm hơn thực tế, người lái có thể
+được dẫn tới một ô vừa có xe khác đỗ vào. Tương tự, thời gian chờ sau khi quẹt thẻ phải đủ ngắn
+để người lái nhận được phản hồi ngay và các xe phía sau không bị ùn lại ở cổng.
+
+Yêu cầu về an toàn xuất phát từ việc thanh chắn là cơ cấu cơ khí chuyển động ngay trên làn xe.
+Hạ thanh chắn khi xe chưa đi qua sẽ làm hỏng xe; giữ cổng đóng khi có cháy sẽ cản trở thoát
+hiểm; cho xe vào khi bãi đang ngập sẽ làm hỏng động cơ xe. Vì vậy các điều kiện an toàn được đặt
+lên trên mọi lệnh điều khiển khác, kể cả lệnh của người vận hành.
+
+Yêu cầu về độ tin cậy xuất phát từ việc mỗi lượt quẹt thẻ gắn với tiền. Nếu mất một lượt quẹt
+vào, xe ra sẽ không tính được phí; nếu mất điện làm mất danh sách phiên, toàn bộ doanh thu đang
+chờ thu bị mất. Mạng Wi-Fi và giao thức UDP không bảo đảm gói tin tới nơi, nên hệ thống phải tự
+bổ sung cơ chế xác nhận và lưu trữ.
+
+Yêu cầu về tài nguyên xuất phát từ giới hạn phần cứng. Sau khi khởi động Wi-Fi, máy chủ còn
+khoảng 321\,KB RAM, trong đó bộ đệm màn hình chiếm 115\,KB và mỗi kết nối HTTPS tới SePay cần
+thêm khoảng 40\,KB; nếu không quản lý bộ nhớ có chủ đích, kết nối HTTPS sẽ thất bại đúng lúc
+người lái đang thanh toán.
+
+Yêu cầu về bảo mật xuất phát từ việc trang web truy cập được từ mọi thiết bị trong mạng, trong
+khi các lệnh mở cổng hay xác nhận thanh toán ảnh hưởng trực tiếp tới tiền và an ninh của bãi.
+Khóa truy cập SePay và mật khẩu Wi-Fi nếu nằm trong mã nguồn sẽ bị lộ khi chia sẻ mã nguồn.
+
+Yêu cầu về tính dễ sử dụng xuất phát từ đối tượng người dùng. Người lái thường là khách vãng
+lai, không thể yêu cầu cài một ứng dụng riêng, trong khi mã VietQR được mọi ứng dụng ngân hàng
+hỗ trợ. Người vận hành dùng điện thoại sẵn có, nên giao diện quản lý là một trang web không cần
+cài đặt.
 
 \section{Kiến trúc tổng thể}\label{sec:trienkhai}
 Hệ thống gồm ba thiết bị cùng kết nối vào một mạng Wi-Fi chung có Internet. Hình~\ref{fig:deploy}
@@ -168,11 +145,11 @@ Hình~\ref{fig:sch-server}, \ref{fig:sch-sensor} và \ref{fig:sch-rfid} được
 lượt trong ba mục sau.
 
 \subsubsection{Mạch máy chủ}
-\begin{sidewaysfigure}
+\begin{figure}[H]
 \centering
-\includegraphics[width=\linewidth,height=0.82\textwidth,keepaspectratio]{schematic/sheet1.pdf}
+\includegraphics[width=\linewidth,height=0.62\textheight,keepaspectratio]{schematic/sheet1.pdf}
 \caption{Sơ đồ nguyên lý máy chủ: ESP32-C3, màn hình ST7789, 2 servo, còi và 2 cảm biến IR ở cổng}\label{fig:sch-server}
-\end{sidewaysfigure}
+\end{figure}
 
 Hình~\ref{fig:sch-server} là mạch máy chủ. Adapter J\_PWR1 cấp đường 5\,V chung; tụ hóa C1
 100\,µF đặt ngay đầu vào san phẳng gợn sóng của adapter. Hai servo SG90 lấy nguồn trực tiếp từ đường 5\,V thay vì từ chân 3V3 của bo, vì
@@ -192,11 +169,11 @@ SPI2 với năm tín hiệu SCK, MOSI, RES, DC và CS; chân đèn nền BL nố
 hình luôn sáng.
 
 \subsubsection{Mạch Sensor Client}
-\begin{sidewaysfigure}
+\begin{figure}[H]
 \centering
-\includegraphics[width=\linewidth,height=0.82\textwidth,keepaspectratio]{schematic/sheet2.pdf}
+\includegraphics[width=\linewidth,height=0.62\textheight,keepaspectratio]{schematic/sheet2.pdf}
 \caption{Sơ đồ nguyên lý Sensor Client: ESP8266, 5 cảm biến IR ô đỗ, cảm biến lửa và mực nước}\label{fig:sch-sensor}
-\end{sidewaysfigure}
+\end{figure}
 
 Hình~\ref{fig:sch-sensor} là mạch Sensor Client. Adapter J\_PWR2 cấp 5\,V qua tụ C5 100\,µF,
 sau đó qua hai diode chỉnh lưu 1N4007 (D1, D2) mắc nối tiếp để tạo đường VCC khoảng 3,6\,V cấp
@@ -219,11 +196,11 @@ quá điện áp chịu đựng của chân vào. Cảm biến lửa FLM1 nối 
 nước WTR1 nối ngõ ra analog AO vào chân ADC A0.
 
 \subsubsection{Mạch RFID Client}
-\begin{sidewaysfigure}
+\begin{figure}[H]
 \centering
-\includegraphics[width=\linewidth,height=0.82\textwidth,keepaspectratio]{schematic/sheet3.pdf}
+\includegraphics[width=\linewidth,height=0.62\textheight,keepaspectratio]{schematic/sheet3.pdf}
 \caption{Sơ đồ nguyên lý RFID Client: ESP8266, 2 đầu đọc RC522 dùng chung SPI và DHT11}\label{fig:sch-rfid}
-\end{sidewaysfigure}
+\end{figure}
 
 Hình~\ref{fig:sch-rfid} là mạch RFID Client, có đường nguồn giống Sensor Client gồm adapter
 J\_PWR3, tụ C6 100\,µF và hai diode D3, D4. Tụ C6 có thêm vai trò ổn định điện áp khi hai
@@ -234,7 +211,304 @@ một đầu đọc giao tiếp trên bus. Cảm biến DHT11 nối chân DATA v
 của ESP8266, cần mức cao khi khởi động, và điện trở kéo lên sẵn có trên module DHT11 bảo đảm
 điều kiện này.
 
-\subsection{Bố trí thiết bị trên mô hình}\label{sec:mohinh}
+\section{Thiết kế giao thức truyền thông}\label{sec:giaothuc}
+Sensor Client và RFID Client gửi ba loại bản tin JSON tới máy chủ qua UDP. Mã nguồn~\ref{lst:msg} là ví dụ
+của từng loại cùng gói xác nhận mà máy chủ gửi lại.
+
+\begin{lstlisting}[language=json,caption={Các bản tin UDP giữa client và máy chủ},label={lst:msg}]
+{"type":"parking_update","slots":[1,0,0,1,0],"water_mm":0.2,"fire":false}
+{"type":"climate","temperature_c":28.0}
+{"type":"rfid_event","card_id":"A1B2C3D4","gate":"in","temperature_c":28.0,"seq":305441741}
+{"type":"rfid_ack","seq":305441741}
+\end{lstlisting}
+
+Trong Mã nguồn~\ref{lst:msg}, bản tin \code{parking\_update} mang toàn bộ trạng thái của Sensor
+Client gồm năm ô đỗ, mực nước và cờ cháy; bản tin \code{climate} mang nhiệt độ; bản tin
+\code{rfid\_event} mang mã thẻ, cổng và số thứ tự \code{seq}. Vì cổng UDP là ranh giới tin
+cậy mà mọi thiết bị trong mạng đều gửi tới được, máy chủ kiểm tra chặt từng bản tin bằng bộ
+đọc JSON tự viết, không cấp phát bộ nhớ động và chỉ chấp nhận đúng lược đồ: mảng \code{slots}
+đúng 5 phần tử 0 hoặc 1, mực nước 0--10\,000\,mm, nhiệt độ $-40$ đến 125\,°C, mã thẻ 1--31 ký
+tự chữ, số, gạch nối; khóa lạ, khóa lặp hay dữ liệu thừa đều bị từ chối và trạng thái cũ được
+giữ nguyên. So với thư viện cJSON, cách làm này tránh phân mảnh bộ nhớ khi chạy lâu và giới
+hạn được thời gian xử lý mỗi bản tin.
+
+Phía trang web, máy chủ cung cấp các API HTTP được liệt kê ở Bảng~\ref{tab:api}. Mọi lệnh làm
+thay đổi trạng thái dùng phương thức POST và phải mang mã PIN quản trị trong header
+\code{X-Parking-Key}; sai mã PIN, máy chủ trả mã lỗi 401.
+
+\begin{table}[H]
+\centering\small
+\caption{API HTTP của máy chủ}\label{tab:api}
+\begin{tabularx}{\linewidth}{|l|p{6.2cm}|X|}
+\hline
+Phương thức & Đường dẫn & Chức năng \\ \hline
+GET & \code{/api/parking} & Trạng thái ô đỗ, số chỗ trống, nhiệt độ, mực nước, cháy, ngập \\ \hline
+GET & \code{/api/barrier} & Trạng thái hai thanh chắn \\ \hline
+GET & \code{/api/rfid} & Xe trong bãi, lượt thanh toán đang chờ, 10 sự kiện gần nhất, doanh thu \\ \hline
+POST & \code{/api/barrier/<cổng>/<lệnh>} & Mở hoặc đóng cổng \code{in}, \code{out} hoặc \code{all} \\ \hline
+POST & \code{/api/payment/confirm} & Người vận hành xác nhận đã nhận tiền \\ \hline
+POST & \code{/api/rfid/remove} & Xóa một xe khỏi danh sách trong bãi \\ \hline
+POST & \code{/api/time} & Trình duyệt cung cấp giờ thực cho máy chủ \\
+\hline
+\end{tabularx}
+\end{table}
+
+Các API trong Bảng~\ref{tab:api} được trang web gọi theo chu kỳ 1--2\,s. Cách hỏi vòng này không
+giữ trạng thái kết nối trên máy chủ, mỗi yêu cầu được xử lý xong là giải phóng, phù hợp với
+giới hạn bộ nhớ và số kết nối đồng thời của vi điều khiển; độ trễ thêm tối đa một giây là chấp
+nhận được với dữ liệu thay đổi theo giây.
+
+\subsection{Bảo đảm không mất lượt quẹt thẻ}\label{sec:ack}
+Khác với trạng thái cảm biến, sự kiện quẹt thẻ chỉ xảy ra một lần; mất gói đồng nghĩa với mất
+lượt quẹt. Thay vì chuyển sang TCP, hệ thống bổ sung đúng phần độ tin cậy cần thiết như ở phần
+giữa của Hình~\ref{fig:seq-rfid} ở Chương~\ref{chap:hienthuc}. Máy chủ ghi nhớ 16 giá trị \code{seq} gần nhất; gặp lại một
+\code{seq} đã xử lý, máy chủ hiểu đó là bản gửi lại, chỉ trả xác nhận mà không xử lý lần hai.
+Giá trị \code{seq} khởi đầu từ một số ngẫu nhiên do bộ sinh số ngẫu nhiên phần cứng của ESP8266
+tạo ra mỗi lần khởi động rồi tăng dần, nên client không cần lưu gì vào flash.
+
+\section{Thiết kế các chức năng chính}\label{sec:chucnang}
+Mục này trình bày cách hệ thống hiện thực các chức năng nêu ở Mục~\ref{sec:yeucau}. Các cơ chế
+được mô tả ở đây được dùng chung bởi nhiều use case ở Chương~\ref{chap:hienthuc}.
+
+\subsection{Xác định trạng thái ô đỗ}\label{sec:f-slot}
+Sensor Client phải lọc nhiễu tín hiệu cảm biến ô đỗ vì mép xe và bánh xe làm tín hiệu hồng ngoại bật
+tắt liên tục trong vài chục mili giây khi xe đang lăn vào ô. Hình~\ref{fig:debounce} minh họa
+thuật toán: mỗi cảm biến có bộ đếm thời gian riêng, mức mới chỉ được chấp nhận khi giữ nguyên đủ
+50\,ms.
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[x=0.9cm,y=0.6cm,font=\scriptsize]
+\node[anchor=east] at (-0.2,2.5) {Tín hiệu thô};
+\draw[thick] (0,2) -- (2,2) -- (2,3) -- (2.3,3) -- (2.3,2) -- (2.5,2) -- (2.5,3) -- (2.7,3) -- (2.7,2) -- (2.9,2) -- (2.9,3) -- (11,3);
+\node[anchor=east] at (-0.2,0.5) {Trạng thái};
+\draw[thick,accent] (0,0) -- (3.9,0) -- (3.9,1) -- (11,1);
+\draw[dashed,gray] (2.9,3.3) -- (2.9,-0.4);
+\draw[dashed,gray] (3.9,3.3) -- (3.9,-0.4);
+\draw[{Stealth}-{Stealth}] (2.9,-0.6) -- node[below]{ổn định 50\,ms} (3.9,-0.6);
+\node[align=center] at (2.45,3.8) {nhiễu khi xe\\đang lăn vào};
+\node[draw,fill=boxB,align=center] at (7.5,-0.9) {gửi \code{parking\_update} ngay};
+\draw[-{Stealth},thick] (3.9,1) to[bend right=10] (6.2,-0.6);
+\end{tikzpicture}
+\caption{Lọc nhiễu tín hiệu cảm biến ô đỗ}\label{fig:debounce}
+\end{figure}
+
+Thời gian 50\,ms được tinh chỉnh thực nghiệm từ giá trị ban đầu 250\,ms: đủ loại bỏ nhiễu mà
+vẫn tạo cảm giác tức thời. Ngoài việc gửi ngay khi có thay đổi, Sensor Client còn nhắc lại
+toàn bộ trạng thái mỗi giây; nhờ vậy, một gói UDP bị mất chỉ gây sai lệch tối đa một giây và
+tự được sửa ở lần gửi sau, không cần cơ chế truyền lại.
+
+\subsection{Hiển thị tại cổng}\label{sec:f-tft}
+Khi trạng thái bãi thay đổi, tác vụ \code{udp\_server} của máy chủ đánh thức tác vụ màn hình bằng thông báo tác vụ
+ngay khi có dữ liệu mới. Màn hình dùng một bộ đệm khung $240\times240$ điểm ảnh 16 bit
+(115\,200 byte): toàn bộ giao diện được vẽ vào RAM rồi truyền một lần qua SPI 40\,MHz có DMA,
+mất khoảng 23\,ms. Tần số 40\,MHz bằng đúng một nửa xung nhịp 80\,MHz của khối SPI và thấp hơn
+giới hạn khoảng 62\,MHz của ST7789, chừa biên an toàn cho dây nối. Giao diện thực tế ở
+Hình~\ref{fig:tft-live} gồm hàng trên là số chỗ trống, ô nhiệt độ và ô mực nước kèm một ảnh
+động trang trí; hàng giữa là năm ô đỗ; vùng chân màn hình dành cho hóa đơn và thông báo. Khi
+Sensor Client mất kết nối, dữ liệu cũ không còn được dùng để từ chối thẻ hay phát cảnh báo,
+tránh việc hệ thống hành động dựa trên trạng thái không còn đúng.
+
+\subsection{Đọc thẻ trên hai đầu đọc dùng chung bus}\label{sec:f-reader}
+RFID Client quét luân phiên hai đầu đọc và tại mỗi thời điểm chỉ bật ăng-ten của một đầu đọc.
+Hai đầu đọc cùng tần số 13,56\,MHz đặt gần nhau sẽ gây nhiễu chéo nếu cùng phát, nên cách bật
+luân phiên loại bỏ hoàn toàn vấn đề này. Sau khi bật ăng-ten, client chờ 4\,ms để thẻ thụ động
+nhận đủ năng lượng; độ khuếch đại được đặt ở mức 48\,dB để bù tầm đọc khi đầu đọc nằm sau thành
+hộp. Một thẻ để yên trên đầu đọc sẽ bị đọc liên tục, vì vậy client bỏ qua các lần đọc lặp lại
+cùng một thẻ trong vòng 2\,s, tránh trường hợp một lần quẹt bị hiểu thành vào rồi ra. Mã UID được
+đổi sang chuỗi hex trong bộ đệm cố định thay vì kiểu \code{String} của Arduino, để bộ nhớ heap
+khoảng 80\,KB của ESP8266 không bị phân mảnh khi chạy lâu.
+
+\subsection{Điều khiển thanh chắn}\label{sec:f-gate}
+Servo SG90 nhận xung chu kỳ 20\,ms, độ rộng xung quyết định góc quay như Hình~\ref{fig:pwm}.
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[x=0.55cm,y=0.7cm,font=\scriptsize]
+\draw[-{Stealth}] (0,0) -- (23,0) node[right]{$t$ (ms)};
+\draw[-{Stealth}] (0,0) -- (0,1.8) node[left]{PWM};
+\draw[thick,accent] (0,0) -- (0,1.2) -- (1.45,1.2) -- (1.45,0) -- (20,0) -- (20,1.2) -- (21.45,1.2) -- (21.45,0) -- (22.5,0);
+\draw[{Stealth}-{Stealth}] (0,-0.5) -- node[below]{chu kỳ $T = 20$\,ms (50\,Hz)} (20,-0.5);
+\draw[{Stealth}-{Stealth}] (0,1.5) -- node[above]{$p$} (1.45,1.5);
+\node[align=left,anchor=west] at (3,1.0) {$p = 500$\,µs $\to 0°$\quad $p = 1450$\,µs $\to 90°$\quad $p = 2400$\,µs $\to 180°$};
+\end{tikzpicture}
+\caption{Dạng xung điều khiển servo SG90}\label{fig:pwm}
+\end{figure}
+
+Từ Hình~\ref{fig:pwm}, độ rộng xung $p$ ứng với góc $\theta$ và giá trị $D$ nạp vào thanh ghi
+của khối LEDC 14 bit được tính theo
+\begin{equation}
+  p(\theta) = 500 + \frac{1900\,\theta}{180}\ \text{µs}, \qquad
+  D = \left\lfloor \frac{p \cdot (2^{14}-1)}{20\,000} \right\rfloor .
+\end{equation}
+Với $\theta=90°$ ta có $p=1450$\,µs và $D=1187$; với $\theta=0°$ ta có $p=500$\,µs và $D=409$.
+Độ phân giải 14 bit cho mỗi bước khoảng 1,22\,µs, tương đương 0,12°, mịn hơn nhiều so với vùng
+chết khoảng 1° của SG90 nên servo không rung. Dải 500--2400\,µs là giá trị đo thực tế; dải danh
+nghĩa 1000--2000\,µs không đủ để servo quay hết hành trình. Thanh chắn cổng ra được lắp đối xứng
+nên góc mở và đóng đảo ngược so với cổng vào, khác biệt này chỉ được khai báo ở một hàm.
+
+Việc đóng thanh chắn được hẹn bằng bộ hẹn giờ một lần \code{esp\_timer} thay vì một tác vụ hỏi
+vòng: hàm đóng được gọi đúng thời điểm với sai số micro giây và CPU không bị đánh thức vô ích.
+Hình~\ref{fig:fsm-gate} là máy trạng thái của một thanh chắn, dùng chung cho UC02, UC03, UC05 và
+UC06.
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[
+  st/.style={draw=accent,fill=boxA,rounded corners=2pt,font=\footnotesize,align=center,minimum height=1cm,text width=2.6cm,inner sep=2pt},
+  lb/.style={font=\scriptsize,align=center,inner sep=1.5pt},
+  arr/.style={-{Stealth[length=2mm]},draw=black!70}]
+\node[st] (D) at (0,0) {Đóng};
+\node[st] (H) at (5,0) {Mở có hẹn giờ 3\,s};
+\node[st,fill=boxC] (G) at (10.2,0) {Giữ mở\\xe còn trong cổng};
+\node[st] (M) at (0,-3.4) {Mở thủ công};
+\node[st,fill=boxD] (F) at (5,2.9) {Mở do cháy\\khóa lệnh đóng};
+\fill (-2.2,0) circle (2pt); \draw[arr] (-2.2,0) -- (D);
+\draw[arr] ([yshift=2mm]D.east) -- node[lb,above] {thẻ hợp lệ} ([yshift=2mm]H.west);
+\draw[arr] ([yshift=-2mm]H.west) -- node[lb,below] {hết 3\,s, làn trống} ([yshift=-2mm]D.east);
+\draw[arr] ([yshift=2mm]H.east) -- node[lb,above] {hết 3\,s, IR bị che} ([yshift=2mm]G.west);
+\draw[arr] (G.south) -- ++(0,-1.3) -| node[lb,below,pos=0.25] {làn trống liên tục 1\,s} ([xshift=9mm]D.south);
+\draw[arr] (G) edge[loop right,looseness=4] node[lb,right,text width=1.5cm] {kiểm tra mỗi 50\,ms} (G);
+\draw[arr] ([xshift=-6mm]D.north) |- node[lb,above,pos=0.75] {có lửa (từ mọi trạng thái)} (F.west);
+\draw[arr] (F.east) -| node[lb,above,pos=0.25] {hết lửa, kiểm tra IR} (G.north);
+\draw[arr] ([xshift=-7mm]D.south) -- node[lb,left] {lệnh mở từ web} ([xshift=-7mm]M.north);
+\draw[arr] ([xshift=1mm]M.north) -- node[lb,right,pos=0.3] {lệnh đóng từ web, làn trống} ([xshift=1mm]D.south);
+\draw[arr] (M) edge[loop right,looseness=4] node[lb,right,text width=3.2cm] {lệnh đóng khi xe trong cổng: từ chối, mã 409} (M);
+\end{tikzpicture}
+\caption{Máy trạng thái của một thanh chắn}\label{fig:fsm-gate}
+\end{figure}
+
+Theo Hình~\ref{fig:fsm-gate}, khi hết 3\,s, hàm đóng đọc cảm biến hồng ngoại của cổng. Nếu tia
+bị che, tức là xe còn nằm dưới cần chắn, thanh chắn được giữ mở và hàm đóng tự hẹn lại sau
+50\,ms để kiểm tra tiếp. Thanh chắn chỉ hạ xuống khi tia thông suốt liên tục 1\,s; điều kiện liên
+tục này loại bỏ trường hợp cảm biến nháy một mẫu đúng lúc khoảng trống giữa hai trục xe đi qua.
+Logic đếm thời gian thông suốt được tách thành một hàm thuần không phụ thuộc phần cứng để kiểm
+thử trên máy tính. Vì một lệnh khác có thể xảy ra đồng thời với hàm đóng, hàm đóng kiểm tra lại
+hạn đóng trong vùng bảo vệ bởi mutex. Cả hai thanh chắn luôn khởi động ở vị trí đóng, vì vậy
+trạng thái thanh chắn không cần lưu vào flash.
+
+\subsection{Quản lý trạng thái thẻ}\label{sec:f-card}
+Việc chấp nhận hay từ chối một lần quẹt thẻ dựa trên trạng thái hiện tại của thẻ đó.
+Hình~\ref{fig:fsm-card} tổng hợp các trạng thái của một thẻ và các chuyển trạng thái, bao gồm cả
+các nhánh bị từ chối.
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[
+  st/.style={draw=accent,fill=boxA,rounded corners=2pt,font=\footnotesize,align=center,minimum height=0.95cm,text width=2.05cm,inner sep=2pt},
+  wide/.style={st,text width=2.9cm},
+  lb/.style={font=\scriptsize,align=center,text width=3.3cm,inner sep=2pt},
+  arr/.style={-{Stealth[length=2mm]},draw=black!70}]
+\node[st] (N) at (-5.6,0) {Thẻ ngoài bãi};
+\node[st] (T) at (-0.6,0) {Thẻ trong bãi};
+\node[wide] (C) at (5.4,0) {Chờ thanh toán\\QR trên TFT, cổng đóng};
+\node[wide,text width=3.3cm] (R1) at (-5.6,4.3) {Bị từ chối\\WRONG GATE / FULL};
+\node[wide] (R2) at (-0.6,4.3) {Bị từ chối\\WRONG GATE};
+\fill (-7.5,0) circle (2pt);
+\draw[arr] (-7.5,0) -- (N.west);
+\draw[arr] ([yshift=2.5mm]N.east) -- node[lb,above,text width=2.7cm] {quẹt cổng vào, còn chỗ\\mở cổng vào} ([yshift=2.5mm]T.west);
+\draw[arr] ([yshift=-2.5mm]T.west) -- node[lb,below,text width=2.7cm] {quẹt cổng ra, tắt QR\\tính phí, mở cổng ra} ([yshift=-2.5mm]N.east);
+\draw[arr] (T.east) -- node[lb,above,text width=3.2cm] {quẹt cổng ra, bật QR\\chốt phí} (C.west);
+\draw[arr] ([xshift=-7mm]C.north) .. controls +(-0.2,1.1) and +(0.2,1.1) .. node[lb,above,pos=0.5,text width=2.9cm] {quẹt lại, hiện lại QR cũ} ([xshift=7mm]C.north);
+\draw[arr] ([xshift=-3.5mm]T.north) -- node[lb,left,pos=0.68,text width=1.9cm] {quẹt cổng vào} ([xshift=-3.5mm]R2.south);
+\draw[arr] ([xshift=3.5mm]R2.south) -- node[lb,right,pos=0.32,text width=1.9cm] {thông báo 5\,s} ([xshift=3.5mm]T.north);
+\draw[arr] ([xshift=-3.5mm]N.north) -- node[lb,left,pos=0.68,text width=1.6cm] {quẹt cổng ra, hoặc bãi đầy} ([xshift=-3.5mm]R1.south);
+\draw[arr] ([xshift=3.5mm]R1.south) -- node[lb,right,pos=0.32,text width=1.9cm] {thông báo 5\,s} ([xshift=3.5mm]N.north);
+\draw[arr] (C.south) -- ++(0,-1.7) -| node[lb,below,pos=0.25,text width=8cm] {SePay khớp giao dịch hoặc người vận hành xác nhận, mở cổng ra} (N.south);
+\end{tikzpicture}
+\caption{Máy trạng thái của một thẻ RFID}\label{fig:fsm-card}
+\end{figure}
+
+Hình~\ref{fig:fsm-card} cho thấy hai trạng thái bị từ chối đều tự quay về trạng thái trước đó sau
+5\,s, nghĩa là lần quẹt sai không làm thay đổi phiên gửi xe; nếu ngay sau đó có một lần quẹt hợp
+lệ, thông báo cũ bị xóa ngay để không che thông tin mới. Điều kiện bãi đầy được xét theo cả số
+phiên lẫn số ô có xe theo cảm biến, nên hệ thống vẫn từ chối thẻ mới khi có xe đã vào mà không
+quẹt thẻ. Trường hợp xe đi theo không quẹt thẻ được phát hiện bằng cách so sánh liên tục hai số
+này; ngưỡng 15\,s đủ dài để một xe vừa quẹt thẻ có thời gian đi vào ô mà không gây báo động nhầm.
+
+\subsection{Tính phí và sinh mã VietQR}\label{sec:f-fee}
+Phí gửi xe được tính theo giờ, làm tròn lên và tối thiểu một giờ:
+\begin{equation}
+  \text{phí} = 5000 \times \max\left(1, \left\lceil \frac{t}{3600} \right\rceil\right)\ \text{VNĐ},
+\end{equation}
+trong đó $t$ là thời gian gửi tính bằng giây. Công thức được hiện thực bằng phép chia nguyên
+\code{(t + 3599) / 3600} để tránh số thực, và bão hòa ở giá trị lớn nhất của kiểu 32 bit nếu tràn.
+Mã thanh toán gồm tiền tố \code{PK} và 6 ký tự lấy từ 31 chữ in hoa và chữ số; các ký tự
+\code{I}, \code{L}, \code{O}, \code{0}, \code{1} bị loại vì dễ nhầm khi người lái phải gõ tay.
+
+Chuỗi VietQR được máy chủ tự dựng theo chuẩn của NAPAS, vốn là định dạng EMVCo: mỗi trường gồm
+mã 2 chữ số, độ dài 2 chữ số và giá trị, các trường 38 và 62 chứa trường con theo cùng quy tắc.
+Bảng~\ref{tab:vietqr} liệt kê các trường trong chuỗi do máy chủ sinh ra.
+
+\begin{table}[H]
+\centering\small
+\caption{Cấu trúc chuỗi VietQR do máy chủ sinh}\label{tab:vietqr}
+\begin{tabularx}{\linewidth}{|l|l|X|}
+\hline
+Mã & Trường & Giá trị \\ \hline
+00 & Phiên bản định dạng & \code{01} \\ \hline
+01 & Kiểu mã & \code{12}, mã động dùng cho một số tiền cụ thể \\ \hline
+38 & Thông tin người nhận & Định danh NAPAS \code{A000000727}, mã BIN ngân hàng và số tài khoản, dịch vụ \code{QRIBFTTA} \\ \hline
+53, 58 & Tiền tệ, quốc gia & \code{704} (VNĐ), \code{VN} \\ \hline
+54 & Số tiền & Phí đã chốt, ví dụ \code{10000} \\ \hline
+62 & Dữ liệu bổ sung & Nội dung chuyển khoản là mã thanh toán, ví dụ \code{PK7XK2QM} \\ \hline
+63 & Mã kiểm tra & CRC16-CCITT (đa thức \code{0x1021}, giá trị đầu \code{0xFFFF}) \\
+\hline
+\end{tabularx}
+\end{table}
+
+Trường 54 trong Bảng~\ref{tab:vietqr} cố định số tiền đúng bằng phí, và trường 62 cố định nội
+dung chuyển khoản là mã thanh toán. Hàm sinh chuỗi được kiểm chứng trùng từng byte với một mã
+VietQR mẫu đã công bố và với giá trị kiểm tra chuẩn \code{0x29B1} của CRC16-CCITT. Mã QR được
+vẽ bằng thư viện qrcodegen với mức sửa lỗi M; việc sinh mã hoàn toàn trên chip nên vẫn hoạt động
+khi mất Internet. Nếu số tài khoản không hợp lệ hoặc để trống, máy chủ không vẽ mã QR mà hiển
+thị \code{PAY AT BOOTH} và việc thu tiền chuyển sang UC04.
+
+\subsection{Đối soát giao dịch qua SePay}\label{sec:f-sepay}
+SePay theo dõi biến động số dư của tài khoản nhận và cho phép truy vấn giao dịch qua API. Khi
+một lượt thanh toán bắt đầu, tác vụ \code{sepay} ghi lại mã giao dịch mới nhất, sau đó cứ 3\,s
+truy vấn các giao dịch có mã lớn hơn, nên chỉ những giao dịch xảy ra sau khi hiển thị mã QR mới
+được xét. Một giao dịch được chấp nhận khi nội dung chứa mã thanh toán và số tiền đúng bằng phí;
+chuyển dư hay thiếu đều không mở cổng, vì mã QR chỉ điền sẵn số tiền còn việc khóa ô nhập là do
+từng ứng dụng ngân hàng quyết định. Thử nghiệm thực tế cho thấy một số ví điện tử như MoMo thay
+nội dung chuyển khoản bằng nội dung riêng, do đó máy chủ chấp nhận thêm giao dịch vào đúng tài
+khoản nhận với số tiền đúng bằng phí. Vì mỗi lúc chỉ có một xe thanh toán và chỉ xét giao dịch
+sau thời điểm hiện mã, cách đối soát này không nhầm lẫn giữa các xe.
+
+Máy chủ dùng phương pháp hỏi vòng thay vì webhook vì ESP32-C3 nằm sau NAT của router, không có
+địa chỉ để Internet gọi tới. Chu kỳ 3\,s cho độ trễ vài giây, thấp hơn nhiều so với giới hạn
+2--3 yêu cầu mỗi giây của SePay. Kết nối HTTPS cần thêm bộ nhớ cho TLS trong khi RAM đã chật bởi
+bộ đệm khung 115\,KB; vì vậy bộ đệm TLS chỉ được cấp phát trong lúc gửi yêu cầu, và tác vụ ảnh
+động trả lại hai bộ đệm 18\,KB của nó trong lúc có xe đang thanh toán, khi ảnh động vốn không
+hiển thị.
+
+\subsection{Đo mực nước và nhiệt độ}\label{sec:f-env}
+Sensor Client đọc ADC 10 bit ở chân A0 mỗi 250\,ms và quy đổi tuyến tính sang milimét:
+\begin{equation}
+  h =
+  \begin{cases}
+  0, & r \le 20 \\[2pt]
+  \dfrac{\min(r, 700) - 20}{700 - 20} \cdot 40\ \text{mm}, & r > 20
+  \end{cases}
+\end{equation}
+trong đó $r$ là giá trị ADC, 20 là mức nhiễu khi cảm biến khô, 700 là giá trị khi ngập toàn bộ
+vùng đo và 40\,mm là chiều dài vùng đo. Chu kỳ 250\,ms được chọn vì đọc ADC quá dày ảnh hưởng tới
+Wi-Fi trên ESP8266, trong khi mực nước thay đổi chậm. Khoảng trễ 5\,mm giữa ngưỡng bật 20\,mm và
+ngưỡng tắt 15\,mm ngăn cảnh báo bật tắt liên tục khi mực nước dao động quanh một ngưỡng.
+
+Nhiệt độ hiển thị trên trang web và màn hình do RFID Client đo. Client đọc cảm biến DHT11 mỗi
+5\,s, vì DHT11 cần tối thiểu 1\,s giữa hai lần đọc và nhiệt độ môi trường thay đổi chậm, rồi gửi
+bản tin \code{climate} độc lập với việc có xe quẹt thẻ hay không. Nếu DHT11 trả về giá trị lỗi,
+client giữ giá trị hợp lệ gần nhất thay vì gửi số sai.
+
+\subsection{Lưu trữ dữ liệu và đồng bộ thời gian}\label{sec:f-storage}
+Nhật ký sự kiện được lưu trong bộ đệm vòng 10 phần tử, dưới 1\,KB RAM và không dùng heap. Toàn bộ phiên gửi xe, nhật ký, doanh thu và đồng hồ được lưu vào vùng NVS trên flash sau mỗi lần
+quẹt thẻ và định kỳ 5 phút. Với khoảng 300 lần ghi mỗi ngày và cơ chế rải đều lượt ghi của NVS,
+tuổi thọ flash không bị ảnh hưởng đáng kể. Máy chủ không có đồng hồ thời gian thực; trình duyệt
+của người vận hành gửi giờ thực qua \code{POST /api/time}, và máy chủ dời các mốc thời gian cũ
+theo đó.
+
+\section{Mô hình thực tế}\label{sec:mohinh}
 Mô hình được làm bằng bìa formex trắng, vật liệu nhẹ, cách điện và dễ khoét lỗ cho cảm biến.
 Hình~\ref{fig:hw-photos} cho thấy ba khu vực lắp thiết bị chính ngoài hộp điều khiển đã giới
 thiệu ở Hình~\ref{fig:overview}.
@@ -273,50 +547,3 @@ Hình~\ref{fig:box} là bên trong hộp điều khiển, nơi đặt máy chủ
 cùng mạch nguồn của nó; hai đầu đọc RC522 gắn ở hai thành hộp, mỗi đầu đọc quay ra một làn,
 và cảm biến DHT11 gắn ở mặt ngoài hộp để không đo nhầm nhiệt tỏa ra từ các module.
 Hình~\ref{fig:tft-live} là màn hình ở mặt trước hộp, quay về phía người lái.
-
-\section{Thiết kế giao thức truyền thông}\label{sec:giaothuc}
-Sensor Client và RFID Client gửi ba loại bản tin JSON tới máy chủ qua UDP. Mã nguồn~\ref{lst:msg} là ví dụ
-của từng loại cùng gói xác nhận mà máy chủ gửi lại.
-
-\begin{lstlisting}[language=json,caption={Các bản tin UDP giữa client và máy chủ},label={lst:msg}]
-{"type":"parking_update","slots":[1,0,0,1,0],"water_mm":0.2,"fire":false}
-{"type":"climate","temperature_c":28.0}
-{"type":"rfid_event","card_id":"A1B2C3D4","gate":"in","temperature_c":28.0,"seq":305441741}
-{"type":"rfid_ack","seq":305441741}
-\end{lstlisting}
-
-Trong Mã nguồn~\ref{lst:msg}, bản tin \code{parking\_update} mang toàn bộ trạng thái của Sensor
-Client gồm năm ô đỗ, mực nước và cờ cháy; bản tin \code{climate} mang nhiệt độ; bản tin
-\code{rfid\_event} mang mã thẻ, cổng và số thứ tự \code{seq}. Vì cổng UDP là ranh giới tin
-cậy mà mọi thiết bị trong mạng đều gửi tới được, máy chủ kiểm tra chặt từng bản tin bằng bộ
-đọc JSON tự viết, không cấp phát bộ nhớ động và chỉ chấp nhận đúng lược đồ: mảng \code{slots}
-đúng 5 phần tử 0 hoặc 1, mực nước 0--10\,000\,mm, nhiệt độ $-40$ đến 125\,°C, mã thẻ 1--31 ký
-tự chữ, số, gạch nối; khóa lạ, khóa lặp hay dữ liệu thừa đều bị từ chối và trạng thái cũ được
-giữ nguyên. So với thư viện cJSON, cách làm này tránh phân mảnh bộ nhớ khi chạy lâu và giới
-hạn được thời gian xử lý mỗi bản tin.
-
-Phía trang web, máy chủ cung cấp các API HTTP được liệt kê ở Bảng~\ref{tab:api}. Mọi lệnh làm
-thay đổi trạng thái dùng phương thức POST và phải mang mã PIN quản trị trong header
-\code{X-Parking-Key}; sai mã PIN, máy chủ trả mã lỗi 401.
-
-\begin{table}[H]
-\centering\small
-\caption{API HTTP của máy chủ}\label{tab:api}
-\begin{tabularx}{\linewidth}{@{}lp{6.2cm}X@{}}
-\toprule
-Phương thức & Đường dẫn & Chức năng \\ \midrule
-GET & \code{/api/parking} & Trạng thái ô đỗ, số chỗ trống, nhiệt độ, mực nước, cháy, ngập \\
-GET & \code{/api/barrier} & Trạng thái hai thanh chắn \\
-GET & \code{/api/rfid} & Xe trong bãi, lượt thanh toán đang chờ, 10 sự kiện gần nhất, doanh thu \\
-POST & \code{/api/barrier/<cổng>/<lệnh>} & Mở hoặc đóng cổng \code{in}, \code{out} hoặc \code{all} \\
-POST & \code{/api/payment/confirm} & Người vận hành xác nhận đã nhận tiền \\
-POST & \code{/api/rfid/remove} & Xóa một xe khỏi danh sách trong bãi \\
-POST & \code{/api/time} & Trình duyệt cung cấp giờ thực cho máy chủ \\
-\bottomrule
-\end{tabularx}
-\end{table}
-
-Các API trong Bảng~\ref{tab:api} được trang web gọi theo chu kỳ 1--2\,s. Cách hỏi vòng này không
-giữ trạng thái kết nối trên máy chủ, mỗi yêu cầu được xử lý xong là giải phóng, phù hợp với
-giới hạn bộ nhớ và số kết nối đồng thời của vi điều khiển; độ trễ thêm tối đa một giây là chấp
-nhận được với dữ liệu thay đổi theo giây.
