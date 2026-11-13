@@ -32,7 +32,7 @@ và đơn giản hơn.
 Hệ thống gồm ba thiết bị: máy chủ dùng ESP32-C3, Sensor Client và RFID Client dùng ESP8266.
 Bảng~\ref{tab:mcu} so sánh ESP32-C3, được chọn cho máy chủ, với các phương án thường gặp.
 
-\begin{table}[H]
+\begin{table}[!htb]
 \centering\small
 \caption{So sánh các phương án vi điều khiển}\label{tab:mcu}
 \begin{tabularx}{\linewidth}{|l|>{\raggedright\arraybackslash}X|>{\raggedright\arraybackslash}X|>{\raggedright\arraybackslash}X|>{\raggedright\arraybackslash}X|}
@@ -68,7 +68,7 @@ Các cảm biến và cơ cấu chấp hành được chọn theo hai tiêu chí
 mức logic 3,3\,V. Bảng~\ref{tab:linhkien} tổng hợp thông số chính và vai trò của
 từng linh kiện trong hệ thống.
 
-\begin{table}[H]
+\begin{table}[!htb]
 \centering\small
 \caption{Cảm biến, cơ cấu chấp hành và thông số chính}\label{tab:linhkien}
 \begin{tabularx}{\linewidth}{|>{\raggedright\arraybackslash}m{3.4cm}|>{\raggedright\arraybackslash}m{4.6cm}|>{\raggedright\arraybackslash}m{2.4cm}|>{\raggedright\arraybackslash}X|}
@@ -92,15 +92,13 @@ digital là đủ; khi triển khai ở bãi lớn, cảm biến hồng ngoại 
 trường hoặc siêu âm gắn trần mà không phải thay đổi phần còn lại, vì máy chủ chỉ nhận trạng
 thái có hoặc không có xe. Cảm biến lửa cho tín hiệu digital để hệ thống phản ứng ngay khi xuất
 hiện ngọn lửa. Ngược lại, cảm biến mực nước cho tín hiệu analog, cho phép máy chủ hiển thị mực
-nước và so sánh với một ngưỡng có thể điều chỉnh theo từng bãi. Đầu đọc RFID dùng chuẩn
-ISO 14443A tương thích với thẻ MIFARE vốn phổ biến trong thẻ nhân viên và thẻ cư dân, nên
-người dùng có thể dùng thẻ sẵn có.
+nước và so sánh với một ngưỡng có thể điều chỉnh theo từng bãi.
 
 \section{Giao thức mạng và thanh toán}
 Các thiết bị của hệ thống và điện thoại của người vận hành liên lạc qua một mạng Wi-Fi chung. Hệ thống sử
 dụng các giao thức sau:
 \begin{itemize}
-  \item Wi-Fi 802.11 b/g/n băng tần 2,4\,GHz ở chế độ trạm, địa chỉ IP do router cấp qua DHCP;
+  \item Wi-Fi 802.11 b/g/n băng tần 2,4\,GHz ở chế độ station (STA), địa chỉ IP do router cấp qua DHCP;
   \item UDP, giao thức không kết nối, độ trễ thấp, cho phép gửi quảng bá (broadcast) tới mọi
         thiết bị trong mạng nên các client không cần biết địa chỉ của máy chủ;
   \item HTTP cho trang web quản lý và các API dạng JSON, HTTPS khi máy chủ truy vấn SePay;
@@ -109,17 +107,32 @@ dụng các giao thức sau:
         chuỗi các trường dạng mã, độ dài và giá trị, kết thúc bằng mã kiểm tra CRC16.
 \end{itemize}
 
+Wi-Fi ở chế độ station được chọn vì cả ESP32-C3 và ESP8266 đều tích hợp sẵn Wi-Fi, nên không
+cần thêm module truyền thông hay kéo dây tín hiệu giữa các thiết bị. Khi cùng nối vào router của
+bãi, các thiết bị vừa liên lạc được với nhau vừa có đường ra Internet để máy chủ truy vấn SePay.
+Băng tần 2,4\,GHz là bắt buộc vì hai loại vi điều khiển không hỗ trợ băng 5\,GHz; bù lại, sóng
+2,4\,GHz xuyên tường tốt hơn, phù hợp với bãi xe có nhiều vách ngăn.
+
 UDP được chọn thay cho TCP hay MQTT vì phần lớn dữ liệu là trạng thái được gửi lặp lại mỗi
 giây: mất một gói chỉ làm trễ tối đa một giây, trong khi chi phí bắt tay, bộ đệm cho mỗi kết
-nối và máy chủ trung gian (broker) là đáng kể trên vi điều khiển. Riêng sự kiện quẹt thẻ
-không được gửi lặp lại, nên hệ thống bổ sung cơ chế xác nhận và gửi lại ở tầng ứng dụng
-(Mục~\ref{sec:ack}).
+nối và máy chủ trung gian (broker) là đáng kể trên vi điều khiển. Khả năng gửi quảng bá của UDP
+còn giúp client không cần cấu hình địa chỉ của máy chủ. Riêng sự kiện quẹt thẻ không được gửi
+lặp lại, nên hệ thống bổ sung cơ chế xác nhận và gửi lại ở tầng ứng dụng (Mục~\ref{sec:ack}).
+
+HTTP được chọn cho giao diện quản lý vì mọi trình duyệt trên điện thoại và máy tính đều hỗ trợ,
+người vận hành không phải cài ứng dụng; dữ liệu trả về dạng JSON được JavaScript trong trang
+đọc trực tiếp. Riêng kết nối tới SePay đi qua Internet và mang khóa truy cập, nên bắt buộc dùng
+HTTPS để mã hóa. mDNS được chọn vì router của bãi cấp địa chỉ IP động qua DHCP: thay vì phải tra
+địa chỉ mỗi khi máy chủ khởi động lại, người vận hành luôn dùng một tên cố định mà không cần cài
+đặt máy chủ DNS. Cuối cùng, VietQR được chọn vì đây là chuẩn chung mà mọi ngân hàng và phần lớn
+ví điện tử tại Việt Nam đều quét được, mã có thể được sinh ngay trên vi điều khiển, và số tiền
+cùng nội dung chuyển khoản được điền sẵn nên người lái không phải nhập tay.
 
 \section{Công cụ phát triển}
 Toàn bộ phần mềm sử dụng trong đề tài là miễn phí và mã nguồn mở. Bảng~\ref{tab:software}
 liệt kê các thành phần chính.
 
-\begin{table}[H]
+\begin{table}[!htb]
 \centering\small
 \caption{Thành phần phần mềm và vai trò}\label{tab:software}
 \begin{tabularx}{\linewidth}{|>{\raggedright\arraybackslash}m{4.6cm}|>{\raggedright\arraybackslash}X|}

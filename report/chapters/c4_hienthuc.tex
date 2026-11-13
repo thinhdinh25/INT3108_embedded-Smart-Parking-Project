@@ -15,6 +15,37 @@ liệu cảm biến và sự kiện quẹt thẻ. Đồng hồ hệ thống là 
 thanh chắn và hết hạn chờ thanh toán. SePay là hệ thống bên ngoài cung cấp danh sách giao dịch
 chuyển khoản vào tài khoản của bãi.
 
+
+
+Hình~\ref{fig:usecase} thể hiện quan hệ giữa các tác nhân và 10 use case. Ba use case đầu phục
+vụ người lái xe trong một lượt gửi xe trọn vẹn; hai use case tiếp theo là phản ứng tự động của hệ
+thống trước sự cố, có cả người lái và người vận hành tham gia; năm use case còn lại là nghiệp vụ
+của người vận hành trên trang web. Đường nét đứt biểu diễn sự kiện theo thời gian như đóng thanh
+chắn hay hết hạn chờ thanh toán. Bảng~\ref{tab:uc-summary} tóm tắt tác nhân chính và mục tiêu của
+từng use case; đặc tả đầy đủ của từng use case được trình bày ở các mục tiếp theo.
+
+
+
+{\small
+\begin{longtable}{|c|>{\raggedright\arraybackslash}m{4.3cm}|>{\raggedright\arraybackslash}m{2.6cm}|>{\raggedright\arraybackslash}m{6.3cm}|}
+\caption{Tổng hợp các use case}\label{tab:uc-summary}\\
+\hline
+\hd Mã & \hd Tên use case & \hd Tác nhân chính & \hd Mục tiêu \\ \hline \endfirsthead
+\hline
+\hd Mã & \hd Tên use case & \hd Tác nhân chính & \hd Mục tiêu \\ \hline \endhead
+UC01 & Xem chỗ trống tại cổng & Người lái xe & Biết bãi còn bao nhiêu chỗ và chỗ nào trống trước khi vào \\ \hline
+UC02 & Gửi xe bằng thẻ RFID & Người lái xe & Được mở cổng vào và bắt đầu tính thời gian gửi xe \\ \hline
+UC03 & Thanh toán phí và lấy xe & Người lái xe & Trả đúng phí bằng VietQR và được mở cổng ra \\ \hline
+UC04 & Xác nhận thanh toán tại quầy & Người vận hành & Cho xe ra khi khách trả tiền mặt hoặc không đối soát tự động được \\ \hline
+UC05 & Điều khiển thanh chắn từ xa & Người vận hành & Mở hoặc đóng từng cổng hay cả hai cổng khi cần \\ \hline
+UC06 & Báo cháy và mở lối thoát & Sensor Client & Báo động và giải phóng lối ra ngay khi có lửa \\ \hline
+UC07 & Báo ngập và ngừng nhận xe & Sensor Client & Báo động và không cho thêm xe vào khi nước dâng \\ \hline
+UC08 & Xem tình trạng bãi trên trang web & Người vận hành & Nắm được trạng thái ô đỗ, môi trường và thanh chắn từ xa \\ \hline
+UC09 & Tra cứu nhật ký và doanh thu & Người vận hành & Đối soát lượt xe vào ra và tiền thu được \\ \hline
+UC10 & Hiệu chỉnh danh sách xe trong bãi & Người vận hành & Xóa xe đã rời bãi mà không qua quy trình ra bình thường \\
+\hline
+\end{longtable}}
+
 \begin{figure}[H]
 \centering
 \begin{tikzpicture}[
@@ -47,33 +78,6 @@ chuyển khoản vào tài khoản của bãi.
 \end{tikzpicture}
 \caption{Sơ đồ use case tổng quát}\label{fig:usecase}
 \end{figure}
-
-Hình~\ref{fig:usecase} thể hiện quan hệ giữa các tác nhân và 10 use case. Ba use case đầu phục
-vụ người lái xe trong một lượt gửi xe trọn vẹn; hai use case tiếp theo là phản ứng tự động của hệ
-thống trước sự cố, có cả người lái và người vận hành tham gia; năm use case còn lại là nghiệp vụ
-của người vận hành trên trang web. Đường nét đứt biểu diễn sự kiện theo thời gian như đóng thanh
-chắn hay hết hạn chờ thanh toán. Bảng~\ref{tab:uc-summary} tóm tắt tác nhân chính và mục tiêu của
-từng use case; đặc tả đầy đủ của từng use case được trình bày ở các mục tiếp theo.
-
-\begin{table}[H]
-\centering\small
-\caption{Tổng hợp các use case}\label{tab:uc-summary}
-\begin{tabularx}{\linewidth}{|c|>{\raggedright\arraybackslash}m{4.3cm}|>{\raggedright\arraybackslash}m{2.6cm}|>{\raggedright\arraybackslash}X|}
-\hline
-\hd Mã & \hd Tên use case & \hd Tác nhân chính & \hd Mục tiêu \\ \hline
-UC01 & Xem chỗ trống tại cổng & Người lái xe & Biết bãi còn bao nhiêu chỗ và chỗ nào trống trước khi vào \\ \hline
-UC02 & Gửi xe bằng thẻ RFID & Người lái xe & Được mở cổng vào và bắt đầu tính thời gian gửi xe \\ \hline
-UC03 & Thanh toán phí và lấy xe & Người lái xe & Trả đúng phí bằng VietQR và được mở cổng ra \\ \hline
-UC04 & Xác nhận thanh toán tại quầy & Người vận hành & Cho xe ra khi khách trả tiền mặt hoặc không đối soát tự động được \\ \hline
-UC05 & Điều khiển thanh chắn từ xa & Người vận hành & Mở hoặc đóng từng cổng hay cả hai cổng khi cần \\ \hline
-UC06 & Báo cháy và mở lối thoát & Sensor Client & Báo động và giải phóng lối ra ngay khi có lửa \\ \hline
-UC07 & Báo ngập và ngừng nhận xe & Sensor Client & Báo động và không cho thêm xe vào khi nước dâng \\ \hline
-UC08 & Xem tình trạng bãi trên trang web & Người vận hành & Nắm được trạng thái ô đỗ, môi trường và thanh chắn từ xa \\ \hline
-UC09 & Tra cứu nhật ký và doanh thu & Người vận hành & Đối soát lượt xe vào ra và tiền thu được \\ \hline
-UC10 & Hiệu chỉnh danh sách xe trong bãi & Người vận hành & Xóa xe đã rời bãi mà không qua quy trình ra bình thường \\
-\hline
-\end{tabularx}
-\end{table}
 
 \section{UC01. Xem chỗ trống tại cổng}\label{sec:uc01}
 Use case này giúp người lái quyết định có vào bãi hay không và cần đi tới ô nào. Đặc tả của use
@@ -133,7 +137,7 @@ Hậu điều kiện & Thẻ có phiên gửi xe, nhật ký có bản ghi \code
 Hình~\ref{fig:seq-rfid} biểu diễn trình tự trao đổi giữa các thành phần trong luồng chính, trường
 hợp gói tin bị mất và luồng ra khi không bật thanh toán QR.
 
-\begin{figure}[H]
+\begin{figure}[!htbp]
 \centering
 \mmd[1][0.8]{seq_rfid}
 \caption{Biểu đồ tuần tự gửi xe, xử lý mất gói và lấy xe}\label{fig:seq-rfid}
@@ -176,7 +180,7 @@ Hậu điều kiện & Phiên được giải phóng; nhật ký có bản ghi \
 
 Hình~\ref{fig:seq-pay} là trình tự trao đổi giữa các thành phần trong quá trình thanh toán.
 
-\begin{figure}[H]
+\begin{figure}[!htb]
 \centering
 \mmd[0.78][0.55]{seq_pay}
 \caption{Biểu đồ tuần tự thanh toán VietQR ở cổng ra}\label{fig:seq-pay}
@@ -267,7 +271,7 @@ Hậu điều kiện & Lối ra vào thông thoáng trong suốt thời gian có
 
 Hình~\ref{fig:seq-fire} là trình tự xử lý từ cảm biến lửa tới các thiết bị chấp hành.
 
-\begin{figure}[H]
+\begin{figure}[!htb]
 \centering
 \mmd[0.85][0.5]{seq_fire}
 \caption{Biểu đồ tuần tự cảnh báo cháy}\label{fig:seq-fire}
@@ -327,7 +331,7 @@ Hậu điều kiện & Thông tin trên trang web trễ không quá khoảng 1\,
 
 Hình~\ref{fig:web-status} là ảnh chụp phần đầu trang web khi bãi có hai xe.
 
-\begin{figure}[H]
+\begin{figure}[!htb]
 \centering
 \includegraphics[width=0.9\linewidth]{photos/web_status.png}
 \caption{Trang web quản lý: sơ đồ bãi và điều khiển thanh chắn}\label{fig:web-status}
@@ -362,7 +366,7 @@ Hậu điều kiện & Người vận hành có số liệu để đối chiếu
 
 Hình~\ref{fig:web-log} là phần trang web tương ứng với use case này.
 
-\begin{figure}[H]
+\begin{figure}[!htb]
 \centering
 \includegraphics[width=\linewidth]{photos/web_log.png}
 \caption{Trang web quản lý: cảm biến, doanh thu và nhật ký vào ra}\label{fig:web-log}

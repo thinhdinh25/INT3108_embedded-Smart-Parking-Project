@@ -65,6 +65,7 @@
 \setlength{\parindent}{1cm}
 \setlength{\parskip}{3pt}
 \usepackage{float}
+\usepackage[section]{placeins}
 \usepackage{caption}
 \usepackage{subcaption}
 \captionsetup{font=small,labelfont=bf}
@@ -259,9 +260,9 @@ VietQR & Chuẩn mã QR chuyển khoản liên ngân hàng của NAPAS \\
 \end{longtable}
 
 \cleardoublepage\phantomsection\addcontentsline{toc}{chapter}{DANH SÁCH BẢNG BIỂU}
-\listoftables
+{\setstretch{1.1}\listoftables}
 \cleardoublepage\phantomsection\addcontentsline{toc}{chapter}{DANH SÁCH HÌNH VẼ}
-\listoffigures
+{\setstretch{1.1}\listoffigures}
 
 \input{chapters/c1_gioithieu}
 \input{chapters/c2_coso}
