@@ -1,36 +1,26 @@
 sequenceDiagram
-  autonumber
   actor U as Người lái
   participant C as RFID Client
-  participant S as udp_server
-  participant R as rfid_session
-  participant B as servo + esp_timer
-  participant L as Màn hình TFT
+  participant S as Máy chủ
+  participant B as Thanh chắn, TFT
   rect rgb(232, 245, 233)
-  Note over U,L: Gửi xe
+  Note over U,B: Gửi xe
   U->>C: Quẹt thẻ ở cổng vào
-  C->>S: rfid_event gate=in, seq = n (UDP)
-  S-->>C: rfid_ack seq = n → client ngừng gửi lại
-  S->>S: seq n chưa có trong 16 seq gần nhất → xử lý
-  S->>R: rfid_session_scan()
-  R-->>S: ENTERED, lưu giờ vào, nhật ký IN
-  S->>S: Lưu phiên + nhật ký vào NVS
-  S->>B: servo_open_for(IN, 3000)
-  S-)L: thông báo tác vụ: vẽ lại
-  B->>B: Mở 90°, hẹn giờ 3 s
-  B->>B: Hết 3 s: IR cổng còn bị che → giữ mở, kiểm lại mỗi 50 ms
-  B->>B: Tia IR thông liên tục 1 s → đóng 0°
+  C->>S: rfid_event gate=in, seq=n
+  S-->>C: rfid_ack seq=n
+  S->>S: Tạo phiên, ghi nhật ký IN, lưu vào flash
+  S->>B: Mở cổng vào, hẹn giờ 3 s
+  B->>B: Hết 3 s, xe còn dưới cần chắn: giữ mở
+  B->>B: Làn trống liên tục 1 s: đóng cổng
   end
   rect rgb(255, 243, 224)
-  Note over C,S: Gói tin bị mất
-  C-xS: rfid_event gate=out, seq = n+1
-  C->>S: Sau 300 ms chưa có ACK → gửi lại bản giống hệt
-  S-->>C: rfid_ack seq = n+1
+  Note over C,S: Mất gói tin
+  C-xS: rfid_event gate=out, seq=n+1
+  C->>S: Sau 300 ms chưa có ACK: gửi lại
+  S-->>C: rfid_ack seq=n+1
   end
   rect rgb(225, 236, 250)
-  Note over U,L: Lấy xe
-  S->>R: rfid_session_scan()
-  R-->>S: EXITED, phí = max(1, ⌈t/3600⌉) × 5000
-  S->>B: servo_open_for(OUT, 3000), đóng theo cùng điều kiện IR
-  S-)L: Hóa đơn 60 s: UID, thời gian, phí
+  Note over U,B: Lấy xe
+  S->>S: Đóng phiên, tính phí
+  S->>B: Mở cổng ra, hiển thị hóa đơn 60 s
   end

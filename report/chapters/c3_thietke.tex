@@ -84,7 +84,7 @@ mô tả kiến trúc triển khai và luồng dữ liệu giữa các thành ph
 
 \begin{figure}[!htb]
 \centering
-\mmd[0.95][0.55]{deploy}
+\mmd[0.85][0.66]{deploy}
 \caption{Kiến trúc triển khai và luồng dữ liệu}\label{fig:deploy}
 \end{figure}
 
@@ -102,17 +102,16 @@ Mục~\ref{sec:uc08} trình bày cách máy chủ phát hiện client mất kế
 
 \section{Thiết kế phần cứng}\label{sec:phancung}
 Mạch điện của hệ thống gồm ba bản vẽ, mỗi bản vẽ ứng với một thiết bị và có đầu vào nguồn
-5\,V riêng. Nguồn 5\,V được chọn vì ba lý do. Thứ nhất, servo SG90 cần điện áp 4,8--6\,V, nên
+5\,V riêng, cấp qua jack DC 5,5\,mm. Nguồn 5\,V được chọn vì hai lý do. Thứ nhất, servo SG90 cần điện áp 4,8--6\,V, nên
 5\,V là mức thấp nhất cấp trực tiếp được cho servo mà không cần mạch tăng áp. Thứ hai, bo
 ESP32-C3 SuperMini có sẵn chân vào 5\,V và bộ ổn áp 3,3\,V trên bo, nên chỉ một nguồn 5\,V là
-đủ cho cả vi điều khiển và các module 3,3\,V. Thứ ba, adapter 5\,V theo chuẩn USB là loại nguồn
-phổ biến, rẻ và an toàn, có thể dùng chung củ sạc điện thoại. Ba bản vẽ được thuyết minh lần lượt
+đủ cho cả vi điều khiển và các module 3,3\,V. Ba bản vẽ được thuyết minh lần lượt
 trong ba mục sau.
 
 \subsection{Mạch máy chủ}
 \begin{figure}[H]
 \centering
-\includegraphics[width=\linewidth,height=0.6\textheight,keepaspectratio]{schematic/sheet1.pdf}
+\includegraphics[width=\linewidth,height=0.72\textheight,keepaspectratio]{schematic/sheet1.pdf}
 \caption{Sơ đồ nguyên lý máy chủ: ESP32-C3, màn hình ST7789, 2 servo, còi và 2 cảm biến IR ở cổng}\label{fig:sch-server}
 \end{figure}
 
@@ -136,7 +135,7 @@ hình luôn sáng.
 \subsection{Mạch Sensor Client}
 \begin{figure}[H]
 \centering
-\includegraphics[width=\linewidth,height=0.6\textheight,keepaspectratio]{schematic/sheet2.pdf}
+\includegraphics[width=\linewidth,height=0.72\textheight,keepaspectratio]{schematic/sheet2.pdf}
 \caption{Sơ đồ nguyên lý Sensor Client: ESP8266, 5 cảm biến IR ô đỗ, cảm biến lửa và mực nước}\label{fig:sch-sensor}
 \end{figure}
 
@@ -163,7 +162,7 @@ nước WTR1 nối ngõ ra analog AO vào chân ADC A0.
 \subsection{Mạch RFID Client}
 \begin{figure}[H]
 \centering
-\includegraphics[width=\linewidth,height=0.6\textheight,keepaspectratio]{schematic/sheet3.pdf}
+\includegraphics[width=\linewidth,height=0.72\textheight,keepaspectratio]{schematic/sheet3.pdf}
 \caption{Sơ đồ nguyên lý RFID Client: ESP8266, 2 đầu đọc RC522 dùng chung SPI và DHT11}\label{fig:sch-rfid}
 \end{figure}
 
@@ -248,7 +247,7 @@ thuật toán: mỗi cảm biến có bộ đếm thời gian riêng, mức mớ
 
 \begin{figure}[!htb]
 \centering
-\begin{tikzpicture}[x=0.9cm,y=0.6cm,font=\scriptsize]
+\begin{tikzpicture}[x=0.9cm,y=0.6cm,font=\footnotesize]
 \node[anchor=east] at (-0.2,2.5) {Tín hiệu thô};
 \draw[thick] (0,2) -- (2,2) -- (2,3) -- (2.3,3) -- (2.3,2) -- (2.5,2) -- (2.5,3) -- (2.7,3) -- (2.7,2) -- (2.9,2) -- (2.9,3) -- (11,3);
 \node[anchor=east] at (-0.2,0.5) {Trạng thái};
@@ -300,27 +299,27 @@ UC06.
 
 \begin{figure}[!htb]
 \centering
-\begin{tikzpicture}[
+\resizebox{\linewidth}{!}{\begin{tikzpicture}[
   st/.style={draw=accent,fill=boxA,rounded corners=2pt,font=\footnotesize,align=center,minimum height=1cm,text width=2.6cm,inner sep=2pt},
-  lb/.style={font=\scriptsize,align=center,inner sep=1.5pt},
+  lb/.style={font=\footnotesize,align=center,inner sep=1.5pt},
   arr/.style={-{Stealth[length=2mm]},draw=black!70}]
 \node[st] (D) at (0,0) {Đóng};
-\node[st] (H) at (5,0) {Mở có hẹn giờ 3\,s};
-\node[st,fill=boxC] (G) at (10.2,0) {Giữ mở\\xe còn trong cổng};
-\node[st] (M) at (0,-3.4) {Mở thủ công};
-\node[st,fill=boxD] (F) at (5,2.9) {Mở do cháy\\khóa lệnh đóng};
+\node[st] (H) at (5.4,0) {Mở có hẹn giờ 3\,s};
+\node[st,fill=boxC] (G) at (11.2,0) {Giữ mở\\xe còn trong cổng};
+\node[st] (M) at (0,-4.4) {Mở thủ công};
+\node[st,fill=boxD] (F) at (5.4,2.9) {Mở do cháy\\khóa lệnh đóng};
 \fill (-2.2,0) circle (2pt); \draw[arr] (-2.2,0) -- (D);
 \draw[arr] ([yshift=2mm]D.east) -- node[lb,above] {thẻ hợp lệ} ([yshift=2mm]H.west);
 \draw[arr] ([yshift=-2mm]H.west) -- node[lb,below] {hết 3\,s, làn trống} ([yshift=-2mm]D.east);
 \draw[arr] ([yshift=2mm]H.east) -- node[lb,above] {hết 3\,s, IR bị che} ([yshift=2mm]G.west);
-\draw[arr] (G.south) -- ++(0,-1.3) -| node[lb,below,pos=0.25] {làn trống liên tục 1\,s} ([xshift=9mm]D.south);
-\draw[arr] (G) edge[loop right,looseness=4] node[lb,right,text width=1.5cm] {kiểm tra mỗi 50\,ms} (G);
+\draw[arr] (G.south) -- ++(0,-1.3) -| node[lb,above,pos=0.3] {làn trống liên tục 1\,s} ([xshift=9mm]D.south);
+\draw[arr] (G) edge[loop right,looseness=4] node[lb,right,text width=1.8cm] {kiểm tra mỗi 50\,ms} (G);
 \draw[arr] ([xshift=-6mm]D.north) |- node[lb,above,pos=0.75] {có lửa (từ mọi trạng thái)} (F.west);
 \draw[arr] (F.east) -| node[lb,above,pos=0.25] {hết lửa, kiểm tra IR} (G.north);
 \draw[arr] ([xshift=-7mm]D.south) -- node[lb,left] {lệnh mở từ web} ([xshift=-7mm]M.north);
-\draw[arr] ([xshift=1mm]M.north) -- node[lb,right,pos=0.3] {lệnh đóng từ web, làn trống} ([xshift=1mm]D.south);
+\draw[arr] ([xshift=1mm]M.north) -- node[lb,right,pos=0.3,text width=2.4cm] {lệnh đóng từ web, làn trống} ([xshift=1mm]D.south);
 \draw[arr] (M) edge[loop right,looseness=4] node[lb,right,text width=3.2cm] {lệnh đóng khi xe trong cổng: từ chối, mã 409} (M);
-\end{tikzpicture}
+\end{tikzpicture}}
 \caption{Máy trạng thái của một thanh chắn}\label{fig:fsm-gate}
 \end{figure}
 
@@ -343,7 +342,7 @@ các nhánh bị từ chối.
 \begin{tikzpicture}[
   st/.style={draw=accent,fill=boxA,rounded corners=2pt,font=\footnotesize,align=center,minimum height=0.95cm,text width=2.05cm,inner sep=2pt},
   wide/.style={st,text width=2.9cm},
-  lb/.style={font=\scriptsize,align=center,text width=3.3cm,inner sep=2pt},
+  lb/.style={font=\footnotesize,align=center,text width=3.3cm,inner sep=2pt},
   arr/.style={-{Stealth[length=2mm]},draw=black!70}]
 \node[st] (N) at (-5.6,0) {Thẻ ngoài bãi};
 \node[st] (T) at (-0.6,0) {Thẻ trong bãi};

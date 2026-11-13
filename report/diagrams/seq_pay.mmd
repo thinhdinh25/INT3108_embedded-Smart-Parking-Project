@@ -1,23 +1,17 @@
 sequenceDiagram
-  autonumber
   actor U as Người lái
   participant S as Máy chủ
-  participant L as TFT
-  participant P as Tác vụ sepay
+  participant L as Màn hình TFT
   participant A as SePay
-  U->>S: Quẹt thẻ cổng ra (rfid_event)
-  S-->>U: rfid_ack
-  S->>S: Chốt phí, mã PKxxxxxx, cổng vẫn đóng
-  S-)L: SCAN TO PAY: QR + phí
-  P->>A: GET …&limit=1
-  A-->>P: id giao dịch mới nhất
-  U->>A: Chuyển khoản qua app ngân hàng
+  U->>S: Quẹt thẻ ở cổng ra
+  S->>S: Chốt phí, tạo mã PKxxxxxx
+  S->>L: Hiển thị mã QR và số tiền
+  S->>A: Lấy mã giao dịch mới nhất
+  U->>A: Chuyển khoản bằng ứng dụng ngân hàng
   loop Mỗi 3 s
-    P->>A: GET …&since_id=id+1
-    A-->>P: Giao dịch mới
+    S->>A: Hỏi giao dịch mới
+    A-->>S: Danh sách giao dịch
   end
-  P->>P: Khớp mã và số tiền
-  P->>S: payment_done(mã)
-  S->>S: Hóa đơn, nhật ký OUT, doanh thu
-  S-)L: Hóa đơn 60 s
-  S->>S: Mở thanh chắn ra 3 s
+  S->>S: Khớp mã và số tiền
+  S->>L: Hóa đơn 60 s
+  S->>S: Ghi nhật ký OUT, mở cổng ra

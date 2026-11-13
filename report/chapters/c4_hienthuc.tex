@@ -49,9 +49,9 @@ UC10 & Hiệu chỉnh danh sách xe trong bãi & Người vận hành & Xóa xe 
 \begin{figure}[H]
 \centering
 \begin{tikzpicture}[
-  uc/.style={draw=accent,fill=boxA,rounded corners=8pt,font=\footnotesize,align=center,text width=6.4cm,minimum height=0.74cm,inner sep=2pt},
-  who/.style={draw,rounded corners=8pt,fill=white,font=\footnotesize,align=center,text width=2.6cm,minimum height=0.8cm,inner sep=2pt},
-  dev/.style={draw,font=\footnotesize,align=center,text width=2.9cm,inner sep=3pt},
+  uc/.style={draw=accent,fill=boxA,rounded corners=8pt,font=\small,align=center,text width=6.4cm,minimum height=0.74cm,inner sep=2pt},
+  who/.style={draw,rounded corners=8pt,fill=white,font=\small,align=center,text width=2.6cm,minimum height=0.8cm,inner sep=2pt},
+  dev/.style={draw,font=\small,align=center,text width=2.9cm,inner sep=3pt},
   link/.style={draw=black!65}]
 \foreach \id/\txt [count=\i from 0] in {
   01/Xem chỗ trống tại cổng, 02/Gửi xe bằng thẻ RFID, 03/Thanh toán phí và lấy xe,
@@ -139,7 +139,7 @@ hợp gói tin bị mất và luồng ra khi không bật thanh toán QR.
 
 \begin{figure}[!htbp]
 \centering
-\mmd[1][0.8]{seq_rfid}
+\mmd[1][0.9]{seq_rfid}
 \caption{Biểu đồ tuần tự gửi xe, xử lý mất gói và lấy xe}\label{fig:seq-rfid}
 \end{figure}
 
@@ -182,7 +182,7 @@ Hình~\ref{fig:seq-pay} là trình tự trao đổi giữa các thành phần tr
 
 \begin{figure}[!htb]
 \centering
-\mmd[0.78][0.55]{seq_pay}
+\mmd[1][0.7]{seq_pay}
 \caption{Biểu đồ tuần tự thanh toán VietQR ở cổng ra}\label{fig:seq-pay}
 \end{figure}
 
@@ -273,7 +273,7 @@ Hình~\ref{fig:seq-fire} là trình tự xử lý từ cảm biến lửa tới 
 
 \begin{figure}[!htb]
 \centering
-\mmd[0.85][0.5]{seq_fire}
+\mmd[1][0.45]{seq_fire}
 \caption{Biểu đồ tuần tự cảnh báo cháy}\label{fig:seq-fire}
 \end{figure}
 

@@ -1,21 +1,19 @@
 % =====================================================================
-%  SLIDE THUYẾT TRÌNH — HỆ THỐNG BÃI ĐỖ XE THÔNG MINH (INT3108)
-%  Biên dịch tại thư mục report/slides/:
-%     xelatex slides.tex      hoặc      tectonic slides.tex
-%  Ảnh và sơ đồ dùng chung với báo cáo (../photos, ../diagrams).
+%  SLIDE THUYẾT TRÌNH VÀ DEMO — HỆ THỐNG BÃI ĐỖ XE THÔNG MINH (INT3108)
+%  Biên dịch tại thư mục report/slides/:   tectonic slides.tex
+%  Ảnh, sơ đồ và bản vẽ dùng chung với báo cáo (../photos, ../diagrams, ../schematic).
 % =====================================================================
 \documentclass[aspectratio=169,11pt]{beamer}
 
 \usepackage{fontspec}
 \setsansfont{texgyreheros}[Extension=.otf,UprightFont=*-regular,
   BoldFont=*-bold,ItalicFont=*-italic,BoldItalicFont=*-bolditalic]
-\setmonofont{texgyrecursor}[Extension=.otf,UprightFont=*-regular,
-  BoldFont=*-bold,ItalicFont=*-italic,BoldItalicFont=*-bolditalic]
+\setmonofont{DejaVuSansMono}[Extension=.ttf,BoldFont=*-Bold,Scale=0.86]
 \usepackage[vietnamese,shorthands=off]{babel}
 \usepackage{booktabs,tabularx,array}
 \usepackage{tikz}
 \usetikzlibrary{positioning,arrows.meta}
-\graphicspath{{../}{../photos/}{../diagrams/}}
+\graphicspath{{../}{../photos/}{../diagrams/}{../schematic/}}
 
 % ---------- Giao diện ----------
 \definecolor{uet}{RGB}{0,62,126}
@@ -45,10 +43,9 @@
 \newcommand{\bt}[1]{\rule[-0.7ex]{0pt}{3.1ex}#1}
 \newcommand{\pill}[2]{\tikz[baseline=(t.base)]\node[fill=#1,text=white,rounded corners=2pt,
   inner sep=2pt,font=\scriptsize\bfseries](t){#2};}
-
-\title{Hệ thống bãi đỗ xe thông minh}
-\subtitle{ESP32-C3 + ESP8266 · FreeRTOS · RFID · VietQR}
-\date{Lập trình nhúng (INT3108) · Trường ĐH Công nghệ, ĐHQGHN}
+% Bảng kẻ khung đầy đủ như trong báo cáo
+\newcolumntype{L}[1]{>{\raggedright\arraybackslash}p{#1}}
+\newcommand{\gridtable}{\renewcommand{\arraystretch}{1.3}}
 
 \begin{document}
 
@@ -63,7 +60,7 @@
   \node[anchor=north west,text=white!85!uet] at ([xshift=2.8cm,yshift=-1.7cm]current page.north west)
     {ESP32-C3 + ESP8266 · FreeRTOS · RFID · VietQR qua SePay};
   \node[anchor=north west,text=white!70!uet,font=\small] at ([xshift=2.8cm,yshift=-2.6cm]current page.north west)
-    {Lập trình nhúng (INT3108 1) · GV: Trần Hoàng Việt};
+    {Lập trình nhúng (INT3108) · GV: Trần Hoàng Việt};
   \node[anchor=south west,inner sep=0] at ([xshift=1cm,yshift=1.1cm]current page.south west) {%
     \begin{tabular}{@{}ll@{}}
       \multicolumn{2}{@{}l}{\small\color{uet}\textbf{Nhóm thực hiện}}\\[2pt]
@@ -72,7 +69,7 @@
       Nguyễn Việt Tiến & 24020322 \\
     \end{tabular}};
   \node[anchor=south east,inner sep=0] at ([xshift=-1cm,yshift=0.7cm]current page.south east)
-    {\includegraphics[height=4.6cm]{model_angle.jpg}};
+    {\includegraphics[height=3.9cm]{model_top.jpg}};
 \end{tikzpicture}
 \end{frame}
 
@@ -82,16 +79,16 @@
 \column{0.48\textwidth}
 \begin{enumerate}
   \item Bài toán và mục tiêu
-  \item Mô hình thực tế
-  \item Kiến trúc hệ thống và phần cứng
-  \item Giao thức và phần mềm máy chủ
+  \item Sản phẩm: mô hình thực tế
+  \item Kiến trúc, phần cứng và mạch điện
+  \item Giao thức truyền thông
 \end{enumerate}
 \column{0.48\textwidth}
 \begin{enumerate}\setcounter{enumi}{4}
-  \item Chức năng: RFID, VietQR, an toàn, giám sát
-  \item Kiểm thử
-  \item \textbf{Demo trực tiếp}
-  \item Kết luận và phân công
+  \item 10 use case của hệ thống
+  \item \textbf{Demo trực tiếp theo use case}
+  \item Kiểm thử và kết quả
+  \item Phân công
 \end{enumerate}
 \end{columns}
 \end{frame}
@@ -99,325 +96,285 @@
 % ---------------------------------------------------------------------
 \begin{frame}{Bài toán và mục tiêu}
 \begin{columns}[T]
-\column{0.36\textwidth}
-\begin{block}{\bt{Bãi xe thủ công hiện nay}}
-\begin{itemize}\small
-  \item Không biết trước còn chỗ trống
-  \item Vé giấy, tính tiền bằng tay
-  \item Không cảnh báo cháy, ngập ở tầng hầm
+\column{0.42\textwidth}
+\begin{block}{\bt{Bãi xe nhỏ hiện nay}}
+\small
+\begin{itemize}
+  \item Người lái không biết trước còn chỗ trống
+  \item Phí gửi xe tính và thu bằng tay
+  \item Cháy, ngập thường chỉ được phát hiện khi đã lan rộng
 \end{itemize}
 \end{block}
-\vspace{4pt}
-\small Mô hình: \textbf{5 chỗ đỗ, 2 cổng}, 3 bo mạch, linh kiện phổ thông giá rẻ.
-\column{0.61\textwidth}
-\footnotesize\renewcommand{\arraystretch}{1.25}
-\begin{tabularx}{\linewidth}{@{}l>{\raggedright\arraybackslash}X@{}}
-\toprule
-\textbf{Mục tiêu} & \textbf{Cách đạt được} \\ \midrule
-Chỗ trống thời gian thực & 5 cảm biến IR; TFT $\approx$ 0,1\,s, web $\approx$ 1\,s \\
-Ra vào bằng thẻ & RFID MFRC522, servo tự đóng sau 3\,s \\
-Tính phí tự động & 5.000\,đ/giờ, làm tròn lên, VietQR \\
-An toàn & Cháy: còi + mở cả 2 cổng; ngập: khóa cổng vào \\
-Giám sát từ xa & Web \code{parking.local}, không cần app \\
-Triển khai đơn giản & 3 bo cùng vào một Wi-Fi chung \\
-\bottomrule
-\end{tabularx}
+\vspace{6pt}
+\small Sản phẩm: mô hình bãi \textbf{5 chỗ, 2 cổng có thanh chắn}, điều khiển bởi ba vi điều khiển Wi-Fi.
+\column{0.55\textwidth}
+\begin{block}{\bt{Mục tiêu: tự động hóa trọn vẹn một bãi xe nhỏ}}
+\small
+\begin{itemize}
+  \item \textbf{Không cần người trực cổng:} người lái tự gửi xe, tự thanh toán VietQR, tự ra bãi
+  \item \textbf{Phản hồi tức thời:} màn hình tại cổng dưới 0,2\,s, trang web khoảng 1\,s
+  \item \textbf{An toàn trên hết:} có cháy mở cả hai cổng, có ngập ngừng nhận xe, không hạ thanh chắn xuống xe
+  \item \textbf{Chi phí thấp:} linh kiện phổ thông, phần mềm mã nguồn mở
+\end{itemize}
+\end{block}
 \end{columns}
 \end{frame}
 
 % ---------------------------------------------------------------------
-\begin{frame}{Mô hình thực tế}
+\begin{frame}{Sản phẩm: mô hình thực tế}
 \centering
-\begin{tabular}{@{}c@{\hspace{6pt}}c@{\hspace{6pt}}c@{}}
-\includegraphics[height=5.4cm]{model_top.jpg} &
-\includegraphics[height=5.4cm]{model_box.jpg} &
-\includegraphics[height=5.4cm]{model_servo.jpg} \\[2pt]
-\scriptsize Nhìn từ trên: 5 ô đỗ, 2 làn & \scriptsize Hộp mạch và nguồn & \scriptsize Thanh chắn servo SG90
+\begin{tabular}{@{}*{4}{>{\centering\arraybackslash}p{0.23\textwidth}}@{}}
+\includegraphics[width=0.23\textwidth,height=4.3cm,keepaspectratio]{model_top.jpg} &
+\includegraphics[width=0.23\textwidth,height=4.3cm,keepaspectratio]{model_back.jpg} &
+\includegraphics[width=0.23\textwidth,height=4.3cm,keepaspectratio]{gate_ir.jpg} &
+\includegraphics[width=0.23\textwidth,height=4.3cm,keepaspectratio]{tft_live.jpg} \\[2pt]
+\scriptsize Nhìn từ trên: 5 ô, 2 làn & \scriptsize Sensor Client: 5 IR, lửa, nước & \scriptsize Cổng ra: servo và IR cổng & \scriptsize Màn hình TFT tại cổng
+\end{tabular}
+\vspace{8pt}
+
+\small Hộp điều khiển ở giữa bãi chứa máy chủ ESP32-C3, còi và RFID Client; hai đầu đọc thẻ gắn ở hai thành hộp, mỗi đầu đọc phục vụ một làn.
+\end{frame}
+
+% ---------------------------------------------------------------------
+\begin{frame}{Kiến trúc tổng thể}
+\begin{columns}[c]
+\column{0.5\textwidth}
+\centering
+\includegraphics[height=0.86\textheight]{deploy.pdf}
+\column{0.48\textwidth}
+\small
+\begin{itemize}
+  \item Ba thiết bị cùng nối vào router Wi-Fi của bãi, chế độ station
+  \item Sensor Client, RFID Client gửi \textbf{UDP broadcast} tới cổng 3333, không cần biết IP máy chủ
+  \item Người vận hành mở \code{parking.local} (mDNS) trên điện thoại hoặc máy tính
+  \item Router là đường ra Internet để máy chủ hỏi giao dịch trên \textbf{SePay} qua HTTPS
+  \item Tách theo vị trí: đầu đọc thẻ ở cổng, cảm biến trong bãi, máy chủ ở vị trí điều hành
+\end{itemize}
+\end{columns}
+\end{frame}
+
+% ---------------------------------------------------------------------
+\begin{frame}{Phần cứng: ba thiết bị}
+\small\gridtable
+\begin{tabularx}{\linewidth}{|L{3.2cm}|L{5.2cm}|X|}
+\hline
+\textbf{Thiết bị} & \textbf{Linh kiện} & \textbf{Nhiệm vụ} \\ \hline
+\textbf{Máy chủ} ESP32-C3 & TFT ST7789 240×240, 2 servo SG90, còi, 2 IR dưới thanh chắn &
+  Phiên gửi xe, tính phí, VietQR và SePay, thanh chắn, trang web \\ \hline
+\textbf{Sensor Client} ESP8266 & 5 IR ô đỗ, cảm biến lửa, cảm biến mực nước &
+  Lọc nhiễu 50\,ms, gửi trạng thái khi có thay đổi và mỗi 1\,s \\ \hline
+\textbf{RFID Client} ESP8266 & 2 đầu đọc MFRC522 dùng chung bus SPI, DHT11 &
+  Gửi sự kiện quẹt thẻ có xác nhận, nhiệt độ mỗi 5\,s \\ \hline
+\end{tabularx}
+\vspace{8pt}
+\begin{columns}[T]
+\column{0.49\textwidth}
+\begin{block}{\bt{Vì sao ESP32-C3 cho máy chủ?}}
+\scriptsize Riêng ảnh màn hình đã cần $240\times240\times2 = 115\,200$\,B RAM, lớn hơn toàn bộ RAM của ESP8266.
+ESP32-C3 có 400\,KB SRAM, SPI có DMA, PWM phần cứng và FreeRTOS.
+\end{block}
+\column{0.49\textwidth}
+\begin{block}{\bt{Vì sao nguồn 5\,V (jack DC 5,5\,mm)?}}
+\scriptsize SG90 cần 4,8--6\,V; ESP32-C3 có sẵn ổn áp 3,3\,V nên một nguồn 5\,V đủ cho cả hệ thống.
+Mỗi client hạ áp bằng 2 diode 1N4007: $5 - 2\times0{,}7 \approx 3{,}6$\,V.
+\end{block}
+\end{columns}
+\end{frame}
+
+% ---------------------------------------------------------------------
+\begin{frame}{Mạch điện của ba thiết bị}
+\centering
+\begin{tabular}{@{}*{3}{>{\centering\arraybackslash}p{0.31\textwidth}}@{}}
+\includegraphics[width=0.31\textwidth,height=6cm,keepaspectratio]{sheet1.pdf} &
+\includegraphics[width=0.31\textwidth,height=6cm,keepaspectratio]{sheet2.pdf} &
+\includegraphics[width=0.31\textwidth,height=6cm,keepaspectratio]{sheet3.pdf} \\[2pt]
+\scriptsize Máy chủ: C1--C4 lọc nguồn, tụ riêng cho servo & \scriptsize Sensor Client: 2 diode hạ áp, bảo vệ ngược cực & \scriptsize RFID Client: 2 RC522 chung bus SPI
 \end{tabular}
 \end{frame}
 
 % ---------------------------------------------------------------------
-\begin{frame}{Kiến trúc triển khai}
+\begin{frame}{Giao thức truyền thông}
+\begin{columns}[T]
+\column{0.58\textwidth}
+\scriptsize\gridtable
+\begin{tabularx}{\linewidth}{|L{2.3cm}|L{2.2cm}|X|}
+\hline
+\textbf{Bản tin UDP} & \textbf{Chiều gửi} & \textbf{Nội dung} \\ \hline
+\code{parking\_update} & Sensor Client tới máy chủ & 5 ô đỗ, mực nước, cờ cháy \\ \hline
+\code{climate} & RFID Client tới máy chủ & Nhiệt độ \\ \hline
+\code{rfid\_event} & RFID Client tới máy chủ & Mã thẻ, cổng, số thứ tự \code{seq} \\ \hline
+\code{rfid\_ack} & Máy chủ tới RFID Client & \code{seq} được xác nhận \\ \hline
+\end{tabularx}
+\column{0.4\textwidth}
+\small
+\begin{itemize}
+  \item Trạng thái gửi lặp mỗi giây: mất một gói chỉ trễ tối đa 1\,s
+  \item Quẹt thẻ chỉ xảy ra một lần: chưa có ACK thì gửi lại sau 300\,ms, tối đa 6 lần
+  \item Máy chủ nhớ 16 \code{seq} gần nhất nên gói gửi lại \textbf{không mở cổng hai lần}
+  \item Trang web dùng HTTP, lệnh điều khiển cần mã PIN
+\end{itemize}
+\end{columns}
+\end{frame}
+
+% ---------------------------------------------------------------------
+\begin{frame}{10 use case của hệ thống}
+\scriptsize\gridtable
+\begin{tabularx}{\linewidth}{|c|L{5.2cm}|L{2.4cm}|X|}
+\hline
+\textbf{Mã} & \textbf{Use case} & \textbf{Tác nhân chính} & \textbf{Mục tiêu} \\ \hline
+UC01 & Xem chỗ trống tại cổng & Người lái xe & Biết còn chỗ nào trống trước khi vào \\ \hline
+UC02 & Gửi xe bằng thẻ RFID & Người lái xe & Được mở cổng vào, bắt đầu tính giờ \\ \hline
+UC03 & Thanh toán phí và lấy xe & Người lái xe & Trả đúng phí bằng VietQR, được mở cổng ra \\ \hline
+UC04 & Xác nhận thanh toán tại quầy & Người vận hành & Cho xe ra khi khách trả tiền mặt \\ \hline
+UC05 & Điều khiển thanh chắn từ xa & Người vận hành & Mở hoặc đóng cổng khi cần \\ \hline
+UC06 & Báo cháy và mở lối thoát & Sensor Client & Báo động, giải phóng lối ra \\ \hline
+UC07 & Báo ngập và ngừng nhận xe & Sensor Client & Không cho thêm xe vào khi nước dâng \\ \hline
+UC08 & Xem tình trạng bãi trên trang web & Người vận hành & Nắm trạng thái bãi từ xa \\ \hline
+UC09 & Tra cứu nhật ký và doanh thu & Người vận hành & Đối soát lượt xe và tiền thu \\ \hline
+UC10 & Hiệu chỉnh danh sách xe trong bãi & Người vận hành & Xóa xe đã rời bãi bất thường \\ \hline
+\end{tabularx}
+\end{frame}
+
+% ---------------------------------------------------------------------
+\begin{frame}{UC02: gửi xe bằng thẻ RFID}
+\begin{columns}[c]
+\column{0.5\textwidth}
+\centering
+\includegraphics[height=0.86\textheight]{seq_rfid.pdf}
+\column{0.48\textwidth}
+\small
+\begin{itemize}
+  \item Người lái chỉ quẹt thẻ, mọi bước còn lại do hệ thống tự làm
+  \item Từ chối khi thẻ đã ở trong bãi (\code{WRONG GATE}), bãi đầy hoặc đang ngập
+  \item Mất gói tin: gửi lại sau 300\,ms, máy chủ nhận ra bản gửi lại qua \code{seq}
+  \item Xe còn dưới cần chắn: thanh chắn giữ mở tới khi làn trống liên tục 1\,s
+  \item Xe đi theo không quẹt thẻ: còi kêu, màn hình báo \code{CAR W/O CARD}
+\end{itemize}
+\end{columns}
+\end{frame}
+
+% ---------------------------------------------------------------------
+\begin{frame}{UC03: thanh toán phí và lấy xe}
+\begin{columns}[c]
+\column{0.56\textwidth}
+\centering
+\includegraphics[width=\linewidth,height=0.86\textheight,keepaspectratio]{seq_pay.pdf}
+\column{0.42\textwidth}
+\small
+\begin{itemize}
+  \item Phí $= 5000 \times \max(1, \lceil t/3600 \rceil)$ VNĐ, chốt ngay khi quẹt thẻ ra
+  \item Mã VietQR sinh ngay trên chip; số tiền và nội dung \code{PKxxxxxx} điền sẵn
+  \item Máy chủ hỏi SePay mỗi 3\,s, chỉ mở cổng khi đúng mã và đúng số tiền
+  \item Quá 180\,s chưa nhận tiền: chuyển sang UC04, người vận hành xác nhận
+\end{itemize}
+\end{columns}
+\end{frame}
+
+% ---------------------------------------------------------------------
+\begin{frame}{UC06 và UC07: an toàn khi có sự cố}
+\begin{columns}[T]
+\column{0.49\textwidth}
+\begin{block}{\bt{Cháy (UC06)}}
+\small
+\begin{itemize}
+  \item Lửa ổn định 50\,ms: Sensor Client gửi ngay, không chờ chu kỳ
+  \item Còi kêu, \textbf{mở và giữ cả hai thanh chắn}
+  \item TFT và web chuyển sang cảnh báo đỏ; lệnh đóng bị từ chối
+  \item Từ lúc có lửa tới còi kêu khoảng 0,06\,s
+\end{itemize}
+\end{block}
+\column{0.49\textwidth}
+\begin{block}{\bt{Ngập (UC07)}}
+\small
+\begin{itemize}
+  \item Bật cảnh báo ở 20\,mm, tắt ở 15\,mm để không nhấp nháy
+  \item Còi kêu, \textbf{từ chối xe vào}; xe trong bãi vẫn ra được
+\end{itemize}
+\end{block}
+\vspace{4pt}
+\begin{block}{\bt{Không hạ thanh chắn xuống xe}}
+\small IR dưới mỗi thanh chắn: hết 3\,s mà xe còn trong cổng thì giữ mở, chỉ đóng khi làn trống liên tục 1\,s.
+\end{block}
+\end{columns}
+\end{frame}
+
+% ---------------------------------------------------------------------
+\begin{frame}{UC04, UC05, UC08--UC10: trang web quản lý}
 \begin{columns}[c]
 \column{0.62\textwidth}
-\includegraphics[width=\linewidth]{deploy.pdf}
+\centering
+\includegraphics[width=\linewidth,height=0.4\textheight,keepaspectratio]{web_status.png}\\[3pt]
+\includegraphics[width=\linewidth,height=0.4\textheight,keepaspectratio]{web_log.png}
 \column{0.36\textwidth}
 \small
 \begin{itemize}
-  \item Ba bo là \textbf{trạm Wi-Fi} trên mạng chung của nhóm, không bo nào phát Wi-Fi
-  \item Client gửi \textbf{UDP broadcast} tới cổng 3333 — không cần biết IP máy chủ
-  \item Máy chủ: web \code{:80}, tên \code{parking.local} qua mDNS
-  \item Internet chỉ dùng để hỏi \textbf{SePay}; mất mạng thì bãi vẫn chạy
+  \item \textbf{UC08:} sơ đồ 5 ô, nhiệt độ, mực nước, lửa, thanh chắn
+  \item \textbf{UC05:} mở, đóng từng cổng hoặc cả hai (cần mã PIN)
+  \item \textbf{UC04:} xác nhận đã nhận tiền mặt
+  \item \textbf{UC09:} xe trong bãi, 10 sự kiện gần nhất, doanh thu hôm nay và 7 ngày
+  \item \textbf{UC10:} xóa xe đã rời bãi bất thường
 \end{itemize}
 \end{columns}
 \end{frame}
 
 % ---------------------------------------------------------------------
-\begin{frame}{Phần cứng: ba nút}
-\small
-\begin{tabularx}{\linewidth}{@{}l>{\raggedright\arraybackslash}X>{\raggedright\arraybackslash}X@{}}
-\toprule
-\textbf{Nút} & \textbf{Thiết bị} & \textbf{Nhiệm vụ} \\ \midrule
-\textbf{Máy chủ} ESP32-C3 & TFT ST7789 240×240, 2 servo SG90, còi &
-  Phiên RFID, tính phí, VietQR + SePay, thanh chắn, web, mDNS \\[3pt]
-\textbf{Sensor Client} ESP8266 & 5 IR, cảm biến lửa, mực nước &
-  Lọc nhiễu, gửi trạng thái mỗi 1\,s \\[3pt]
-\textbf{RFID Client} ESP8266 & 2 MFRC522 (vào/ra), DHT11 &
-  Gửi sự kiện quẹt thẻ, nhiệt độ mỗi 5\,s \\
-\bottomrule
+\begin{frame}{Demo trực tiếp (1/2): luồng của người lái xe}
+\scriptsize\gridtable
+\begin{tabularx}{\linewidth}{|c|c|L{5.6cm}|X|}
+\hline
+\textbf{Bước} & \textbf{UC} & \textbf{Thao tác} & \textbf{Kết quả mong đợi} \\ \hline
+1 & UC08 & Cấp nguồn ba thiết bị, mở \code{http://parking.local} trên điện thoại & TFT và web hiện 5/5 chỗ trống, Sensor Client trực tuyến \\ \hline
+2 & UC01 & Đặt xe vào ô S2 và S4 & Hai ô chuyển đỏ, còn 3/5: TFT tức thì, web khoảng 1\,s \\ \hline
+3 & UC02 & Quẹt thẻ ở cổng vào, giữ xe dưới cần chắn quá 3\,s & Cổng mở; chỉ đóng khi làn trống 1\,s; nhật ký ghi \code{IN} \\ \hline
+4 & UC02 & Quẹt lại chính thẻ đó ở cổng vào & \textcolor{bad}{\code{WRONG GATE}}, cổng không mở \\ \hline
+5 & UC03 & Quẹt thẻ ở cổng ra & TFT hiện mã VietQR, số tiền, mã \code{PKxxxxxx}; cổng vẫn đóng \\ \hline
+6 & UC03 & Quét mã bằng app ngân hàng, chuyển khoản & Trong vài giây: cổng ra mở, hóa đơn, doanh thu tăng \\ \hline
 \end{tabularx}
-\vspace{8pt}
-\begin{block}{\bt{Vì sao chọn ESP32-C3 cho máy chủ?}}
-Ảnh màn hình đã cần $240\times240\times2 = 115.200$\,B RAM — lớn hơn toàn bộ RAM của ESP8266.
-ESP32-C3 có 400\,KB SRAM, SPI có DMA, PWM LEDC 14 bit và FreeRTOS chính thức.
-\end{block}
 \end{frame}
 
 % ---------------------------------------------------------------------
-\begin{frame}[fragile]{Giao thức UDP: JSON + ACK}
-\begin{columns}[T]
-\column{0.52\textwidth}
-\small Bản tin JSON gọn, dễ gỡ lỗi:
-\begin{block}{}
-\scriptsize
-\begin{verbatim}
-{"type":"parking_update",
- "slots":[1,0,0,1,0],
- "water_mm":0.2,"fire":false}
-
-{"type":"rfid_event","card_id":"A1B2C3D4",
- "gate":"in","temperature_c":28.5,
- "seq":91827}
-
-{"type":"rfid_ack","seq":91827}
-\end{verbatim}
-\end{block}
-\column{0.45\textwidth}
-\small
-\begin{itemize}
-  \item UDP có thể mất gói $\Rightarrow$ quẹt thẻ cần \textbf{ACK}
-  \item Chưa có ACK: gửi lại sau 300\,ms, tối đa 6 lần
-  \item Máy chủ nhớ 16 \code{seq} gần nhất: gói lặp vẫn được ACK nhưng \textbf{chỉ xử lý một lần}
-  \item Cảm biến gửi mỗi giây nên mất một gói cũng không sao
-  \item Bộ đọc JSON không cấp phát động, kiểm tra mọi trường
-\end{itemize}
-\end{columns}
-\end{frame}
-
-% ---------------------------------------------------------------------
-\begin{frame}{Phần mềm máy chủ: tác vụ FreeRTOS}
-\begin{columns}[c]
-\column{0.5\textwidth}
-\includegraphics[width=\linewidth]{tasks.pdf}
-\column{0.48\textwidth}
-\scriptsize
-\begin{tabularx}{\linewidth}{@{}lc>{\raggedright\arraybackslash}X@{}}
-\toprule
-\textbf{Tác vụ} & \textbf{Ưu tiên} & \textbf{Nhiệm vụ} \\ \midrule
-\code{udp\_server} & 5 & Nhận bản tin, ra lệnh servo, còi, màn hình \\
-\code{httpd} & 5 & Trang web và API \\
-\code{lcd\_display} & 4 & Vẽ lại khi dữ liệu đổi \\
-\code{lcd\_animation} & 3 & Ảnh động, 100\,ms/khung \\
-\code{sepay} & 3 & Hỏi SePay qua HTTPS \\
-\code{mdns} & 1 & Trả lời \code{parking.local} \\
-\bottomrule
+\begin{frame}{Demo trực tiếp (2/2): sự cố và quản lý}
+\scriptsize\gridtable
+\begin{tabularx}{\linewidth}{|c|c|L{5.6cm}|X|}
+\hline
+\textbf{Bước} & \textbf{UC} & \textbf{Thao tác} & \textbf{Kết quả mong đợi} \\ \hline
+7 & UC05 & Trên web nhập PIN, bấm \code{OPEN} rồi \code{CLOSE} khi tay chắn tia IR & Cổng mở; lệnh đóng bị từ chối, web báo \code{CAR IN GATE} \\ \hline
+8 & UC06 & Đưa bật lửa gần cảm biến lửa & Còi kêu, cả hai cổng mở, TFT và web cảnh báo đỏ \\ \hline
+9 & UC07 & Nhúng cảm biến mực nước & Cảnh báo ngập; quẹt thẻ ở cổng vào bị từ chối \\ \hline
+10 & UC04 & Quẹt thẻ ra, bấm \code{Confirm paid} trên web & Cổng ra mở, hóa đơn như khi chuyển khoản \\ \hline
+11 & UC09, UC10 & Xem nhật ký, doanh thu; bấm \code{Delete} một xe & Danh sách và doanh thu khớp; xe bị xóa, không tính phí \\ \hline
 \end{tabularx}
-\vspace{4pt}
-\begin{itemize}
-  \item Trạng thái dùng chung được bảo vệ bằng mutex
-  \item Màn hình được đánh thức bằng task notification, không hỏi vòng
-  \item Đóng thanh chắn bằng \code{esp\_timer}, chính xác tới micro giây
-\end{itemize}
-\end{columns}
-\end{frame}
-
-% ---------------------------------------------------------------------
-\begin{frame}{Xe vào và ra bằng thẻ RFID}
-\centering
-\includegraphics[width=0.92\linewidth]{fsm_card.pdf}
 \vspace{6pt}
-\small
-\begin{columns}[T]
-\column{0.32\textwidth}
-\pill{ok}{VÀO} Quẹt cổng vào: mở cổng vào 3\,s, bắt đầu tính giờ
-\column{0.32\textwidth}
-\pill{uet}{RA} Quẹt cổng ra: tính phí, hiện mã VietQR hoặc hóa đơn
-\column{0.32\textwidth}
-\pill{bad}{TỪ CHỐI} Sai cổng, bãi đầy, đang ngập — báo rõ trên TFT
-\end{columns}
-\vspace{4pt}
-\raggedright\scriptsize Phiên gửi xe lưu trong NVS: mất điện không mất xe đang gửi.
+\begin{block}{\bt{Phương án dự phòng}}
+\scriptsize Không có Internet: thu tiền theo UC04. Điện thoại không mở được \code{parking.local} (một số điểm phát Wi-Fi chặn mDNS): dùng địa chỉ IP in trên nhật ký khởi động của máy chủ.
+\end{block}
 \end{frame}
 
 % ---------------------------------------------------------------------
-\begin{frame}{Thanh toán VietQR qua SePay}
-\centering
-\begin{tikzpicture}[font=\scriptsize,node distance=0.42cm,
-  box/.style={draw=uet,fill=soft,rounded corners=3pt,align=center,minimum height=1.2cm,text width=2.2cm},
-  arr/.style={-{Stealth},thick,uet}]
-\node[box] (a) {\textbf{Quẹt thẻ}\\cổng ra};
-\node[box,right=of a] (b) {\textbf{Máy chủ}\\tính phí, tạo mã\\VietQR trên TFT};
-\node[box,right=of b] (c) {\textbf{App ngân hàng}\\quét mã,\\chuyển khoản};
-\node[box,right=of c] (d) {\textbf{SePay}\\ghi nhận\\giao dịch BIDV};
-\node[box,right=of d,fill=ok!15,draw=ok] (e) {\textbf{Mở cổng ra}\\hóa đơn,\\ghi doanh thu};
-\draw[arr] (a)--(b); \draw[arr] (b)--(c); \draw[arr] (c)--(d); \draw[arr] (d)--(e);
-\draw[arr,dashed] (b.south) to[bend right=25] node[below]{tác vụ \code{sepay} hỏi API mỗi 3\,s (HTTPS)} (d.south);
-\end{tikzpicture}
-\vspace{10pt}
+\begin{frame}{Kiểm thử và kết quả}
 \begin{columns}[T]
 \column{0.5\textwidth}
-\small
-\begin{itemize}
-  \item Mã theo chuẩn \textbf{NAPAS/EMVCo} (TLV + CRC16), có sẵn số tiền
-  \item Nội dung chuyển khoản \code{PKxxxxxx} riêng cho từng lượt
-  \item Khớp khi giao dịch chứa đúng mã \textbf{và} đủ tiền
-\end{itemize}
-\column{0.46\textwidth}
-\small
-\begin{itemize}
-  \item Quá 180\,s hoặc mất Internet: người vận hành bấm \emph{Xác nhận đã trả} trên web
-  \item Mỗi lúc một xe thanh toán; xe sau thấy \emph{NEXT CAR: WAIT}
-  \item Số tài khoản, token: nhập qua \code{menuconfig}, không nằm trong Git
-\end{itemize}
-\end{columns}
-\end{frame}
-
-% ---------------------------------------------------------------------
-\begin{frame}{An toàn: cháy, ngập và mất cảm biến}
-\begin{columns}[T]
-\column{0.32\textwidth}
-\begin{block}{\bt{Cháy}}
-\small
-\begin{itemize}
-  \item Còi kêu liên tục
-  \item \textbf{Mở cả hai thanh chắn} để sơ tán
-  \item TFT và web chuyển màn hình cảnh báo đỏ
-\end{itemize}
-\end{block}
-\column{0.32\textwidth}
-\begin{block}{\bt{Ngập nước}}
-\small
-\begin{itemize}
-  \item Bật khi nước $\ge$ 20\,mm, tắt khi $\le$ 15\,mm (trễ, chống nhấp nháy)
-  \item Còi kêu, \textbf{từ chối xe vào}
-  \item Xe trong bãi vẫn ra được
-\end{itemize}
-\end{block}
-\column{0.32\textwidth}
-\begin{block}{\bt{Mất cảm biến}}
-\small
-\begin{itemize}
-  \item 3\,s không có dữ liệu $\Rightarrow$ \emph{SENSOR OFFLINE}
-  \item Ô đỗ chuyển xám, hiện trạng thái cuối
-  \item Không coi ô cũ là còn trống
-\end{itemize}
-\end{block}
-\end{columns}
-\vspace{10pt}
-\centering\small Trạng thái báo cháy được gửi ngay khi cảm biến lửa ổn định 50\,ms, không chờ chu kỳ 1\,s.
-\end{frame}
-
-% ---------------------------------------------------------------------
-\begin{frame}{Giám sát: màn hình TFT và trang web}
-\begin{columns}[c]
-\column{0.3\textwidth}
-\centering
-\includegraphics[height=5.6cm]{tft_live.jpg}\\[-1pt]
-\scriptsize TFT tại bãi: chỗ trống, nhiệt độ, mực nước, hóa đơn
-\column{0.68\textwidth}
-\centering
-\includegraphics[height=5.6cm]{dashboard.png}\hspace{6pt}%
-\begin{minipage}[c]{0.36\linewidth}\scriptsize\raggedright
-\textbf{\code{parking.local}}
-\begin{itemize}
-  \item Sơ đồ 5 ô đỗ
-  \item Mở/đóng thanh chắn (cần PIN)
-  \item Cảm biến, cảnh báo
-  \item Nhật ký vào/ra
-  \item Doanh thu hôm nay, 7 ngày
-  \item Xác nhận thanh toán
-\end{itemize}
-\end{minipage}
-\end{columns}
-\end{frame}
-
-% ---------------------------------------------------------------------
-\begin{frame}{Kiểm thử: 397 phép kiểm tra tự động}
-\begin{columns}[T]
-\column{0.46\textwidth}
-\small
-\begin{tabularx}{\linewidth}{@{}>{\raggedright\arraybackslash}Xr@{}}
-\toprule
-\textbf{Bộ kiểm thử} & \textbf{Số phép} \\ \midrule
-\code{rfid\_session}\newline{\scriptsize phiên, phí, QR, ngập, doanh thu} & 149 \\
-\code{gif\_frames} (ảnh động) & 89 \\
-\code{json\_parsers} & 78 \\
-\code{payment} (VietQR, SePay, ví) & 38 \\
-\code{rfid\_client} (ESP8266) & 25 \\
-\code{sensor\_client} (ESP8266) & 18 \\ \midrule
-\textbf{Tổng} & \textbf{397} \\
-\bottomrule
+\scriptsize\gridtable
+\begin{tabularx}{\linewidth}{|X|c|}
+\hline
+\textbf{Bộ kiểm thử tự động} & \textbf{Kết quả} \\ \hline
+\code{rfid\_session}: phiên, phí, QR, ngập, doanh thu & 181/181 \\ \hline
+\code{gif\_frames}: ảnh động & 89/89 \\ \hline
+\code{json\_parsers}: kiểm tra bản tin & 78/78 \\ \hline
+\code{payment}: VietQR, SePay & 38/38 \\ \hline
+\code{rfid\_client}, \code{sensor\_client} & 43/43 \\ \hline
+\code{gate\_hold}: giữ thanh chắn & 10/10 \\ \hline
+\textbf{Tổng} & \textbf{439/439} \\ \hline
 \end{tabularx}
-\column{0.48\textwidth}
+\column{0.47\textwidth}
 \small
 \begin{itemize}
   \item Chạy trên máy tính, không cần phần cứng: \code{make -C tests}
-  \item \textbf{Lớp giả lập Arduino} để chạy nguyên mã hai sketch ESP8266
-  \item Mã VietQR khớp từng byte với mẫu đã công bố (CRC \code{AB76})
-  \item 27 kịch bản kiểm thử trên phần cứng (S1–S27)
+  \item Kịch bản trên mô hình: cả 10 use case đều đạt
+  \item Độ trễ: xe vào ô tới TFT khoảng 0,1\,s; quẹt thẻ tới mở cổng khoảng 0,2\,s
+  \item Firmware máy chủ 1,3\,MB, khoảng 85\% phân vùng ứng dụng
 \end{itemize}
 \end{columns}
-\end{frame}
-
-% ---------------------------------------------------------------------
-\begin{frame}{Kịch bản demo trực tiếp}
-\scriptsize
-\begin{tabularx}{\linewidth}{@{}c>{\raggedright\arraybackslash}p{5.4cm}>{\raggedright\arraybackslash}X@{}}
-\toprule
-\textbf{\#} & \textbf{Thao tác} & \textbf{Kết quả mong đợi} \\ \midrule
-1 & Cấp nguồn, mở \code{http://parking.local} trên điện thoại & TFT và web hiện 5/5 chỗ trống \\
-2 & Đặt xe vào ô 1 và ô 4 & Ô chuyển đỏ, còn 3/5 — TFT tức thì, web $\approx$ 1\,s \\
-3 & Quẹt thẻ ở cổng \textbf{vào} & Cổng vào mở, tự đóng sau 3\,s; nhật ký ghi IN \\
-4 & Quẹt lại thẻ đó ở cổng vào & \textcolor{bad}{WRONG GATE}, cổng không mở \\
-5 & Quẹt thẻ ở cổng \textbf{ra} & TFT hiện mã VietQR, số tiền, mã \code{PKxxxxxx} \\
-6 & Quét mã bằng app ngân hàng, chuyển khoản & Trong $\approx$ 3\,s cổng ra mở, hóa đơn, doanh thu tăng \\
-7 & Đưa lửa (bật lửa) gần cảm biến lửa & Còi kêu, \textbf{cả hai cổng mở}, màn hình cảnh báo đỏ \\
-8 & Nhúng cảm biến nước & Cảnh báo ngập, quẹt cổng vào bị từ chối \\
-9 & Rút nguồn Sensor Client & Sau 3\,s: \emph{SENSOR OFFLINE}, ô chuyển xám \\
-10 & Trên web: nhập PIN, bấm mở thanh chắn & Thanh chắn mở theo lệnh \\
-\bottomrule
-\end{tabularx}
-\vspace{4pt}
-\raggedright\scriptsize\textbf{Dự phòng:} không có Internet thì ở bước 6 bấm \emph{Xác nhận đã trả} trên web;
-không có phần cứng thì chạy \code{examples/udp\_rfid\_sender.py} và \code{udp\_sender.py} để giả lập client.
-\end{frame}
-
-% ---------------------------------------------------------------------
-\begin{frame}{Kết quả và hạn chế}
-\begin{columns}[T]
-\column{0.48\textwidth}
-\begin{block}{\bt{Đạt được}}
-\small
-\begin{itemize}
-  \item 3 bo phối hợp, \textbf{10/10 use case} hiện thực và có kiểm thử
-  \item Firmware máy chủ 1,22\,MB, 31\% RAM tĩnh, còn 20\% flash ứng dụng
-  \item Thanh toán VietQR tự động qua SePay
-  \item Lưu phiên và doanh thu vào NVS, chịu được mất điện
-\end{itemize}
-\end{block}
-\column{0.48\textwidth}
-\begin{block}{\bt{Hạn chế còn lại}}
-\small
-\begin{itemize}
-  \item Web dùng HTTP, UDP không ký: tin vào Wi-Fi WPA2 của nhóm
-  \item Phụ thuộc router chung; router phải tắt chế độ cô lập thiết bị
-  \item Token SePay nằm trong flash máy chủ
-  \item Chưa có RTC: giờ lấy từ trình duyệt
-\end{itemize}
-\end{block}
-\end{columns}
-\vspace{6pt}
-\small\textbf{Hướng phát triển:} cảm biến dưới thanh chắn, danh sách thẻ đăng ký, HMAC + HTTPS, RTC DS3231, MQTT lên đám mây, OTA.
 \end{frame}
 
 % ---------------------------------------------------------------------
@@ -426,37 +383,35 @@ không có phần cứng thì chạy \code{examples/udp\_rfid\_sender.py} và \c
 \begin{columns}[T]
 \column{0.32\textwidth}
 \begin{block}{\bt{Nguyễn Chí Minh}}
-\scriptsize Phần mềm và tích hợp
+\scriptsize Phần mềm
 \begin{itemize}
-  \item Firmware máy chủ, tác vụ FreeRTOS
-  \item Driver TFT, giao diện
-  \item Giao thức UDP, VietQR, SePay
+  \item Firmware máy chủ, FreeRTOS
+  \item UDP, HTTP, màn hình
+  \item VietQR, SePay, bảo mật
   \item Trang web, kiểm thử tự động
 \end{itemize}
 \end{block}
 \column{0.32\textwidth}
 \begin{block}{\bt{Đinh Đức Thịnh}}
-\scriptsize Điện và phần cứng
+\scriptsize Điện
 \begin{itemize}
-  \item Chọn linh kiện, so sánh vi điều khiển
-  \item Thiết kế và tối ưu nguồn điện
-  \item Sơ đồ chân, đi dây ba bo
-  \item Firmware hai client ESP8266
+  \item Chọn linh kiện
+  \item Thiết kế nguồn, tụ lọc, diode hạ áp
+  \item Sơ đồ nguyên lý, đi dây
+  \item Firmware Sensor Client, RFID Client
 \end{itemize}
 \end{block}
 \column{0.32\textwidth}
 \begin{block}{\bt{Nguyễn Việt Tiến}}
-\scriptsize Mô hình và thanh chắn
+\scriptsize Cơ khí
 \begin{itemize}
-  \item Thiết kế, dựng mô hình bãi xe
-  \item Cơ cấu thanh chắn servo
-  \item Firmware servo và còi
-  \item Kiểm thử phần cứng, tài liệu
+  \item Mô hình bãi xe, hộp điều khiển
+  \item Cơ cấu thanh chắn, cảm biến cổng
+  \item Firmware thanh chắn và còi
+  \item Kịch bản kiểm thử trên mô hình
 \end{itemize}
 \end{block}
 \end{columns}
-\vspace{8pt}
-\centering\small Mức đóng góp \textbf{ngang nhau} (33,3\% mỗi người).
 \end{frame}
 
 % ---------------------------------------------------------------------
@@ -465,8 +420,6 @@ không có phần cứng thì chạy \code{examples/udp\_rfid\_sender.py} và \c
   \fill[uet] (current page.south west) rectangle (current page.north east);
   \node[text=white,font=\Huge\bfseries] at ([yshift=0.6cm]current page.center) {Cảm ơn thầy và các bạn!};
   \node[text=white!80!uet,font=\large] at ([yshift=-0.5cm]current page.center) {Hỏi và đáp};
-  \node[text=white!65!uet,font=\scriptsize] at ([yshift=-1.6cm]current page.center)
-    {github.com/thinhdinh25/INT3108\_embedded-Smart-Parking-Project};
 \end{tikzpicture}
 \end{frame}
 
