@@ -35,11 +35,11 @@ Bảng~\ref{tab:mcu} so sánh ESP32-C3, được chọn cho máy chủ, với c�
 \begin{table}[H]
 \centering\small
 \caption{So sánh các phương án vi điều khiển}\label{tab:mcu}
-\begin{tabularx}{\linewidth}{|l|X|X|X|X|}
+\begin{tabularx}{\linewidth}{|l|>{\raggedright\arraybackslash}X|>{\raggedright\arraybackslash}X|>{\raggedright\arraybackslash}X|>{\raggedright\arraybackslash}X|}
 \hline
-Tiêu chí & ESP32-C3 & ESP32 & ESP8266 & Arduino Uno \\ \hline
+\hd Tiêu chí & \hd ESP32-C3 & \hd ESP32 & \hd ESP8266 & \hd Arduino Uno \\ \hline
 CPU & RISC-V 160\,MHz & 2 nhân 240\,MHz & Xtensa 80\,MHz & AVR 16\,MHz \\ \hline
-SRAM & 400\,KB & 520\,KB & khoảng 80\,KB & 2\,KB \\ \hline
+SRAM & 400\,KB & 520\,KB & Khoảng 80\,KB & 2\,KB \\ \hline
 Wi-Fi & Có & Có & Có & Không \\ \hline
 PWM phần cứng & LEDC 14 bit & LEDC & PWM mềm & 8 bit \\ \hline
 SPI có DMA & Có & Có & Hạn chế & Không \\ \hline
@@ -71,9 +71,9 @@ từng linh kiện trong hệ thống.
 \begin{table}[H]
 \centering\small
 \caption{Cảm biến, cơ cấu chấp hành và thông số chính}\label{tab:linhkien}
-\begin{tabularx}{\linewidth}{|>{\raggedright\arraybackslash}p{3.4cm}|>{\raggedright\arraybackslash}p{4.6cm}|>{\raggedright\arraybackslash}p{2.4cm}|X|}
+\begin{tabularx}{\linewidth}{|>{\raggedright\arraybackslash}m{3.4cm}|>{\raggedright\arraybackslash}m{4.6cm}|>{\raggedright\arraybackslash}m{2.4cm}|>{\raggedright\arraybackslash}X|}
 \hline
-Linh kiện & Thông số chính & Tín hiệu & Vai trò \\ \hline
+\hd Linh kiện & \hd Thông số chính & \hd Tín hiệu & \hd Vai trò \\ \hline
 Cảm biến hồng ngoại phản xạ $\times7$ & Tầm 2--30\,cm, bộ so sánh LM393 & Digital & 5 ô đỗ và 2 cổng \\ \hline
 Cảm biến lửa & Bước sóng 760--1100\,nm & Digital & Phát hiện cháy \\ \hline
 Cảm biến mực nước & Vùng đo khoảng 40\,mm & Analog & Phát hiện ngập \\ \hline
@@ -122,9 +122,9 @@ liệt kê các thành phần chính.
 \begin{table}[H]
 \centering\small
 \caption{Thành phần phần mềm và vai trò}\label{tab:software}
-\begin{tabularx}{\linewidth}{|p{4.6cm}|X|}
+\begin{tabularx}{\linewidth}{|>{\raggedright\arraybackslash}m{4.6cm}|>{\raggedright\arraybackslash}X|}
 \hline
-Thành phần & Vai trò \\ \hline
+\hd Thành phần & \hd Vai trò \\ \hline
 ESP-IDF 6.1 và FreeRTOS & Framework cho máy chủ: driver, Wi-Fi, TCP/IP, HTTP, NVS, hệ điều hành \\ \hline
 \code{esp\_lcd}, LEDC, \code{esp\_timer} & Driver màn hình qua SPI DMA, PWM cho servo, hẹn giờ đóng thanh chắn \\ \hline
 \code{espressif/mdns}, \code{espressif/qrcode} & Tên \code{parking.local}; mã hóa mã QR thanh toán \\ \hline

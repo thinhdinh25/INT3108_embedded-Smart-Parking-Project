@@ -23,9 +23,9 @@ tóm tắt nội dung và kết quả của từng nhóm.
 \begin{table}[H]
 \centering\small
 \caption{Kết quả kiểm thử tự động}\label{tab:unittests}
-\begin{tabularx}{\linewidth}{|l|X|r|}
+\begin{tabularx}{\linewidth}{|l|>{\raggedright\arraybackslash}X|c|}
 \hline
-Nhóm & Nội dung kiểm tra chính & Kết quả \\ \hline
+\hd Nhóm & \hd Nội dung kiểm tra chính & \hd Kết quả \\ \hline
 \code{payment} & CRC16 với giá trị chuẩn; chuỗi VietQR trùng từng byte với mã mẫu; từ chối tài khoản, số tiền không hợp lệ; chỉ chấp nhận giao dịch đúng mã và đúng số tiền & 38/38 \\ \hline
 \code{json\_parsers} & Bản tin hợp lệ với mọi thứ tự khóa; 46 dạng bản tin sai đều bị từ chối; biên của trường \code{seq} & 78/78 \\ \hline
 \code{rfid\_session} & Phí theo giờ tại các biên; vào, ra, sai cổng, bãi đầy; nhật ký vòng; lưu và khôi phục sau mất điện; đặt giờ; ngập có trễ; doanh thu theo ngày; chống xử lý trùng; luồng thanh toán QR; xóa xe; cảnh báo xe không thẻ & 181/181 \\ \hline
@@ -49,10 +49,10 @@ Các kịch bản kiểm thử hệ thống được thực hiện trên mô hì
 Bảng~\ref{tab:systest} liệt kê các kịch bản chính theo thứ tự use case, cùng hành vi mong đợi
 mà nhóm đã quan sát được.
 
-\begin{longtable}{|p{1.2cm}|>{\raggedright\arraybackslash}p{5.2cm}|>{\raggedright\arraybackslash}p{7.4cm}|}
+\begin{longtable}{|>{\centering\arraybackslash}m{1.2cm}|>{\raggedright\arraybackslash}m{5.2cm}|>{\raggedright\arraybackslash}m{7.4cm}|}
 \caption{Kịch bản kiểm thử trên mô hình và kết quả quan sát}\label{tab:systest}\\
-\hline UC & Thao tác & Kết quả \\ \hline \endfirsthead
-\hline UC & Thao tác & Kết quả \\ \hline \endhead
+\hline \hd UC & \hd Thao tác & \hd Kết quả \\ \hline \endfirsthead
+\hline \hd UC & \hd Thao tác & \hd Kết quả \\ \hline \endhead
 UC01 & Đặt xe vào ô S2 & Ô S2 trên màn hình chuyển đỏ gần như tức thì \\ \hline
 UC01 & Đưa vật nhanh qua cảm biến dưới 50\,ms & Trạng thái không đổi \\ \hline
 UC01 & Rút điện Sensor Client & Sau khoảng 3\,s màn hình báo \code{SENSOR OFFLINE} \\ \hline
@@ -88,14 +88,14 @@ với chỉ tiêu ở Bảng~\ref{tab:nfr}.
 \begin{table}[H]
 \centering\small
 \caption{Độ trễ của các luồng chính}\label{tab:latency}
-\begin{tabularx}{\linewidth}{|l|X|r|}
+\begin{tabularx}{\linewidth}{|l|>{\raggedright\arraybackslash}X|c|}
 \hline
-Luồng & Thành phần & Tổng \\ \hline
-Xe vào ô, màn hình cập nhật & Lọc 50\,ms, UDP vài ms, vẽ 23\,ms & khoảng 0,1\,s \\ \hline
-Xe vào ô, trang web cập nhật & Như trên cộng chu kỳ hỏi tối đa 1\,s & tối đa 1,1\,s \\ \hline
-Quẹt thẻ, thanh chắn mở & Quét đầu đọc 10\,ms, UDP, xử lý dưới 1\,ms, servo quay 90° & khoảng 0,2\,s \\ \hline
-Có lửa, còi kêu & Lọc 50\,ms, UDP & khoảng 0,06\,s \\ \hline
-Mất một gói quẹt thẻ & Gửi lại sau 300\,ms & khoảng 0,5\,s \\
+\hd Luồng & \hd Thành phần & \hd Tổng \\ \hline
+Xe vào ô, màn hình cập nhật & Lọc 50\,ms, UDP vài ms, vẽ 23\,ms & Khoảng 0,1\,s \\ \hline
+Xe vào ô, trang web cập nhật & Như trên cộng chu kỳ hỏi tối đa 1\,s & Tối đa 1,1\,s \\ \hline
+Quẹt thẻ, thanh chắn mở & Quét đầu đọc 10\,ms, UDP, xử lý dưới 1\,ms, servo quay 90° & Khoảng 0,2\,s \\ \hline
+Có lửa, còi kêu & Lọc 50\,ms, UDP & Khoảng 0,06\,s \\ \hline
+Mất một gói quẹt thẻ & Gửi lại sau 300\,ms & Khoảng 0,5\,s \\
 \hline
 \end{tabularx}
 \end{table}

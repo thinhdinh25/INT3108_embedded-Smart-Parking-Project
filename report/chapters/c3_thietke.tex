@@ -9,7 +9,7 @@ trang web quản lý. Hệ thống cần cung cấp các chức năng sau:
 \begin{itemize}
   \item Xác định trạng thái từng ô đỗ và hiển thị số chỗ trống, vị trí chỗ trống tại cổng vào.
   \item Kiểm soát xe vào bằng thẻ RFID: mở thanh chắn cho thẻ hợp lệ, từ chối thẻ đã ở trong
-        bãi, từ chối khi bãi đầy hoặc khi đang ngập.
+        bãi, từ chối khi bãi đầy hoặc khi bãi đỗ xe đang ngập.
   \item Ghi nhận thời gian gửi xe, tính phí theo giờ, thu phí bằng mã VietQR và tự động đối soát
         giao dịch trước khi mở cổng ra.
   \item Cho phép người vận hành xác nhận thanh toán khi khách trả tiền mặt hoặc khi đối soát tự
@@ -34,9 +34,9 @@ tài nguyên. Bảng~\ref{tab:nfr} lượng hóa từng yêu cầu và nêu gi�
 \begin{table}[H]
 \centering\small
 \caption{Yêu cầu phi chức năng và giải pháp đáp ứng}\label{tab:nfr}
-\begin{tabularx}{\linewidth}{|p{2.6cm}|X|>{\raggedright\arraybackslash}p{5cm}|}
+\begin{tabularx}{\linewidth}{|>{\raggedright\arraybackslash}m{2.6cm}|>{\raggedright\arraybackslash}X|>{\raggedright\arraybackslash}m{5cm}|}
 \hline
-Yêu cầu & Chỉ tiêu & Giải pháp thiết kế \\ \hline
+\hd Yêu cầu & \hd Chỉ tiêu & \hd Giải pháp thiết kế \\ \hline
 Thời gian đáp ứng & Màn hình cập nhật dưới 0,2\,s sau khi xe vào ô; thanh chắn mở dưới 0,5\,s sau khi quẹt thẻ & Gửi dữ liệu khi có thay đổi, vẽ màn hình theo sự kiện, tác vụ mạng có ưu tiên cao \\ \hline
 An toàn & Có cháy thì mở cả hai cổng ngay; không hạ thanh chắn khi xe còn trong cổng; có ngập thì không nhận xe & Chế độ cháy ưu tiên cao nhất; cảm biến IR tại cổng; chặn quẹt thẻ vào khi ngập \\ \hline
 Độ tin cậy & Không mất lượt quẹt thẻ khi mất gói; không mất dữ liệu gửi xe khi mất điện & Xác nhận và gửi lại; lưu phiên vào bộ nhớ flash \\ \hline
@@ -101,53 +101,13 @@ ngắn, và cô lập lỗi khi một thiết bị mất điện. Đổi lại, 
 Mục~\ref{sec:uc08} trình bày cách máy chủ phát hiện client mất kết nối.
 
 \section{Thiết kế phần cứng}\label{sec:phancung}
-\subsection{Thuyết minh mạch điện}\label{sec:schematic}
 Mạch điện của hệ thống gồm ba bản vẽ, mỗi bản vẽ ứng với một thiết bị và có đầu vào nguồn
-5\,V riêng. Trước khi đi vào từng bản vẽ, Hình~\ref{fig:power} tóm tắt đường đi của nguồn
-điện, phần quyết định độ ổn định của toàn hệ thống.
+5\,V riêng. Ba bản vẽ được thuyết minh lần lượt trong ba mục sau.
 
+\subsection{Mạch máy chủ}
 \begin{figure}[H]
 \centering
-\begin{tikzpicture}[
-  blk/.style={draw,rounded corners=2pt,font=\footnotesize,align=center,minimum height=0.95cm,inner sep=3pt},
-  ld/.style={blk,fill=boxB,text width=2.6cm},
-  arr/.style={-{Stealth[length=2mm]},thick},
-  v/.style={font=\scriptsize\itshape,text=accent}]
-% Server
-\node[font=\footnotesize\bfseries,anchor=west] at (-0.2,1.15) {Máy chủ};
-\node[blk,fill=boxC] (a1) at (1,0) {Adapter\\5\,V};
-\node[blk,fill=boxA] (c1) at (3.3,0) {C1 100\,µF\\lọc đầu vào};
-\node[ld] (sv) at (7,0.75) {2 servo SG90\\C2, C3 100\,µF};
-\node[blk,fill=boxA] (u1) at (7,-0.75) {C4 10\,µF + ổn áp\\trên ESP32-C3};
-\node[ld] (l3) at (11.3,-0.75) {TFT, còi,\\2 IR cổng};
-\draw[arr] (a1) -- (c1);
-\draw[arr] (c1.east) -- ++(0.5,0) |- node[v,above,pos=0.75] {5\,V} (sv.west);
-\draw[arr] (c1.east) -- ++(0.5,0) |- node[v,below,pos=0.75] {5\,V} (u1.west);
-\draw[arr] (u1) -- node[v,above] {3,3\,V} (l3);
-% Client
-\node[font=\footnotesize\bfseries,anchor=west] at (-0.2,-2.25) {Mỗi client};
-\node[blk,fill=boxC] (a2) at (1,-3.4) {Adapter\\5\,V};
-\node[blk,fill=boxA] (c5) at (3.3,-3.4) {C5 hoặc C6\\100\,µF};
-\node[blk,fill=boxD] (d1) at (5.7,-3.4) {Diode\\1N4007};
-\node[blk,fill=boxD] (d2) at (7.9,-3.4) {Diode\\1N4007};
-\node[ld] (l2) at (11.6,-3.4) {ESP8266 và\\toàn bộ cảm biến};
-\draw[arr] (a2) -- (c5); \draw[arr] (c5) -- node[v,above] {5\,V} (d1);
-\draw[arr] (d1) -- node[v,above] {4,3\,V} (d2); \draw[arr] (d2) -- node[v,above] {3,6\,V} (l2);
-\end{tikzpicture}
-\caption{Đường cấp nguồn của máy chủ và của mỗi client}\label{fig:power}
-\end{figure}
-
-Hình~\ref{fig:power} cho thấy hai cách cấp nguồn khác nhau. Máy chủ có hai nhánh: nhánh 5\,V
-cấp trực tiếp cho servo, nhánh còn lại đi qua bộ ổn áp 3,3\,V có sẵn trên bo ESP32-C3 SuperMini
-để cấp cho màn hình, còi và hai cảm biến cổng. Mỗi client hạ 5\,V xuống khoảng 3,6\,V bằng hai
-diode mắc nối tiếp rồi cấp chung cho ESP8266 và các cảm biến. Ba bản vẽ chi tiết ở
-Hình~\ref{fig:sch-server}, \ref{fig:sch-sensor} và \ref{fig:sch-rfid} được thuyết minh lần
-lượt trong ba mục sau.
-
-\subsubsection{Mạch máy chủ}
-\begin{figure}[H]
-\centering
-\includegraphics[width=\linewidth,height=0.62\textheight,keepaspectratio]{schematic/sheet1.pdf}
+\includegraphics[width=\linewidth,height=0.68\textheight,keepaspectratio]{schematic/sheet1.pdf}
 \caption{Sơ đồ nguyên lý máy chủ: ESP32-C3, màn hình ST7789, 2 servo, còi và 2 cảm biến IR ở cổng}\label{fig:sch-server}
 \end{figure}
 
@@ -168,10 +128,10 @@ GPIO9 và được firmware đặt ở mức cao ngay khi khởi tạo để cò
 SPI2 với năm tín hiệu SCK, MOSI, RES, DC và CS; chân đèn nền BL nối thẳng lên 3,3\,V nên màn
 hình luôn sáng.
 
-\subsubsection{Mạch Sensor Client}
+\subsection{Mạch Sensor Client}
 \begin{figure}[H]
 \centering
-\includegraphics[width=\linewidth,height=0.62\textheight,keepaspectratio]{schematic/sheet2.pdf}
+\includegraphics[width=\linewidth,height=0.68\textheight,keepaspectratio]{schematic/sheet2.pdf}
 \caption{Sơ đồ nguyên lý Sensor Client: ESP8266, 5 cảm biến IR ô đỗ, cảm biến lửa và mực nước}\label{fig:sch-sensor}
 \end{figure}
 
@@ -195,10 +155,10 @@ GPIO16, 4, 14, 13 và 12. Vì cảm biến dùng chung nguồn với ESP8266, m�
 quá điện áp chịu đựng của chân vào. Cảm biến lửa FLM1 nối ngõ ra digital DO vào GPIO5, cảm biến mực
 nước WTR1 nối ngõ ra analog AO vào chân ADC A0.
 
-\subsubsection{Mạch RFID Client}
+\subsection{Mạch RFID Client}
 \begin{figure}[H]
 \centering
-\includegraphics[width=\linewidth,height=0.62\textheight,keepaspectratio]{schematic/sheet3.pdf}
+\includegraphics[width=\linewidth,height=0.68\textheight,keepaspectratio]{schematic/sheet3.pdf}
 \caption{Sơ đồ nguyên lý RFID Client: ESP8266, 2 đầu đọc RC522 dùng chung SPI và DHT11}\label{fig:sch-rfid}
 \end{figure}
 
@@ -212,25 +172,30 @@ của ESP8266, cần mức cao khi khởi động, và điện trở kéo lên s
 điều kiện này.
 
 \section{Thiết kế giao thức truyền thông}\label{sec:giaothuc}
-Sensor Client và RFID Client gửi ba loại bản tin JSON tới máy chủ qua UDP. Mã nguồn~\ref{lst:msg} là ví dụ
-của từng loại cùng gói xác nhận mà máy chủ gửi lại.
+Sensor Client và RFID Client trao đổi với máy chủ bằng các bản tin JSON ngắn qua UDP.
+Bảng~\ref{tab:msg} liệt kê bốn loại bản tin, chiều gửi, thời điểm gửi và nội dung của từng loại.
 
-\begin{lstlisting}[language=json,caption={Các bản tin UDP giữa client và máy chủ},label={lst:msg}]
-{"type":"parking_update","slots":[1,0,0,1,0],"water_mm":0.2,"fire":false}
-{"type":"climate","temperature_c":28.0}
-{"type":"rfid_event","card_id":"A1B2C3D4","gate":"in","temperature_c":28.0,"seq":305441741}
-{"type":"rfid_ack","seq":305441741}
-\end{lstlisting}
+\begin{table}[H]
+\centering\small
+\caption{Các bản tin UDP giữa client và máy chủ}\label{tab:msg}
+\begin{tabularx}{\linewidth}{|>{\raggedright\arraybackslash}m{3.4cm}|>{\raggedright\arraybackslash}m{3.0cm}|>{\raggedright\arraybackslash}m{3.1cm}|>{\raggedright\arraybackslash}X|}
+\hline
+\hd Bản tin & \hd Chiều gửi & \hd Thời điểm gửi & \hd Nội dung \\ \hline
+\code{parking\_update} & Sensor Client tới máy chủ & Khi có thay đổi và nhắc lại mỗi 1\,s & Trạng thái 5 ô đỗ, mực nước, cờ cháy \\ \hline
+\code{climate} & RFID Client tới máy chủ & Mỗi 5\,s & Nhiệt độ môi trường \\ \hline
+\code{rfid\_event} & RFID Client tới máy chủ & Mỗi lần quẹt thẻ & Mã thẻ, cổng vào hoặc ra, số thứ tự \code{seq} \\ \hline
+\code{rfid\_ack} & Máy chủ tới RFID Client & Ngay khi nhận \code{rfid\_event} & Số thứ tự \code{seq} được xác nhận \\ \hline
+\end{tabularx}
+\end{table}
 
-Trong Mã nguồn~\ref{lst:msg}, bản tin \code{parking\_update} mang toàn bộ trạng thái của Sensor
-Client gồm năm ô đỗ, mực nước và cờ cháy; bản tin \code{climate} mang nhiệt độ; bản tin
-\code{rfid\_event} mang mã thẻ, cổng và số thứ tự \code{seq}. Vì cổng UDP là ranh giới tin
-cậy mà mọi thiết bị trong mạng đều gửi tới được, máy chủ kiểm tra chặt từng bản tin bằng bộ
-đọc JSON tự viết, không cấp phát bộ nhớ động và chỉ chấp nhận đúng lược đồ: mảng \code{slots}
-đúng 5 phần tử 0 hoặc 1, mực nước 0--10\,000\,mm, nhiệt độ $-40$ đến 125\,°C, mã thẻ 1--31 ký
-tự chữ, số, gạch nối; khóa lạ, khóa lặp hay dữ liệu thừa đều bị từ chối và trạng thái cũ được
-giữ nguyên. So với thư viện cJSON, cách làm này tránh phân mảnh bộ nhớ khi chạy lâu và giới
-hạn được thời gian xử lý mỗi bản tin.
+Theo Bảng~\ref{tab:msg}, mỗi bản tin chỉ mang những trường cần thiết; ví dụ, một bản tin
+\code{climate} có dạng \code{\{"type":"climate","temperature\_c":28.0\}}. Vì cổng UDP là ranh
+giới tin cậy mà mọi thiết bị trong mạng đều gửi tới được, máy chủ kiểm tra chặt từng bản tin
+bằng bộ đọc JSON tự viết, không cấp phát bộ nhớ động và chỉ chấp nhận đúng lược đồ: trạng thái ô
+đỗ phải đúng 5 phần tử 0 hoặc 1, mực nước 0--10\,000\,mm, nhiệt độ $-40$ đến 125\,°C, mã thẻ
+1--31 ký tự chữ, số, gạch nối; khóa lạ, khóa lặp hay dữ liệu thừa đều bị từ chối và trạng thái
+cũ được giữ nguyên. So với thư viện cJSON, cách làm này tránh phân mảnh bộ nhớ khi chạy lâu và
+giới hạn được thời gian xử lý mỗi bản tin.
 
 Phía trang web, máy chủ cung cấp các API HTTP được liệt kê ở Bảng~\ref{tab:api}. Mọi lệnh làm
 thay đổi trạng thái dùng phương thức POST và phải mang mã PIN quản trị trong header
@@ -239,9 +204,9 @@ thay đổi trạng thái dùng phương thức POST và phải mang mã PIN qu�
 \begin{table}[H]
 \centering\small
 \caption{API HTTP của máy chủ}\label{tab:api}
-\begin{tabularx}{\linewidth}{|l|p{6.2cm}|X|}
+\begin{tabularx}{\linewidth}{|c|>{\raggedright\arraybackslash}m{6.2cm}|>{\raggedright\arraybackslash}X|}
 \hline
-Phương thức & Đường dẫn & Chức năng \\ \hline
+\hd Phương thức & \hd Đường dẫn & \hd Chức năng \\ \hline
 GET & \code{/api/parking} & Trạng thái ô đỗ, số chỗ trống, nhiệt độ, mực nước, cháy, ngập \\ \hline
 GET & \code{/api/barrier} & Trạng thái hai thanh chắn \\ \hline
 GET & \code{/api/rfid} & Xe trong bãi, lượt thanh toán đang chờ, 10 sự kiện gần nhất, doanh thu \\ \hline
@@ -314,38 +279,14 @@ RFID Client quét luân phiên hai đầu đọc và tại mỗi thời điểm 
 Hai đầu đọc cùng tần số 13,56\,MHz đặt gần nhau sẽ gây nhiễu chéo nếu cùng phát, nên cách bật
 luân phiên loại bỏ hoàn toàn vấn đề này. Sau khi bật ăng-ten, client chờ 4\,ms để thẻ thụ động
 nhận đủ năng lượng; độ khuếch đại được đặt ở mức 48\,dB để bù tầm đọc khi đầu đọc nằm sau thành
-hộp. Một thẻ để yên trên đầu đọc sẽ bị đọc liên tục, vì vậy client bỏ qua các lần đọc lặp lại
-cùng một thẻ trong vòng 2\,s, tránh trường hợp một lần quẹt bị hiểu thành vào rồi ra. Mã UID được
+hộp. Mã UID được
 đổi sang chuỗi hex trong bộ đệm cố định thay vì kiểu \code{String} của Arduino, để bộ nhớ heap
 khoảng 80\,KB của ESP8266 không bị phân mảnh khi chạy lâu.
 
 \subsection{Điều khiển thanh chắn}\label{sec:f-gate}
-Servo SG90 nhận xung chu kỳ 20\,ms, độ rộng xung quyết định góc quay như Hình~\ref{fig:pwm}.
-
-\begin{figure}[H]
-\centering
-\begin{tikzpicture}[x=0.55cm,y=0.7cm,font=\scriptsize]
-\draw[-{Stealth}] (0,0) -- (23,0) node[right]{$t$ (ms)};
-\draw[-{Stealth}] (0,0) -- (0,1.8) node[left]{PWM};
-\draw[thick,accent] (0,0) -- (0,1.2) -- (1.45,1.2) -- (1.45,0) -- (20,0) -- (20,1.2) -- (21.45,1.2) -- (21.45,0) -- (22.5,0);
-\draw[{Stealth}-{Stealth}] (0,-0.5) -- node[below]{chu kỳ $T = 20$\,ms (50\,Hz)} (20,-0.5);
-\draw[{Stealth}-{Stealth}] (0,1.5) -- node[above]{$p$} (1.45,1.5);
-\node[align=left,anchor=west] at (3,1.0) {$p = 500$\,µs $\to 0°$\quad $p = 1450$\,µs $\to 90°$\quad $p = 2400$\,µs $\to 180°$};
-\end{tikzpicture}
-\caption{Dạng xung điều khiển servo SG90}\label{fig:pwm}
-\end{figure}
-
-Từ Hình~\ref{fig:pwm}, độ rộng xung $p$ ứng với góc $\theta$ và giá trị $D$ nạp vào thanh ghi
-của khối LEDC 14 bit được tính theo
-\begin{equation}
-  p(\theta) = 500 + \frac{1900\,\theta}{180}\ \text{µs}, \qquad
-  D = \left\lfloor \frac{p \cdot (2^{14}-1)}{20\,000} \right\rfloor .
-\end{equation}
-Với $\theta=90°$ ta có $p=1450$\,µs và $D=1187$; với $\theta=0°$ ta có $p=500$\,µs và $D=409$.
-Độ phân giải 14 bit cho mỗi bước khoảng 1,22\,µs, tương đương 0,12°, mịn hơn nhiều so với vùng
-chết khoảng 1° của SG90 nên servo không rung. Dải 500--2400\,µs là giá trị đo thực tế; dải danh
-nghĩa 1000--2000\,µs không đủ để servo quay hết hành trình. Thanh chắn cổng ra được lắp đối xứng
-nên góc mở và đóng đảo ngược so với cổng vào, khác biệt này chỉ được khai báo ở một hàm.
+Thanh chắn được nâng hạ bằng servo SG90. Servo được điều khiển bằng xung PWM chu kỳ 20\,ms
+do khối LEDC của ESP32-C3 tạo ra, trong đó độ rộng xung quyết định góc quay. Việc tạo xung bằng
+phần cứng giúp thanh chắn giữ đúng vị trí ngay cả khi CPU đang bận xử lý mạng hay vẽ màn hình.
 
 Việc đóng thanh chắn được hẹn bằng bộ hẹn giờ một lần \code{esp\_timer} thay vì một tác vụ hỏi
 vòng: hàm đóng được gọi đúng thời điểm với sai số micro giây và CPU không bị đánh thức vô ích.
@@ -443,9 +384,9 @@ Bảng~\ref{tab:vietqr} liệt kê các trường trong chuỗi do máy chủ si
 \begin{table}[H]
 \centering\small
 \caption{Cấu trúc chuỗi VietQR do máy chủ sinh}\label{tab:vietqr}
-\begin{tabularx}{\linewidth}{|l|l|X|}
+\begin{tabularx}{\linewidth}{|c|l|>{\raggedright\arraybackslash}X|}
 \hline
-Mã & Trường & Giá trị \\ \hline
+\hd Mã & \hd Trường & \hd Giá trị \\ \hline
 00 & Phiên bản định dạng & \code{01} \\ \hline
 01 & Kiểu mã & \code{12}, mã động dùng cho một số tiền cụ thể \\ \hline
 38 & Thông tin người nhận & Định danh NAPAS \code{A000000727}, mã BIN ngân hàng và số tài khoản, dịch vụ \code{QRIBFTTA} \\ \hline
@@ -507,6 +448,22 @@ quẹt thẻ và định kỳ 5 phút. Với khoảng 300 lần ghi mỗi ngày 
 tuổi thọ flash không bị ảnh hưởng đáng kể. Máy chủ không có đồng hồ thời gian thực; trình duyệt
 của người vận hành gửi giờ thực qua \code{POST /api/time}, và máy chủ dời các mốc thời gian cũ
 theo đó.
+
+\subsection{Kết nối với máy tính}\label{sec:f-pc}
+Hệ thống kết nối với máy tính theo hai cách, phục vụ hai giai đoạn khác nhau. Trong giai đoạn
+phát triển và cài đặt, máy tính nối với từng thiết bị qua cáp USB. Máy chủ ESP32-C3 SuperMini
+dùng khối USB Serial/JTAG tích hợp sẵn trong chip, nên chỉ cần một cáp USB-C để nạp firmware
+bằng lệnh \code{idf.py flash} và theo dõi nhật ký hoạt động bằng \code{idf.py monitor}. Trước
+khi nạp, các thông tin riêng của từng bãi như tên và mật khẩu Wi-Fi, mã PIN quản trị, số tài
+khoản nhận tiền và khóa truy cập SePay được khai báo qua công cụ cấu hình \code{menuconfig}
+trên máy tính, nhờ đó không nằm trong mã nguồn. Hai client ESP8266 được nạp chương trình bằng
+Arduino IDE qua cổng USB của bo, và in nhật ký qua cổng nối tiếp với tốc độ 115\,200 baud.
+
+Trong giai đoạn vận hành, máy tính không cần nối dây với thiết bị nào. Máy tính của người vận
+hành chỉ cần kết nối vào cùng mạng Wi-Fi với hệ thống rồi mở trình duyệt tại địa chỉ
+\code{parking.local} để sử dụng trang web quản lý như điện thoại. Khi trang web được mở trên
+trình duyệt đã lưu mã PIN quản trị, và sau mỗi thao tác quản trị thành công, trình duyệt gửi giờ
+thực của máy tính cho máy chủ qua \code{POST /api/time} như trình bày ở Mục~\ref{sec:f-storage}.
 
 \section{Mô hình thực tế}\label{sec:mohinh}
 Mô hình được làm bằng bìa formex trắng, vật liệu nhẹ, cách điện và dễ khoét lỗ cho cảm biến.

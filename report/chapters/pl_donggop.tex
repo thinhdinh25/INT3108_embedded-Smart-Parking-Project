@@ -14,9 +14,9 @@ Bảng~\ref{tab:mang} tóm tắt phân công.
 \begin{table}[H]
 \centering\small
 \caption{Phân công công việc}\label{tab:mang}
-\begin{tabularx}{\linewidth}{|p{3.2cm}|X|X|}
+\begin{tabularx}{\linewidth}{|>{\raggedright\arraybackslash}m{3.2cm}|>{\raggedright\arraybackslash}X|>{\raggedright\arraybackslash}X|}
 \hline
-Thành viên & Mảng chính & Phần giao với mảng khác \\ \hline
+\hd Thành viên & \hd Mảng chính & \hd Phần giao với mảng khác \\ \hline
 Nguyễn Chí Minh & Firmware máy chủ: kiến trúc tác vụ, UDP, HTTP, màn hình, thanh toán VietQR và SePay, bảo mật; trang web; bộ kiểm thử tự động & Thống nhất giao thức với hai client; tích hợp và tối ưu toàn hệ thống; các sơ đồ thiết kế \\ \hline
 Đinh Đức Thịnh & Chọn linh kiện, thiết kế nguồn với tụ lọc và diode hạ áp, sơ đồ chân, sơ đồ nguyên lý, đi dây & Firmware Sensor Client và RFID Client; khởi tạo dự án ESP-IDF \\ \hline
 Nguyễn Việt Tiến & Mô hình bãi xe, hộp điều khiển, cơ cấu thanh chắn và cảm biến cổng & Firmware thanh chắn và còi; kịch bản kiểm thử trên mô hình; tài liệu cài đặt \\
@@ -30,19 +30,18 @@ nhóm đánh giá đóng góp theo mảng việc và thời gian thực hiện, 
 cả nhóm cùng phân tích yêu cầu, thống nhất giao thức, tinh chỉnh thông số trên mô hình như thời
 gian lọc nhiễu và thời gian mở cổng, và rà soát chéo báo cáo.
 
-\section*{Tỉ lệ đóng góp và phân chia điểm}
-Cả ba thành viên thống nhất rằng mức đóng góp là ngang nhau. Theo quy định
-của môn học, toàn bộ thành viên nhận 100\% số điểm của báo cáo.
+\section*{Phân chia điểm}
+Cả ba thành viên thống nhất chia điểm báo cáo như Bảng~\ref{tab:diem}.
 
 \begin{table}[H]
 \centering\small
-\caption{Tỉ lệ đóng góp và tỉ lệ điểm}\label{tab:diem}
-\begin{tabular}{|l|l|c|c|}
+\caption{Phân chia điểm báo cáo}\label{tab:diem}
+\begin{tabular}{|l|c|c|}
 \hline
-Thành viên & MSSV & Tỉ lệ đóng góp & Tỉ lệ điểm báo cáo \\ \hline
-Nguyễn Chí Minh & 24020232 & 33,3\% & 100\% \\ \hline
-Đinh Đức Thịnh & 24020313 & 33,3\% & 100\% \\ \hline
-Nguyễn Việt Tiến & 24020322 & 33,3\% & 100\% \\
+\hd Thành viên & \hd MSSV & \hd Tỉ lệ điểm báo cáo \\ \hline
+Nguyễn Chí Minh & 24020232 & 100\% \\ \hline
+Đinh Đức Thịnh & 24020313 & 100\% \\ \hline
+Nguyễn Việt Tiến & 24020322 & 100\% \\
 \hline
 \end{tabular}
 \end{table}

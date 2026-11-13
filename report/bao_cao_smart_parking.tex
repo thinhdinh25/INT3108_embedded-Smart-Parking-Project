@@ -32,8 +32,8 @@
     BoldFont=*-bold,ItalicFont=*-italic,BoldItalicFont=*-bolditalic]
   \setsansfont{texgyreheros}[Extension=.otf,UprightFont=*-regular,
     BoldFont=*-bold,ItalicFont=*-italic,BoldItalicFont=*-bolditalic]
-  \setmonofont{texgyrecursor}[Extension=.otf,UprightFont=*-regular,
-    BoldFont=*-bold,ItalicFont=*-italic,BoldItalicFont=*-bolditalic]
+  % Phông đơn cách cho tên bản tin, API, mã nguồn
+  \setmonofont{DejaVuSansMono}[Extension=.ttf,BoldFont=*-Bold,Scale=0.86]
 \else
   \usepackage[T5]{fontenc}
   \usepackage[utf8]{inputenc}
@@ -45,6 +45,10 @@
 \setstretch{1.3}
 % Bảng, hình và mã nguồn giãn dòng đơn như bảng trong Word
 \AtBeginEnvironment{table}{\setstretch{1.0}}
+% Bảng: giãn hàng, căn giữa theo chiều dọc, ô tiêu đề căn giữa
+\AtBeginEnvironment{table}{\renewcommand{\arraystretch}{1.3}}
+\AtBeginEnvironment{longtable}{\renewcommand{\arraystretch}{1.3}}
+\newcommand{\hd}{\centering\arraybackslash}
 \AtBeginEnvironment{longtable}{\setstretch{1.0}}
 \AtBeginEnvironment{figure}{\setstretch{1.0}}
 \AtBeginEnvironment{lstlisting}{\setstretch{1.0}}
@@ -52,6 +56,7 @@
 \usepackage{graphicx}
 \usepackage{xcolor}
 \usepackage{booktabs,longtable,tabularx,array,multirow}
+\renewcommand{\tabularxcolumn}[1]{m{#1}}
 \usepackage{enumitem}
 % Một kiểu danh sách duy nhất trong toàn báo cáo: gạch đầu dòng
 \setlist[itemize]{label=--,itemsep=1pt,topsep=3pt,leftmargin=1.6cm,labelsep=0.4cm}
@@ -141,8 +146,8 @@
 \newenvironment{ucspec}[2]{%
   \setstretch{1.0}\small
   \begin{longtable}{|>{\raggedright\arraybackslash}p{2.8cm}|>{\raggedright\arraybackslash}p{11.6cm}|}
-  \caption{#1}\label{#2}\\ \hline Mục & Nội dung \\ \hline \endfirsthead
-  \hline Mục & Nội dung \\ \hline \endhead
+  \caption{#1}\label{#2}\\ \hline \hd Mục & \hd Nội dung \\ \hline \endfirsthead
+  \hline \hd Mục & \hd Nội dung \\ \hline \endhead
   \hline \endlastfoot}{\end{longtable}}
 
 % Không để dòng đơn của một đoạn nằm tách ở đầu hoặc cuối trang
@@ -227,7 +232,7 @@ tham khảo. Nhóm xin chịu hoàn toàn trách nhiệm về lời cam đoan n�
 
 \chapter*{DANH SÁCH THUẬT NGỮ VIẾT TẮT}
 \addcontentsline{toc}{chapter}{DANH SÁCH THUẬT NGỮ VIẾT TẮT}
-\begin{longtable}{|p{2.4cm}|p{11.8cm}|}
+\begin{longtable}{|>{\raggedright\arraybackslash}m{2.4cm}|>{\raggedright\arraybackslash}m{11.8cm}|}
 \hline
 Viết tắt & Ý nghĩa \\ \hline
 ACK & Acknowledgement, bản tin xác nhận đã nhận \\ \hline
