@@ -8,10 +8,6 @@ trang web quản lý; Sensor Client và RFID Client dùng ESP8266 thu thập tr�
 kiện quẹt thẻ. Chương~\ref{chap:hienthuc} mô tả 10 ca sử dụng, trong đó UC06 xử lý cháy và mở lối thoát, UC07 xử lý ngập và ngừng nhận xe. Trong luồng lấy xe tự phục vụ, người lái thanh toán bằng mã
 VietQR với số tiền cố định, hệ thống tự đối soát giao dịch qua SePay trước khi mở cổng ra.
 
-Về mặt học thuật, đề tài vận dụng các kiến thức trọng tâm của môn học: lập trình đa tác vụ và
-đồng bộ trên hệ điều hành thời gian thực, điều khiển ngoại vi bằng khối phần cứng chuyên dụng
-như PWM, SPI có DMA, ADC, thiết kế nguồn và ghép nối mức logic giữa các linh kiện, giao tiếp
-mạng không dây với cơ chế tin cậy ở tầng ứng dụng, quản lý bộ nhớ hạn chế, và kiểm thử phần
-mềm nhúng không cần phần cứng với 439 phép kiểm tra tự động.
+Qua việc ghép ba thiết bị, nhóm học cách phân biệt dữ liệu trạng thái với sự kiện chỉ xuất hiện một lần. Nút cảm biến có thể gửi lại trạng thái của cả năm ô đỗ trong bản tin kế tiếp. Với lượt quẹt thẻ, nhóm phải dùng số thứ tự, bản tin xác nhận và cơ chế phát hiện bản sao để một lần gửi lại không tạo thêm phiên gửi xe.
 
-Mô hình có năm ô đỗ. Cảm biến hồng ngoại cho biết ô nào đang có xe, còn thẻ RFID xác định phiên gửi xe. Hệ thống so sánh hai số đếm để phát hiện chênh lệch, nhưng chưa xác định được thẻ nào ứng với xe ở một ô cụ thể.
+Khi điều khiển thanh chắn, nhóm học cách kết hợp bộ hẹn giờ với tín hiệu cảm biến tại làn xe. Thời điểm đóng cổng phụ thuộc cả vào thời gian làn trống liên tục. Bằng cách điều khiển đồng hồ và tín hiệu đầu vào trong bộ kiểm thử, nhóm kiểm tra được cả trường hợp xe che lại cảm biến trong lúc hệ thống đang chờ đóng cổng. Cách làm này gắn yêu cầu vận hành của mô hình với điều kiện có thể kiểm tra trong chương trình.

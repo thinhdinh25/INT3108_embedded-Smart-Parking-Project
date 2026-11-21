@@ -143,6 +143,10 @@ Trình biên dịch C/C++ trên máy tính & Chạy bộ kiểm thử tự độ
 \end{tabularx}
 \end{table}
 
+Nhóm chọn ESP-IDF cho ESP32-C3 vì máy chủ vừa nhận bản tin qua Wi-Fi, vừa cập nhật màn hình và điều khiển thanh chắn. FreeRTOS cho phép tách các công việc này thành tác vụ có mức ưu tiên riêng. Driver SPI và LEDC trong ESP-IDF điều khiển màn hình và tạo xung cho servo. Thành phần mDNS giúp người vận hành truy cập máy chủ qua tên \code{parking.local}, còn thư viện QR tạo mã thanh toán ngay trên bo.
+
+Hai nút ESP8266 dùng Arduino Core vì các thư viện MFRC522 và DHT có thể được gọi trực tiếp từ chương trình đọc thẻ và nhiệt độ. Nhóm dùng trình biên dịch C/C++ trên máy tính để chạy lại cùng mã xử lý với đồng hồ và đầu vào giả lập, qua đó có thể lặp lại các tình huống như mất bản tin hoặc quẹt thẻ hai lần.
+
 Như Bảng~\ref{tab:software} cho thấy, trang web được viết bằng HTML, CSS và JavaScript thuần
 và nhúng trực tiếp vào firmware, nên vẫn mở được khi router mất kết nối Internet. Bộ kiểm thử
 biên dịch mã nghiệp vụ của máy chủ và mã nguồn hai client trên máy tính cùng các thư viện

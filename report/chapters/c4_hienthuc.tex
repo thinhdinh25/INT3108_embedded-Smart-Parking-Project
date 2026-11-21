@@ -62,6 +62,23 @@ Kết quả khi thành công & Màn hình phản ánh đúng trạng thái năm 
 
 Việc xem màn hình không giữ chỗ. Khi người lái quẹt thẻ, hệ thống kiểm tra lại điều kiện tiếp nhận xe trong UC02.
 
+Hình~\ref{fig:seq-uc01} minh họa luồng chính. Người lái đọc số chỗ trống và vị trí ô trên màn hình.
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[x=5.15cm,y=0.77cm,font=\footnotesize,>=Stealth]
+\node[draw=accent,fill=boxB,rounded corners=2pt,minimum width=2.9cm,minimum height=6mm] (participant0) at (0,0.85) {Sensor Client};
+\draw[dashed,gray] (participant0.south) -- (0,-2.35);
+\node[draw=accent,fill=boxB,rounded corners=2pt,minimum width=2.9cm,minimum height=6mm] (participant1) at (1,0.85) {Máy chủ};
+\draw[dashed,gray] (participant1.south) -- (1,-2.35);
+\node[draw=accent,fill=boxB,rounded corners=2pt,minimum width=2.9cm,minimum height=6mm] (participant2) at (2,0.85) {Màn hình tại cổng};
+\draw[dashed,gray] (participant2.south) -- (2,-2.35);
+\draw[->] (0,-1) -- node[midway,above] {Gửi trạng thái năm ô đỗ} (1,-1);
+\draw[->] (1,-2) -- node[midway,above] {Cập nhật sơ đồ và số chỗ trống} (2,-2);
+\end{tikzpicture}
+\caption{Biểu đồ tuần tự UC01. Xem chỗ trống tại cổng}\label{fig:seq-uc01}
+\end{figure}
+
 \section{UC02. Gửi xe bằng thẻ RFID}\label{sec:uc02}
 Ca sử dụng này mô tả một lượt xe vào bãi, bao gồm cả các trường hợp hệ thống phải từ chối. Đặc tả
 được trình bày ở Bảng~\ref{tab:uc02}.
@@ -161,6 +178,25 @@ Kết quả khi thành công & Phiên kết thúc, nhật ký có lượt ra, do
 
 Nút \code{Confirm paid} xuất hiện trên thông báo của lượt đang chờ thanh toán. Danh sách \code{INSIDE NOW} cung cấp thao tác xóa phiên ở UC10. Nếu hệ thống đã ghi nhận phí nhưng thanh chắn gặp lỗi cơ khí hoặc điều khiển, người vận hành cần kiểm tra cổng trước khi cho xe đi qua.
 
+Hình~\ref{fig:seq-uc04} minh họa luồng chính. Khi xác nhận hợp lệ, máy chủ ghi lượt ra và mở thanh chắn.
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[x=5.15cm,y=0.77cm,font=\footnotesize,>=Stealth]
+\node[draw=accent,fill=boxB,rounded corners=2pt,minimum width=2.9cm,minimum height=6mm] (participant0) at (0,0.85) {Người vận hành};
+\draw[dashed,gray] (participant0.south) -- (0,-4.35);
+\node[draw=accent,fill=boxB,rounded corners=2pt,minimum width=2.9cm,minimum height=6mm] (participant1) at (1,0.85) {Trang quản lý};
+\draw[dashed,gray] (participant1.south) -- (1,-4.35);
+\node[draw=accent,fill=boxB,rounded corners=2pt,minimum width=2.9cm,minimum height=6mm] (participant2) at (2,0.85) {Máy chủ};
+\draw[dashed,gray] (participant2.south) -- (2,-4.35);
+\draw[->] (0,-1) -- node[midway,above] {Xác nhận đã nhận tiền} (1,-1);
+\draw[->] (1,-2) -- node[midway,above] {Gửi xác nhận kèm PIN} (2,-2);
+\draw[dashed,->] (2,-3) -- node[midway,above] {Trả kết quả xác nhận} (1,-3);
+\draw[dashed,->] (1,-4) -- node[midway,above] {Hiển thị trạng thái phiên} (0,-4);
+\end{tikzpicture}
+\caption{Biểu đồ tuần tự UC04. Xác nhận thanh toán tại quầy}\label{fig:seq-uc04}
+\end{figure}
+
 \section{UC05. Điều khiển thanh chắn từ xa}\label{sec:uc05}
 Ca sử dụng này cho phép người vận hành chủ động mở hoặc đóng thanh chắn, chẳng hạn khi cần cho xe
 ưu tiên đi qua hoặc khi có sự cố với đầu đọc thẻ. Đặc tả được trình bày ở Bảng~\ref{tab:uc05}.
@@ -185,6 +221,25 @@ Như Bảng~\ref{tab:uc05} cho thấy, lệnh thủ công được ưu tiên hơ
 được vượt qua hai điều kiện an toàn là xe trong cổng và cháy. Mã PIN được lưu trong trình duyệt
 sau lần nhập đầu tiên và được gửi trong header \code{X-Parking-Key} của yêu cầu quản trị. Mã lỗi 409 riêng cho trường hợp xe trong cổng giúp người vận
 hành hiểu lý do lệnh bị từ chối thay vì nghĩ hệ thống gặp lỗi.
+
+Hình~\ref{fig:seq-uc05} minh họa luồng chính. Với lệnh đóng, máy chủ kiểm tra cảnh báo cháy và cảm biến tại cổng trước khi điều khiển thanh chắn.
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[x=5.15cm,y=0.77cm,font=\footnotesize,>=Stealth]
+\node[draw=accent,fill=boxB,rounded corners=2pt,minimum width=2.9cm,minimum height=6mm] (participant0) at (0,0.85) {Người vận hành};
+\draw[dashed,gray] (participant0.south) -- (0,-4.35);
+\node[draw=accent,fill=boxB,rounded corners=2pt,minimum width=2.9cm,minimum height=6mm] (participant1) at (1,0.85) {Trang quản lý};
+\draw[dashed,gray] (participant1.south) -- (1,-4.35);
+\node[draw=accent,fill=boxB,rounded corners=2pt,minimum width=2.9cm,minimum height=6mm] (participant2) at (2,0.85) {Máy chủ};
+\draw[dashed,gray] (participant2.south) -- (2,-4.35);
+\draw[->] (0,-1) -- node[midway,above] {Chọn cổng và lệnh} (1,-1);
+\draw[->] (1,-2) -- node[midway,above] {Gửi lệnh kèm PIN} (2,-2);
+\draw[dashed,->] (2,-3) -- node[midway,above] {Trả kết quả xử lý} (1,-3);
+\draw[dashed,->] (1,-4) -- node[midway,above] {Hiển thị kết quả} (0,-4);
+\end{tikzpicture}
+\caption{Biểu đồ tuần tự UC05. Điều khiển thanh chắn từ xa}\label{fig:seq-uc05}
+\end{figure}
 
 \section{UC06. Báo cháy và mở lối thoát}\label{sec:uc06}
 Kịch bản an toàn AT01 bắt đầu khi hệ thống nhận tín hiệu cháy. Mục tiêu là cảnh báo người trong bãi và giải phóng cả hai lối để sơ tán.
@@ -222,6 +277,25 @@ Luồng thay thế và ngoại lệ & Nếu mất dữ liệu cảm biến, hệ
 Kết quả & Người lái xe và người vận hành nhận được cảnh báo. Trong thời gian ngập, lượt quẹt thẻ vào không tạo phiên gửi xe mới. \\
 \end{ucspec}
 
+Hình~\ref{fig:seq-uc07} minh họa luồng chính. Trong thời gian cảnh báo ngập, máy chủ từ chối lượt vào mới.
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[x=5.15cm,y=0.77cm,font=\footnotesize,>=Stealth]
+\node[draw=accent,fill=boxB,rounded corners=2pt,minimum width=2.9cm,minimum height=6mm] (participant0) at (0,0.85) {Sensor Client};
+\draw[dashed,gray] (participant0.south) -- (0,-4.35);
+\node[draw=accent,fill=boxB,rounded corners=2pt,minimum width=2.9cm,minimum height=6mm] (participant1) at (1,0.85) {Máy chủ};
+\draw[dashed,gray] (participant1.south) -- (1,-4.35);
+\node[draw=accent,fill=boxB,rounded corners=2pt,minimum width=2.9cm,minimum height=6mm] (participant2) at (2,0.85) {Thiết bị tại cổng};
+\draw[dashed,gray] (participant2.south) -- (2,-4.35);
+\draw[->] (0,-1) -- node[midway,above] {Gửi mực nước đạt ngưỡng bật} (1,-1);
+\draw[->] (1,-2) -- node[midway,above] {Bật còi và hiển thị cảnh báo} (2,-2);
+\draw[->] (0,-3) -- node[midway,above] {Gửi mực nước đạt ngưỡng tắt} (1,-3);
+\draw[->] (1,-4) -- node[midway,above] {Cập nhật hiển thị và còi} (2,-4);
+\end{tikzpicture}
+\caption{Biểu đồ tuần tự UC07. Báo ngập và ngừng nhận xe}\label{fig:seq-uc07}
+\end{figure}
+
 \section{UC08. Xem tình trạng bãi trên trang web}\label{sec:uc08}
 Ca sử dụng này cho phép người vận hành nắm được toàn bộ trạng thái của bãi mà không cần có mặt tại
 cổng. Đặc tả được trình bày ở Bảng~\ref{tab:uc08}.
@@ -258,6 +332,27 @@ Trang web được viết bằng HTML, CSS và JavaScript thuần, dùng truy v�
 WebSocket để máy chủ không phải giữ trạng thái kết nối cho mỗi trình duyệt. Nhiệt độ hiển thị
 trên trang do RFID Client đo như trình bày ở Mục~\ref{sec:f-env}.
 
+Hình~\ref{fig:seq-uc08} minh họa luồng chính. Trang quản lý lặp lại các truy vấn để cập nhật dữ liệu đang hiển thị.
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[x=5.15cm,y=0.77cm,font=\footnotesize,>=Stealth]
+\node[draw=accent,fill=boxB,rounded corners=2pt,minimum width=2.9cm,minimum height=6mm] (participant0) at (0,0.85) {Người vận hành};
+\draw[dashed,gray] (participant0.south) -- (0,-6.35);
+\node[draw=accent,fill=boxB,rounded corners=2pt,minimum width=2.9cm,minimum height=6mm] (participant1) at (1,0.85) {Trình duyệt};
+\draw[dashed,gray] (participant1.south) -- (1,-6.35);
+\node[draw=accent,fill=boxB,rounded corners=2pt,minimum width=2.9cm,minimum height=6mm] (participant2) at (2,0.85) {Máy chủ};
+\draw[dashed,gray] (participant2.south) -- (2,-6.35);
+\draw[->] (0,-1) -- node[midway,above] {Mở trang quản lý} (1,-1);
+\draw[->] (1,-2) -- node[midway,above] {Truy vấn trạng thái bãi} (2,-2);
+\draw[dashed,->] (2,-3) -- node[midway,above] {Trả dữ liệu cảm biến} (1,-3);
+\draw[->] (1,-4) -- node[midway,above] {Truy vấn trạng thái cổng} (2,-4);
+\draw[dashed,->] (2,-5) -- node[midway,above] {Trả trạng thái thanh chắn} (1,-5);
+\draw[dashed,->] (1,-6) -- node[midway,above] {Hiển thị sơ đồ bãi và cổng} (0,-6);
+\end{tikzpicture}
+\caption{Biểu đồ tuần tự UC08. Xem tình trạng bãi trên trang web}\label{fig:seq-uc08}
+\end{figure}
+
 \section{UC09. Tra cứu nhật ký và doanh thu}\label{sec:uc09}
 Khi đối chiếu tiền thu, người vận hành kiểm tra từng lượt xe trong nhật ký và xem doanh thu tổng hợp theo kỳ.
 
@@ -277,6 +372,25 @@ Kết quả & Người vận hành có thông tin để kiểm tra lượt xe v�
 \centering
 \includegraphics[width=\linewidth]{photos/web_log.png}
 \caption{Trang web quản lý: cảm biến, doanh thu và nhật ký vào ra}\label{fig:web-log}
+\end{figure}
+
+Hình~\ref{fig:seq-uc09} minh họa luồng chính. Người vận hành đọc dữ liệu do trang quản lý cập nhật định kỳ.
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[x=5.15cm,y=0.77cm,font=\footnotesize,>=Stealth]
+\node[draw=accent,fill=boxB,rounded corners=2pt,minimum width=2.9cm,minimum height=6mm] (participant0) at (0,0.85) {Người vận hành};
+\draw[dashed,gray] (participant0.south) -- (0,-4.35);
+\node[draw=accent,fill=boxB,rounded corners=2pt,minimum width=2.9cm,minimum height=6mm] (participant1) at (1,0.85) {Trang quản lý};
+\draw[dashed,gray] (participant1.south) -- (1,-4.35);
+\node[draw=accent,fill=boxB,rounded corners=2pt,minimum width=2.9cm,minimum height=6mm] (participant2) at (2,0.85) {Máy chủ};
+\draw[dashed,gray] (participant2.south) -- (2,-4.35);
+\draw[->] (1,-1) -- node[midway,above] {Truy vấn /api/rfid} (2,-1);
+\draw[dashed,->] (2,-2) -- node[midway,above] {Trả nhật ký và doanh thu} (1,-2);
+\draw[->] (0,-3) -- node[midway,above] {Xem nhật ký và kỳ doanh thu} (1,-3);
+\draw[dashed,->] (1,-4) -- node[midway,above] {Hiển thị số liệu tương ứng} (0,-4);
+\end{tikzpicture}
+\caption{Biểu đồ tuần tự UC09. Tra cứu nhật ký và doanh thu}\label{fig:seq-uc09}
 \end{figure}
 
 \section{UC10. Hiệu chỉnh danh sách xe trong bãi}\label{sec:uc10}
@@ -305,3 +419,22 @@ khác với UC04, đây là thao tác quản lý phiên chứ không phải quy 
 còn trong danh sách, số thẻ đang gửi xe được tính lại và cảnh báo xe không quẹt thẻ của UC02 có
 thể được xóa nếu số đếm đã khớp. Thao tác không ghi sự kiện vào nhật ký, vì vậy máy chủ yêu cầu
 mã PIN quản trị.
+
+Hình~\ref{fig:seq-uc10} minh họa luồng chính. Khi xóa phiên thành công, doanh thu và vị trí thanh chắn được giữ nguyên.
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[x=5.15cm,y=0.77cm,font=\footnotesize,>=Stealth]
+\node[draw=accent,fill=boxB,rounded corners=2pt,minimum width=2.9cm,minimum height=6mm] (participant0) at (0,0.85) {Người vận hành};
+\draw[dashed,gray] (participant0.south) -- (0,-4.35);
+\node[draw=accent,fill=boxB,rounded corners=2pt,minimum width=2.9cm,minimum height=6mm] (participant1) at (1,0.85) {Trang quản lý};
+\draw[dashed,gray] (participant1.south) -- (1,-4.35);
+\node[draw=accent,fill=boxB,rounded corners=2pt,minimum width=2.9cm,minimum height=6mm] (participant2) at (2,0.85) {Máy chủ};
+\draw[dashed,gray] (participant2.south) -- (2,-4.35);
+\draw[->] (0,-1) -- node[midway,above] {Chọn thẻ và xác nhận xóa} (1,-1);
+\draw[->] (1,-2) -- node[midway,above] {Gửi mã thẻ và PIN} (2,-2);
+\draw[dashed,->] (2,-3) -- node[midway,above] {Trả kết quả xóa phiên} (1,-3);
+\draw[dashed,->] (1,-4) -- node[midway,above] {Cập nhật danh sách xe} (0,-4);
+\end{tikzpicture}
+\caption{Biểu đồ tuần tự UC10. Hiệu chỉnh danh sách xe trong bãi}\label{fig:seq-uc10}
+\end{figure}

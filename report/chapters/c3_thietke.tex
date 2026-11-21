@@ -93,7 +93,7 @@ Khi mất bản tin cảm biến, máy chủ xác định trạng thái kết n�
 
 \section{Thiết kế phần cứng}\label{sec:phancung}
 Mạch điện của hệ thống gồm ba bản vẽ, mỗi bản vẽ ứng với một thiết bị và có đầu vào nguồn
-5\,V riêng, cấp qua jack DC 5,5\,mm. Servo SG90 cần điện áp 4,8--6\,V. Bo ESP32-C3 SuperMini nhận nguồn 5\,V và dùng bộ ổn áp trên bo để cấp 3,3\,V cho ngoại vi. Ba sơ đồ dưới đây thể hiện cách nối nguồn và chân tín hiệu.
+5\,V riêng, cấp qua jack DC 5,5\,mm. Nhóm chọn đầu vào 5\,V để cấp trực tiếp cho servo trên mạch máy chủ và cấp cho chân nguồn của bo ESP32-C3 SuperMini. Bộ ổn áp trên bo tạo đường 3,3\,V cho ngoại vi. Hai mạch ESP8266 cũng nhận đầu vào 5\,V và dùng nhánh hạ áp riêng. Ba sơ đồ dưới đây thể hiện cách nối nguồn và chân tín hiệu.
 
 \subsection{Mạch máy chủ}
 \begin{figure}[H]
@@ -102,10 +102,7 @@ Mạch điện của hệ thống gồm ba bản vẽ, mỗi bản vẽ ứng v�
 \caption{Sơ đồ nguyên lý máy chủ: ESP32-C3, màn hình ST7789, 2 servo, còi và 2 cảm biến IR ở cổng}\label{fig:sch-server}
 \end{figure}
 
-Hình~\ref{fig:sch-server} là mạch máy chủ. Adapter J\_PWR1 cấp đường 5\,V chung; tụ hóa C1
-100\,µF đặt tại đầu vào. Hai servo dùng đường 5\,V và chung GND với ESP32-C3. Các tụ C2 và C3 có trị số 100\,µF; tụ C4 tại chân nguồn của bo có trị số 10\,µF.
-
-Hai servo lấy nguồn trực tiếp từ đường 5\,V. Chân GND chung tạo mức tham chiếu cho xung PWM trên GPIO0 và GPIO1. Các tụ C2 và C3 đặt tại nhánh cấp nguồn servo để hạn chế sụt áp khi động cơ khởi động.
+Hình~\ref{fig:sch-server} là mạch máy chủ. Tụ hóa C1 (100\,µF) mắc song song với nguồn tại đầu vào J\_PWR1 để giảm dao động điện áp trên đường 5\,V. Tại mỗi nhánh servo, C2 và C3 (mỗi tụ 100\,µF) cung cấp dòng trong thời gian ngắn khi động cơ khởi động. C4 (10\,µF) lọc nguồn ngay tại chân cấp điện của bo ESP32-C3. Hai servo lấy nguồn trực tiếp từ đường 5\,V và dùng chung GND với máy chủ để xung PWM trên GPIO0 và GPIO1 có cùng mức tham chiếu.
 
 Đầu ra 3V3 của bo cấp cho màn
 hình, còi và hai cảm biến hồng ngoại ở cổng. Ngõ ra của hai cảm biến cổng nối vào GPIO5
@@ -122,7 +119,7 @@ hình luôn sáng.
 \end{figure}
 
 Hình~\ref{fig:sch-sensor} là mạch Sensor Client. Adapter J\_PWR2 cấp 5\,V cho mạch có tụ lọc C5 100\,µF;
-đường cấp nguồn VCC đi qua hai diode 1N4007 (D1 và D2) mắc nối tiếp.
+C5 mắc song song với nguồn để giảm dao động điện áp đầu vào khi tải thay đổi. Hai diode 1N4007 (D1 và D2) mắc nối tiếp trên đường cấp VCC. Sụt áp thuận trên hai diode làm giảm điện áp cấp cho nút cảm biến. Điện áp sau diode phụ thuộc vào dòng tải.
 
 Năm cảm biến hồng ngoại IR1 đến IR5 cùng lấy nguồn từ đường VCC, ngõ ra OUT nối lần lượt vào
 GPIO16, 4, 14, 13 và 12.
@@ -138,12 +135,12 @@ nước WTR1 nối ngõ ra analog AO vào chân ADC A0.
 \end{figure}
 
 Hình~\ref{fig:sch-rfid} là mạch RFID Client, có đường nguồn giống Sensor Client gồm adapter
-J\_PWR3, tụ C6 100\,µF và hai diode D3, D4.
+J\_PWR3, tụ C6 100\,µF và hai diode D3, D4. C6 lọc nguồn đầu vào khi tải thay đổi. D3 và D4 mắc nối tiếp để hạ điện áp cấp cho nút RFID nhờ sụt áp thuận.
 
 Hai đầu đọc U4 (cổng
 vào) và U5 (cổng ra) dùng chung bus SPI gồm SCK, MOSI, MISO ở GPIO14, 13, 12 và chân reset ở
 GPIO16; mỗi đầu đọc có chân chọn chip SDA riêng là GPIO5 và GPIO4, nên tại mỗi thời điểm chỉ
-một đầu đọc giao tiếp trên bus. Cảm biến DHT11 nối chân DATA vào GPIO2.
+một đầu đọc giao tiếp trên bus. Cách nối này cho phép cả hai đầu đọc dùng một bộ SPI của ESP8266 và tiết kiệm chân GPIO. Khi giao tiếp với một đầu đọc, chương trình kích hoạt chân chọn chip của đầu đọc đó và giữ đầu đọc kia ở trạng thái bỏ chọn. Cảm biến DHT11 nối chân DATA vào GPIO2.
 
 \section{Thiết kế giao thức truyền thông}\label{sec:giaothuc}
 Sensor Client và RFID Client trao đổi với máy chủ bằng các bản tin JSON ngắn qua UDP.
