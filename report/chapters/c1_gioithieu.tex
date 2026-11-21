@@ -3,20 +3,15 @@
 % =====================================================================
 
 \section{Đặt vấn đề}
-Tại các đô thị lớn, số lượng ô tô tăng nhanh hơn nhiều so với diện tích bãi đỗ. Người lái
-thường phải đi vòng để tìm chỗ trống, gây ùn tắc cục bộ và lãng phí nhiên liệu. Ở các bãi
-quy mô nhỏ như bãi của chung cư mini, văn phòng hay trường học, việc vận hành phần lớn vẫn
-thủ công: vé giấy, ghi giờ bằng tay, tính tiền theo ước lượng của người trông xe và hầu như
-không có cơ chế cảnh báo khi xảy ra cháy hoặc ngập nước, hai rủi ro thường gặp ở tầng hầm.
+Khi đến cổng bãi xe, người lái cần biết ô nào còn trống để chọn chỗ đỗ. Khi lấy xe,
+người lái cần biết phí phải trả, còn người vận hành cần biết lượt gửi xe nào đã được
+thanh toán. Để đáp ứng hai nhu cầu này, hệ thống theo dõi trạng thái từng ô đỗ bằng
+cảm biến và ghi nhận giờ vào theo thẻ RFID để tính phí khi người lái quẹt lại thẻ ở cổng ra.
 
-Từ thực trạng trên, đề tài đặt ra bài toán: với linh kiện phổ thông giá rẻ, xây dựng một hệ
-thống tự động hóa trọn vẹn quy trình của một bãi xe nhỏ, từ lúc xe vào cổng, đỗ vào ô, cho
-tới lúc thanh toán và rời bãi, đồng thời bảo đảm an toàn cho bãi trong suốt thời gian đó.
-Bài toán này cũng là một ứng dụng điển hình của môn học, đòi hỏi lập trình đa tác vụ trên
-hệ điều hành thời gian thực, điều khiển ngoại vi bằng phần cứng chuyên dụng và giao tiếp
-không dây giữa nhiều vi điều khiển.
-
-Đề tài xét việc quản lý đồng thời hai loại dữ liệu: trạng thái có xe của từng ô đỗ và phiên gửi xe của từng thẻ RFID. Trạng thái ô đỗ phục vụ chỉ dẫn tại cổng. Phiên gửi xe lưu giờ vào để tính phí khi lấy xe. Hệ thống còn nhận tín hiệu cháy và mực nước để điều khiển hai thanh chắn.
+Việc điều khiển cổng còn phụ thuộc vào tình trạng trong bãi. Khi nhận tín hiệu cháy,
+hệ thống cần cảnh báo cho người trong bãi và mở cả hai thanh chắn để tạo lối thoát.
+Khi mực nước đạt ngưỡng cảnh báo ngập, hệ thống cần cảnh báo và tạm ngừng nhận xe mới,
+trong khi người đang gửi xe vẫn có thể làm thủ tục lấy xe.
 
 \section{Tổng quan về hệ thống}\label{sec:tongquan}
 Hệ thống được hiện thực trên một mô hình bãi xe gồm 5 ô đỗ và hai cổng vào, ra có thanh
