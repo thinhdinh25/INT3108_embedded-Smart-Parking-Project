@@ -19,18 +19,49 @@ mutex cho tài nguyên bị chiếm giữ lâu như bus SPI, và thông báo tá
 như cơ chế đánh thức nhẹ nhất giữa hai tác vụ. Ngoài ra, bộ hẹn giờ \code{esp\_timer} cho
 phép gọi một hàm sau một khoảng thời gian với độ phân giải micro giây.
 
-\subsection{Vì sao máy chủ bãi xe sử dụng FreeRTOS}
-Trên ESP32-C3, việc nhận cảnh báo cháy và việc chờ xác nhận thanh toán có yêu cầu khác nhau. Máy chủ cần xử lý bản tin cảm biến ngay cả khi một yêu cầu HTTPS tới SePay đang chờ phản hồi. Trong firmware, yêu cầu HTTPS có thời hạn chờ cấu hình là 8\,000\,ms. Nếu gọi yêu cầu này trong cùng một vòng lặp tuần tự với việc nhận bản tin, bước xử lý bản tin tiếp theo sẽ phải đợi lời gọi mạng trả về.
+Trong mô hình bãi xe, nhóm dùng FreeRTOS để máy chủ ESP32-C3 có thể tiếp nhận cảnh báo cháy trong lúc chờ đối soát thanh toán. Yêu cầu HTTPS tới SePay có thời hạn chờ cấu hình là 8\,000\,ms. Khi tác vụ \code{sepay} (mức ưu tiên 3) chờ phản hồi, bộ lập lịch có thể cấp CPU cho tác vụ \code{udp\_server} (mức ưu tiên 5) để xử lý bản tin cảm biến và phát lệnh mở thanh chắn nếu có cháy.
 
-FreeRTOS cho phép tách hai công việc thành hai tác vụ. Tác vụ \code{sepay} chạy ở mức ưu tiên 3. Khi tác vụ này bị chặn để chờ mạng, bộ lập lịch có thể chuyển CPU cho tác vụ khác. Tác vụ \code{udp\_server} chạy ở mức ưu tiên 5: khi bản tin cảm biến đến và tác vụ sẵn sàng, nó được ưu tiên hơn tác vụ thanh toán. Nhờ cách tổ chức này, việc tiếp nhận và xử lý tín hiệu cháy không phụ thuộc vào thời điểm SePay trả lời.
-
-Việc chia tác vụ cũng đặt ra yêu cầu phối hợp khi hiển thị. Sau khi cập nhật trạng thái bãi, tác vụ nhận bản tin gửi thông báo đánh thức tác vụ màn hình. Tác vụ hiển thị trạng thái và tác vụ vẽ ảnh động dùng chung một mutex để mỗi lần chỉ một tác vụ gửi dữ liệu tới màn hình. Trên hai nút ESP8266, mã ứng dụng đọc ngoại vi và gửi dữ liệu trong hàm \code{loop()} của Arduino.
+Sau khi cập nhật trạng thái bãi, tác vụ nhận bản tin đánh thức tác vụ hiển thị. Tác vụ hiển thị trạng thái và tác vụ vẽ ảnh động dùng chung một mutex để mỗi lần chỉ một tác vụ gửi dữ liệu tới màn hình. Trên hai nút ESP8266, chương trình đọc ngoại vi và gửi dữ liệu trong hàm \code{loop()} của Arduino.
 
 \section{Vi điều khiển}
-Máy chủ dùng ESP32-C3. Bộ điều khiển LEDC tạo xung PWM cho hai servo; SPI2 truyền dữ liệu tới màn hình ST7789. Bộ đệm khung hình RGB565 có $240\times240\times2 = 115\,200$ byte. Hai nút ESP8266 đảm nhiệm hai nhóm đầu vào: Sensor Client đọc năm cảm biến ô đỗ, cảm biến lửa và mực nước; RFID Client đọc hai đầu MFRC522 và nhiệt độ từ DHT11.
+Hệ thống gồm ba thiết bị: máy chủ dùng ESP32-C3, Sensor Client và RFID Client dùng ESP8266.
+Bảng~\ref{tab:mcu} so sánh ESP32-C3, được chọn cho máy chủ, với các phương án thường gặp.
+
+\begin{table}[!htb]
+\centering\small
+\caption{So sánh các phương án vi điều khiển}\label{tab:mcu}
+\begin{tabularx}{\linewidth}{|l|>{\raggedright\arraybackslash}X|>{\raggedright\arraybackslash}X|>{\raggedright\arraybackslash}X|>{\raggedright\arraybackslash}X|}
+\hline
+\hd Tiêu chí & \hd ESP32-C3 & \hd ESP32 & \hd ESP8266 & \hd Arduino Uno \\ \hline
+CPU & RISC-V 160\,MHz & 2 nhân 240\,MHz & Xtensa 80\,MHz & AVR 16\,MHz \\ \hline
+SRAM & 400\,KB & 520\,KB & Khoảng 80\,KB & 2\,KB \\ \hline
+Wi-Fi & Có & Có & Có & Không \\ \hline
+PWM phần cứng & LEDC 14 bit & LEDC & PWM mềm & 8 bit \\ \hline
+SPI có DMA & Có & Có & Hạn chế & Không \\ \hline
+RTOS chính thức & FreeRTOS & FreeRTOS & Hạn chế & Không \\
+\hline
+\end{tabularx}
+\end{table}
+
+Phân tích trong Bảng~\ref{tab:mcu} cho thấy yếu tố quyết định là bộ nhớ: riêng ảnh màn hình
+$240\times240$ điểm, mỗi điểm 16 bit, đã cần $115\,200$ byte RAM, lớn hơn toàn bộ RAM của
+ESP8266 hay Arduino Uno. ESP32-C3 SuperMini có đủ RAM, có DMA cho SPI để CPU không phải chờ
+khi truyền ảnh, có khối PWM phần cứng giữ xung servo ổn định khi CPU bận xử lý mạng, và được
+hỗ trợ chính thức bởi ESP-IDF cùng FreeRTOS. So với ESP32 bản gốc, ESP32-C3 rẻ và nhỏ hơn
+($22\times18$\,mm) trong khi một nhân 160\,MHz vẫn dư năng lực cho bài toán.
+
+Sensor Client và RFID Client dùng ESP8266 vì nhiệm vụ của chúng đơn giản: đọc cảm biến hoặc
+đầu đọc thẻ rồi gửi bản tin ngắn qua Wi-Fi. ESP8266 có giá thấp, phổ biến và có sẵn thư viện
+cho RC522 và DHT11. Hệ thống được tách thành ba thiết bị theo vị trí lắp đặt: đầu đọc thẻ đặt
+tại cổng, cảm biến ô đỗ và cảm biến môi trường phân bố trong bãi, còn máy chủ đặt tại vị trí
+điều hành. Mỗi client nằm gần nhóm cảm biến của nó nên dây tín hiệu ngắn, các thiết bị chỉ liên
+lạc với nhau qua Wi-Fi, và khi mở rộng bãi chỉ cần bổ sung client mà không phải kéo thêm dây
+về máy chủ.
 
 \section{Cảm biến và cơ cấu chấp hành}
-Bảng~\ref{tab:linhkien} trình bày cách firmware sử dụng từng linh kiện.
+Các cảm biến và cơ cấu chấp hành được chọn theo hai tiêu chí: giá thành thấp và làm việc ở
+mức logic 3,3\,V. Bảng~\ref{tab:linhkien} tổng hợp thông số chính và vai trò của
+từng linh kiện trong hệ thống.
 
 \begin{table}[!htb]
 \centering\small
@@ -38,19 +69,25 @@ Bảng~\ref{tab:linhkien} trình bày cách firmware sử dụng từng linh ki�
 \begin{tabularx}{\linewidth}{|>{\raggedright\arraybackslash}m{3.4cm}|>{\raggedright\arraybackslash}m{4.6cm}|>{\raggedright\arraybackslash}m{2.4cm}|>{\raggedright\arraybackslash}X|}
 \hline
 \hd Linh kiện & \hd Thông số chính & \hd Tín hiệu & \hd Vai trò \\ \hline
-Cảm biến hồng ngoại phản xạ $\times7$ & 7 đầu vào số & Digital & 5 ô đỗ và 2 cổng \\ \hline
-Cảm biến lửa & Lọc tín hiệu 50\,ms & Digital & Phát hiện cháy \\ \hline
-Cảm biến mực nước & Thang quy đổi trong firmware: 0--40\,mm & Analog & Phát hiện ngập \\ \hline
+Cảm biến hồng ngoại phản xạ $\times7$ & Tầm 2--30\,cm, bộ so sánh LM393 & Digital & 5 ô đỗ và 2 cổng \\ \hline
+Cảm biến lửa & Bước sóng 760--1100\,nm & Digital & Phát hiện cháy \\ \hline
+Cảm biến mực nước & Vùng đo khoảng 40\,mm & Analog & Phát hiện ngập \\ \hline
 Đầu đọc RFID MFRC522 $\times2$ & Chuẩn ISO 14443A, thẻ MIFARE & Digital (SPI) & Đọc thẻ ở hai cổng \\ \hline
-Cảm biến DHT11 & Chu kỳ đọc cấu hình 5\,s & Digital (một dây) & Nhiệt độ môi trường \\ \hline
-Servo SG90 $\times2$ & PWM 50\,Hz & Digital (PWM) & Nâng hạ thanh chắn \\ \hline
-Màn hình TFT ST7789 & $240\times240$ điểm ảnh, RGB565 & Digital (SPI) & Hiển thị tại cổng \\ \hline
-Còi báo (module) & Điều khiển bằng GPIO9 & Digital & Báo cháy, ngập, xe không thẻ \\
+Cảm biến DHT11 & 0--50\,°C, sai số $\pm2$\,°C & Digital (một dây) & Nhiệt độ môi trường \\ \hline
+Servo SG90 $\times2$ & 4,8--6\,V, mô-men khoảng 1,8\,kg$\cdot$cm & Digital (PWM) & Nâng hạ thanh chắn \\ \hline
+Màn hình TFT ST7789 & 1,54 inch, $240\times240$, IPS & Digital (SPI) & Hiển thị tại cổng \\ \hline
+Còi báo (module) & Điện áp 3,3--5\,V & Digital & Báo cháy, ngập, xe không thẻ \\
 \hline
 \end{tabularx}
 \end{table}
 
-Cảm biến ô đỗ và cảm biến lửa cung cấp trạng thái số. Với cảm biến nước, Sensor Client đọc ngõ vào analog A0 rồi quy đổi theo công thức ở Mục~\ref{sec:f-env}.
+Bảng~\ref{tab:linhkien} cho thấy phần lớn linh kiện giao tiếp bằng tín hiệu digital. Trong
+một bãi đỗ thực tế, cảm biến tại ô đỗ chỉ cần trả lời ô đó có xe hay không, nên tín hiệu
+digital là đủ; khi triển khai ở bãi lớn, cảm biến hồng ngoại có thể được thay bằng cảm biến từ
+trường hoặc siêu âm gắn trần mà không phải thay đổi phần còn lại, vì máy chủ chỉ nhận trạng
+thái có hoặc không có xe. Cảm biến lửa cho tín hiệu digital để hệ thống phản ứng ngay khi xuất
+hiện ngọn lửa. Ngược lại, cảm biến mực nước cho tín hiệu analog, cho phép máy chủ hiển thị mực
+nước và so sánh với một ngưỡng có thể điều chỉnh theo từng bãi.
 
 \section{Giao thức mạng và thanh toán}
 Các thiết bị của hệ thống và điện thoại của người vận hành liên lạc qua một mạng Wi-Fi chung. Hệ thống sử
