@@ -14,13 +14,7 @@ sequenceDiagram
   B->>B: Làn trống liên tục 1 s: đóng cổng
   end
   rect rgb(255, 243, 224)
-  Note over C,S: Mất gói tin
-  C-xS: rfid_event gate=out, seq=n+1
-  C->>S: Sau 300 ms chưa có ACK: gửi lại
-  S-->>C: rfid_ack seq=n+1
-  end
-  rect rgb(225, 236, 250)
-  Note over U,B: Lấy xe
-  S->>S: Đóng phiên, tính phí
-  S->>B: Mở cổng ra, hiển thị hóa đơn 60 s
+  Note over C,S: Khi mất xác nhận của lượt vào
+  C->>S: Sau 300 ms gửi lại cùng seq=n
+  S-->>C: Xác nhận lại, bỏ qua sự kiện trùng
   end

@@ -1,17 +1,16 @@
 sequenceDiagram
-  actor U as Người lái
-  participant S as Máy chủ
-  participant L as Màn hình TFT
+  actor U as Người lái xe
+  participant S as Bãi xe
+  participant N as Ngân hàng
   participant A as SePay
-  U->>S: Quẹt thẻ ở cổng ra
-  S->>S: Chốt phí, tạo mã PKxxxxxx
-  S->>L: Hiển thị mã QR và số tiền
-  S->>A: Lấy mã giao dịch mới nhất
-  U->>A: Chuyển khoản bằng ứng dụng ngân hàng
-  loop Mỗi 3 s
-    S->>A: Hỏi giao dịch mới
+  U->>S: Quẹt thẻ tại cổng ra
+  S-->>U: Hiển thị VietQR, phí và mã thanh toán
+  S->>A: Truy vấn mã giao dịch gần nhất
+  A-->>S: Mốc đối soát
+  U->>N: Quét VietQR và chuyển khoản
+  loop Trong khi chờ xác nhận
+    S->>A: Truy vấn giao dịch sau mốc
     A-->>S: Danh sách giao dịch
   end
-  S->>S: Khớp mã và số tiền
-  S->>L: Hóa đơn 60 s
-  S->>S: Ghi nhật ký OUT, mở cổng ra
+  S->>S: Khớp giao dịch và kết thúc phiên
+  S-->>U: Mở cổng ra và hiển thị hóa đơn

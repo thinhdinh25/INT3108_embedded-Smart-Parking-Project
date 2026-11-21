@@ -1,181 +1,124 @@
-% =====================================================================
-\chapter{HIỆN THỰC HỆ THỐNG THEO USE CASE}\label{chap:hienthuc}
-% =====================================================================
+\chapter{ĐẶC TẢ CA SỬ DỤNG (USE CASE)}\label{chap:hienthuc}
 
-\section{Tổng quan use case}\label{chap:usecase}
-Các chức năng ở Mục~\ref{sec:yeucau} được mô hình hóa bằng use case. Mỗi use case biểu diễn một mục tiêu có ý
-nghĩa của một tác nhân và cho ra một kết quả quan sát được; các tình huống phụ như quẹt sai
-cổng hay mất gói tin được xem là luồng ngoại lệ của use case chứa nó, không tách thành use case
-riêng. Theo nguyên tắc này, hệ thống có 10 use case không chồng lấn nhau.
+\section{Tác nhân và ca sử dụng}\label{chap:usecase}
+Hình~\ref{fig:usecase} trình bày 10 ca sử dụng. Phạm vi hệ thống gồm máy chủ, hai nút ESP8266,
+các thiết bị tại cổng và trang quản lý. Theo quy ước UML~\ref{src:uml}, mỗi hình elip biểu diễn
+một mục tiêu mà tác nhân bên ngoài đạt được khi tương tác với hệ thống. Đường liền chỉ
+sự tham gia của tác nhân. Trình tự trao đổi giữa các thiết bị được trình bày riêng
+ở các biểu đồ tuần tự.
 
-Hệ thống có hai tác nhân chính và bốn tác nhân phụ. Người lái xe là tác nhân chính của các use
-case gửi xe, lấy xe và xem chỗ trống. Người vận hành là tác nhân chính của các use case quản lý
-bãi thực hiện qua trang web. Sensor Client và RFID Client là hai tác nhân thiết bị cung cấp dữ
-liệu cảm biến và sự kiện quẹt thẻ. Đồng hồ hệ thống là tác nhân thời gian kích hoạt việc đóng
-thanh chắn và hết hạn chờ thanh toán. SePay là hệ thống bên ngoài cung cấp danh sách giao dịch
-chuyển khoản vào tài khoản của bãi.
-
-
-
-Hình~\ref{fig:usecase} thể hiện quan hệ giữa các tác nhân và 10 use case. Ba use case đầu phục
-vụ người lái xe trong một lượt gửi xe trọn vẹn; hai use case tiếp theo là phản ứng tự động của hệ
-thống trước sự cố, có cả người lái và người vận hành tham gia; năm use case còn lại là nghiệp vụ
-của người vận hành trên trang web. Đường nét đứt biểu diễn sự kiện theo thời gian như đóng thanh
-chắn hay hết hạn chờ thanh toán. Bảng~\ref{tab:uc-summary} tóm tắt tác nhân chính và mục tiêu của
-từng use case; đặc tả đầy đủ của từng use case được trình bày ở các mục tiếp theo.
-
-
-
-{\small
-\begin{longtable}{|c|>{\raggedright\arraybackslash}m{4.3cm}|>{\raggedright\arraybackslash}m{2.6cm}|>{\raggedright\arraybackslash}m{6.3cm}|}
-\caption{Tổng hợp các use case}\label{tab:uc-summary}\\
-\hline
-\hd Mã & \hd Tên use case & \hd Tác nhân chính & \hd Mục tiêu \\ \hline \endfirsthead
-\hline
-\hd Mã & \hd Tên use case & \hd Tác nhân chính & \hd Mục tiêu \\ \hline \endhead
-UC01 & Xem chỗ trống tại cổng & Người lái xe & Biết bãi còn bao nhiêu chỗ và chỗ nào trống trước khi vào \\ \hline
-UC02 & Gửi xe bằng thẻ RFID & Người lái xe & Được mở cổng vào và bắt đầu tính thời gian gửi xe \\ \hline
-UC03 & Thanh toán phí và lấy xe & Người lái xe & Trả đúng phí bằng VietQR và được mở cổng ra \\ \hline
-UC04 & Xác nhận thanh toán tại quầy & Người vận hành & Cho xe ra khi khách trả tiền mặt hoặc không đối soát tự động được \\ \hline
-UC05 & Điều khiển thanh chắn từ xa & Người vận hành & Mở hoặc đóng từng cổng hay cả hai cổng khi cần \\ \hline
-UC06 & Báo cháy và mở lối thoát & Sensor Client & Báo động và giải phóng lối ra ngay khi có lửa \\ \hline
-UC07 & Báo ngập và ngừng nhận xe & Sensor Client & Báo động và không cho thêm xe vào khi nước dâng \\ \hline
-UC08 & Xem tình trạng bãi trên trang web & Người vận hành & Nắm được trạng thái ô đỗ, môi trường và thanh chắn từ xa \\ \hline
-UC09 & Tra cứu nhật ký và doanh thu & Người vận hành & Đối soát lượt xe vào ra và tiền thu được \\ \hline
-UC10 & Hiệu chỉnh danh sách xe trong bãi & Người vận hành & Xóa xe đã rời bãi mà không qua quy trình ra bình thường \\
-\hline
-\end{longtable}}
-
-\begin{figure}[H]
+\begin{figure}[htbp]
 \centering
 \begin{tikzpicture}[
-  uc/.style={draw=accent,fill=boxA,rounded corners=8pt,font=\small,align=center,text width=6.4cm,minimum height=0.74cm,inner sep=2pt},
-  who/.style={draw,rounded corners=8pt,fill=white,font=\small,align=center,text width=2.6cm,minimum height=0.8cm,inner sep=2pt},
-  dev/.style={draw,font=\small,align=center,text width=2.9cm,inner sep=3pt},
-  link/.style={draw=black!65}]
-\foreach \id/\txt [count=\i from 0] in {
-  01/Xem chỗ trống tại cổng, 02/Gửi xe bằng thẻ RFID, 03/Thanh toán phí và lấy xe,
-  06/Báo cháy và mở lối thoát, 07/Báo ngập và ngừng nhận xe, 08/Xem tình trạng bãi trên trang web,
-  04/Xác nhận thanh toán tại quầy, 05/Điều khiển thanh chắn từ xa,
-  09/Tra cứu nhật ký và doanh thu, 10/Hiệu chỉnh danh sách xe trong bãi}
-  \node[uc] (UC\id) at (0,-\i*0.94) {UC\id\ \txt};
-\begin{scope}[on background layer]
-  \node[fill=boxC,draw=black!25,fit=(UC01)(UC10),inner xsep=6pt,inner ysep=6pt,
-        label={[font=\footnotesize\bfseries,anchor=south]north:Hệ thống bãi đỗ xe thông minh}] {};
-\end{scope}
-\node[who] (driver) at (-6.7,-1.4) {Người lái xe};
-\node[who] (oper) at (-6.7,-6.1) {Người vận hành};
-\node[dev,fill=boxB] (sensor) at (6.75,-3.3) {«thiết bị»\\Sensor Client};
-\node[dev,fill=boxC] (rfid) at (6.75,-0.9) {«thiết bị»\\RFID Client};
-\node[dev,fill=boxE] (clock) at (6.75,-5.4) {«thời gian»\\Đồng hồ hệ thống};
-\node[dev,fill=boxE] (sepay) at (6.75,-7.4) {«hệ thống ngoài»\\SePay};
-\foreach \u in {01,02,03,06} \draw[link] (driver.east) -- (UC\u.west);
-\foreach \u in {06,07,08,04,05,09,10} \draw[link] (oper.east) -- (UC\u.west);
-\foreach \u in {01,06,07,08} \draw[link] (UC\u.east) -- (sensor.west);
-\foreach \u in {02,03,08} \draw[link] (UC\u.east) -- (rfid.west);
-\foreach \u in {02,03} \draw[link,densely dashed] (UC\u.east) -- (clock.west);
-\draw[link] (UC03.east) -- (sepay.west);
+  uc/.style={ellipse,draw=accent!80,fill=accent!4,align=center,font=\footnotesize,
+    text width=6.15cm,inner xsep=1pt,inner ysep=1pt,minimum width=4.45cm,minimum height=1.05cm},
+  role/.style={align=center,font=\small},line width=.65pt]
+\draw[accent] (-4.9,1.45) rectangle (4.9,-13.26);
+\node[font=\bfseries] at (0,.99) {Hệ thống bãi đỗ xe thông minh};
+\node[uc] (u1) at (0,-0.00) {UC01\enspace Xem chỗ trống tại cổng};
+\node[uc] (u2) at (0,-1.38) {UC02\enspace Gửi xe bằng thẻ RFID};
+\node[uc] (u3) at (0,-2.76) {UC03\enspace Thanh toán phí và lấy xe};
+\node[uc] (u4) at (0,-4.14) {UC04\enspace Xác nhận thanh toán tại quầy};
+\node[uc] (u5) at (0,-5.52) {UC05\enspace Điều khiển thanh chắn từ xa};
+\node[uc] (u6) at (0,-6.90) {UC06\enspace Báo cháy và mở lối thoát};
+\node[uc] (u7) at (0,-8.28) {UC07\enspace Báo ngập và ngừng nhận xe};
+\node[uc] (u8) at (0,-9.66) {UC08\enspace Xem tình trạng bãi trên trang web};
+\node[uc] (u9) at (0,-11.04) {UC09\enspace Tra cứu nhật ký và doanh thu};
+\node[uc] (u10) at (0,-12.42) {UC10\enspace Hiệu chỉnh danh sách xe trong bãi};
+\foreach \x/\y/\dx/\name in {-6.65/-3.8/-.48/Người lái xe,6.65/-8.2/.48/Người vận hành}{
+  \begin{scope}[shift={(\x,\y)}]
+    \draw (0,.36) circle (.13) (0,.23)--(0,-.18)
+          (-.23,.04)--(0,.11)--(.23,.04) (-.21,-.48)--(0,-.18)--(.21,-.48);
+    \node[role,below,text width=1.7cm] at (\dx,-.51) {\name};
+  \end{scope}}
+\foreach \n in {1,2,3,6,7}{\draw (-6.42,-3.76)--(u\n.west);}
+\foreach \n in {4,5,6,7,8,9,10}{\draw (6.42,-8.16)--(u\n.east);}
+\node[role,draw] (sp) at (6.65,-2.76) {«actor»\\SePay};
+\draw (sp.west)--(u3.east);
 \end{tikzpicture}
-\caption{Sơ đồ use case tổng quát}\label{fig:usecase}
+\caption{Ca sử dụng của hệ thống bãi đỗ xe}\label{fig:usecase}
 \end{figure}
 
+Người lái xe sử dụng các dịch vụ tại cổng (UC01–UC03). Người vận hành xác nhận thu phí, điều khiển thanh chắn và quản lý bãi trên trang web (UC04, UC05, UC08–UC10). Cả hai nhận cảnh báo cháy (UC06) và ngập (UC07): người lái xe nghe còi và xem màn hình tại cổng, còn người vận hành theo dõi trên trang quản lý. SePay cung cấp dữ liệu đối soát cho UC03.
+
 \section{UC01. Xem chỗ trống tại cổng}\label{sec:uc01}
-Use case này giúp người lái quyết định có vào bãi hay không và cần đi tới ô nào. Đặc tả của use
-case được trình bày ở Bảng~\ref{tab:uc01}.
+Ca sử dụng này giúp người lái quyết định có vào bãi hay không và cần đi tới ô nào. Đặc tả được trình bày ở Bảng~\ref{tab:uc01}.
 
 \begin{ucspec}{Đặc tả UC01. Xem chỗ trống tại cổng}{tab:uc01}
 Tác nhân chính & Người lái xe \\ \hline
-Tác nhân phụ & Sensor Client \\ \hline
+Nguồn dữ liệu & Sensor Client gửi trạng thái ô đỗ theo chu kỳ và khi có thay đổi \\ \hline
 Mục tiêu & Biết số chỗ trống và vị trí từng chỗ trống trước khi vào bãi \\ \hline
-Tiền điều kiện & Máy chủ và Sensor Client đã kết nối vào mạng Wi-Fi \\ \hline
-Kích hoạt & Một xe đi vào hoặc rời khỏi một ô đỗ \\ \hline
+Tiền điều kiện & Màn hình tại cổng đang hoạt động \\ \hline
+Kích hoạt & Người lái đến cổng để xem thông tin chỗ trống \\ \hline
 Luồng chính &
-\bul Cảm biến hồng ngoại của ô đổi mức logic.
-\bul Sensor Client lọc nhiễu 50\,ms rồi gửi ngay bản tin \code{parking\_update}.
-\bul Máy chủ kiểm tra bản tin, cập nhật trạng thái bãi và đánh thức tác vụ màn hình.
-\bul Màn hình tại cổng hiển thị số chỗ trống và năm ô S1 đến S5, vạch xanh cho ô trống, vạch đỏ cho ô có xe.
-\bul Người lái đọc thông tin trên màn hình. \\ \hline
-Luồng ngoại lệ &
-\bul Gói tin bị mất: bản tin nhắc lại sau tối đa 1\,s cập nhật lại trạng thái.
+\par\noindent 1. Người lái quan sát màn hình tại cổng trước khi quẹt thẻ.
+\par\noindent 2. Màn hình hiển thị số chỗ trống và trạng thái từng ô từ S1 đến S5. Người lái xác định ô còn trống hoặc thấy bãi đã đầy. \\ \hline
+Luồng thay thế và ngoại lệ &
+\bul Gói tin bị mất: bản tin nhắc lại được lên lịch mỗi 1\,s.
 \bul Bản tin sai định dạng: máy chủ bỏ qua và giữ trạng thái cũ.
 \bul Sensor Client im lặng quá 3\,s: màn hình hiển thị \code{SENSOR OFFLINE}, năm ô chuyển xám. \\ \hline
-Hậu điều kiện & Màn hình phản ánh đúng trạng thái năm ô đỗ với độ trễ khoảng 0,1\,s \\
+Kết quả khi thành công & Màn hình phản ánh đúng trạng thái năm ô đỗ khi có dữ liệu mới \\
 \end{ucspec}
 
-Luồng chính của UC01 cho thấy thông tin chỗ trống đi theo một chiều từ cảm biến qua Sensor
-Client và máy chủ tới màn hình, người lái không phải thao tác gì. Use case đạt mục tiêu khi màn
-hình phản ánh đúng trạng thái bãi vào thời điểm xe tới cổng. Hai luồng ngoại lệ đầu xử lý lỗi
-truyền dữ liệu mà người lái không nhận thấy; luồng ngoại lệ thứ ba bảo đảm người lái không bị
-dẫn tới một ô sai khi dữ liệu không còn tin cậy. Cách xác định trạng thái ô đỗ và cách hiển thị
-được trình bày ở Mục~\ref{sec:f-slot} và Mục~\ref{sec:f-tft}.
+Việc xem màn hình không giữ chỗ. Khi người lái quẹt thẻ, hệ thống kiểm tra lại điều kiện tiếp nhận xe trong UC02.
 
 \section{UC02. Gửi xe bằng thẻ RFID}\label{sec:uc02}
-Use case này mô tả một lượt xe vào bãi, bao gồm cả các trường hợp hệ thống phải từ chối. Đặc tả
+Ca sử dụng này mô tả một lượt xe vào bãi, bao gồm cả các trường hợp hệ thống phải từ chối. Đặc tả
 được trình bày ở Bảng~\ref{tab:uc02}.
 
 \begin{ucspec}{Đặc tả UC02. Gửi xe bằng thẻ RFID}{tab:uc02}
 Tác nhân chính & Người lái xe \\ \hline
-Tác nhân phụ & RFID Client, Đồng hồ hệ thống \\ \hline
 Mục tiêu & Được mở cổng vào và bắt đầu tính thời gian gửi xe \\ \hline
-Tiền điều kiện & Thẻ chưa có phiên gửi xe; bãi còn chỗ; không có cảnh báo ngập \\ \hline
+Tiền điều kiện & Người lái có thẻ RFID; đầu đọc cổng vào sẵn sàng \\ \hline
 Kích hoạt & Người lái đưa thẻ vào đầu đọc ở cổng vào \\ \hline
 Luồng chính &
-\bul RFID Client đọc mã UID và gửi \code{rfid\_event} với \code{"gate":"in"} kèm số thứ tự \code{seq}.
-\bul Máy chủ trả gói xác nhận, tạo phiên mới, lưu thời điểm vào, ghi nhật ký \code{IN} và lưu bảng phiên vào flash.
-\bul Máy chủ mở thanh chắn cổng vào và hẹn giờ 3\,s.
-\bul Xe đi qua cổng; hết 3\,s, thanh chắn hạ xuống khi cảm biến hồng ngoại ở cổng xác nhận làn trống. \\ \hline
-Luồng ngoại lệ &
+\par\noindent 1. Người lái quẹt thẻ tại đầu đọc cổng vào.
+\par\noindent 2. Hệ thống kiểm tra thẻ, sức chứa và cảnh báo ngập. Khi chấp nhận lượt vào, hệ thống tạo phiên gắn với mã thẻ, ghi giờ vào và mở thanh chắn.
+\par\noindent 3. Người lái đưa xe qua cổng. Thanh chắn tự hạ khi hết thời gian mở và làn đủ điều kiện an toàn. \\ \hline
+Luồng thay thế và ngoại lệ &
 \bul Thẻ đã có phiên trong bãi: không mở cổng, màn hình báo \code{WRONG GATE} và gợi ý dùng cổng ra trong 5\,s.
-\bul Bãi đã đủ 5 phiên hoặc cảm biến báo đủ 5 ô có xe: không mở cổng, màn hình báo \code{PARKING FULL}.
+\bul Bãi đã đủ 5 phiên hoặc cảm biến còn trực tuyến báo đủ 5 ô có xe: không mở cổng, màn hình báo \code{PARKING FULL}.
+\bul Sensor Client mất kết nối: dữ liệu ô đỗ đã cũ không được dùng để kết luận bãi đầy; giới hạn 5 phiên xe vẫn được áp dụng.
 \bul Đang có cảnh báo ngập: không mở cổng, màn hình báo \code{FLOOD ALARM - ENTRY CLOSED}.
-\bul Gói tin bị mất: sau 300\,ms chưa có xác nhận, RFID Client gửi lại, tối đa 6 lần; máy chủ nhận ra bản gửi lại qua \code{seq} nên không mở cổng lần hai.
-\bul Xe còn nằm dưới cần chắn khi hết 3\,s: thanh chắn giữ mở cho tới khi làn trống liên tục 1\,s.
+\bul Gói tin bị mất: sau 300\,ms chưa có xác nhận, RFID Client gửi lại, tối đa 5 lần sau lần gửi đầu; máy chủ nhận ra bản gửi lại qua \code{seq} nên không mở cổng lần hai.
+\bul Xe còn chắn tia khi hết 3\,s: thanh chắn tiếp tục mở; chỉ đóng sau khi tia hồng ngoại thông suốt liên tục 1\,s.
 \bul Một xe khác đi theo mà không quẹt thẻ: sau 15\,s số ô có xe vẫn nhiều hơn số thẻ, còi kêu ngắt quãng và màn hình báo \code{CAR W/O CARD}. \\ \hline
-Hậu điều kiện & Thẻ có phiên gửi xe, nhật ký có bản ghi \code{IN}, thanh chắn đóng \\
+Kết quả khi thành công & Thẻ có phiên gửi xe, nhật ký có bản ghi \code{IN}, thanh chắn đóng sau khi xe qua khỏi làn \\
 \end{ucspec}
 
 Hình~\ref{fig:seq-rfid} biểu diễn trình tự trao đổi giữa các thành phần trong luồng chính, trường
-hợp gói tin bị mất và luồng ra khi không bật thanh toán QR.
+hợp gói tin bị mất và cách máy chủ nhận biết bản tin gửi lại.
 
 \begin{figure}[!htbp]
 \centering
 \mmd[1][0.9]{seq_rfid}
-\caption{Biểu đồ tuần tự gửi xe, xử lý mất gói và lấy xe}\label{fig:seq-rfid}
+\caption{Trình tự gửi xe và xử lý mất gói RFID}\label{fig:seq-rfid}
 \end{figure}
 
-Theo Hình~\ref{fig:seq-rfid}, người lái chỉ thực hiện một thao tác là quẹt thẻ, mọi bước còn
-lại do hệ thống tự thực hiện. Các luồng ngoại lệ của UC02 chia thành hai nhóm. Nhóm thứ nhất
-gồm các trường hợp hệ thống chủ động từ chối để dữ liệu phiên luôn khớp với thực tế: thẻ đã ở
-trong bãi, bãi đầy hoặc đang ngập; khi đó thanh chắn không chuyển động và màn hình nêu rõ lý do
-để người lái biết cần làm gì. Nhóm thứ hai gồm các trường hợp bảo vệ độ tin cậy và an toàn: mất
-gói tin không được làm mất lượt quẹt hay mở cổng hai lần, thanh chắn không được hạ xuống thân
-xe, và xe đi theo mà không quẹt thẻ phải bị phát hiện. Các cơ chế đáp ứng những luồng này được
-trình bày ở Mục~\ref{sec:ack}, Mục~\ref{sec:f-gate} và Mục~\ref{sec:f-card}.
+Trong Hình~\ref{fig:seq-rfid}, bản tin xác nhận (ACK) cho biết máy chủ đã nhận sự kiện quẹt thẻ. Quyết định cho xe vào phụ thuộc vào kết quả kiểm tra phiên, sức chứa và trạng thái ngập.
 
 \section{UC03. Thanh toán phí và lấy xe}\label{sec:uc03}
-Use case này mô tả một lượt xe ra bãi khi bật thanh toán VietQR. Đặc tả được trình bày ở
+Ca sử dụng này mô tả một lượt xe ra bãi khi bật thanh toán VietQR. Đặc tả được trình bày ở
 Bảng~\ref{tab:uc03}.
 
 \begin{ucspec}{Đặc tả UC03. Thanh toán phí và lấy xe}{tab:uc03}
 Tác nhân chính & Người lái xe \\ \hline
-Tác nhân phụ & RFID Client, SePay, Đồng hồ hệ thống \\ \hline
+Tác nhân phụ & Dịch vụ SePay (khi bật đối soát tự động) \\ \hline
 Mục tiêu & Trả đúng phí gửi xe bằng chuyển khoản và được mở cổng ra \\ \hline
-Tiền điều kiện & Thẻ đang có phiên gửi xe; tài khoản nhận và khóa truy cập SePay đã được cấu hình \\ \hline
+Tiền điều kiện & Cổng ra đang phục vụ; hệ thống đã cấu hình tài khoản nhận VietQR và dịch vụ đối soát cho luồng tự động \\ \hline
 Kích hoạt & Người lái đưa thẻ vào đầu đọc ở cổng ra \\ \hline
 Luồng chính &
-\bul Máy chủ tính thời gian gửi và phí, chốt phí, tạo mã thanh toán gồm tiền tố \code{PK} và 6 ký tự.
-\bul Thanh chắn vẫn đóng; màn hình hiển thị mã VietQR, số tiền và nội dung chuyển khoản.
-\bul Người lái quét mã bằng ứng dụng ngân hàng và chuyển khoản với số tiền đã điền sẵn.
-\bul Máy chủ truy vấn SePay mỗi 3\,s và tìm thấy giao dịch khớp mã và đúng số tiền.
-\bul Máy chủ đóng phiên, ghi nhật ký \code{OUT}, cộng doanh thu; màn hình hiển thị lời cảm ơn 5\,s rồi hóa đơn 60\,s.
-\bul Thanh chắn cổng ra mở và đóng theo cùng điều kiện cảm biến cổng như UC02. \\ \hline
-Luồng ngoại lệ &
+\par\noindent 1. Người lái quẹt thẻ ở cổng ra. Hệ thống tìm phiên đang gửi, chốt phí và hiển thị VietQR kèm số tiền, nội dung chuyển khoản.
+\par\noindent 2. Người lái quét mã và chuyển tiền bằng ứng dụng ngân hàng. Cổng ra tiếp tục chờ xác nhận.
+\par\noindent 3. Hệ thống truy vấn giao dịch qua SePay và đối chiếu với yêu cầu đang chờ theo quy tắc ở Mục~\ref{sec:f-sepay}.
+\par\noindent 4. Khi giao dịch khớp, hệ thống kết thúc phiên, ghi nhận phí, hiển thị hóa đơn và mở cổng ra để người lái lấy xe. \\ \hline
+Luồng thay thế và ngoại lệ &
 \bul Thẻ chưa có phiên gửi xe: không mở cổng, màn hình báo \code{WRONG GATE} và gợi ý dùng cổng vào.
-\bul Người lái quẹt lại cùng thẻ: màn hình hiển thị lại đúng mã QR cũ, thời gian chờ được tính lại.
+\bul Người lái quẹt lại cùng thẻ: màn hình hiển thị lại mã QR cũ; thời hạn chờ được gia hạn nhưng phí đã chốt không đổi.
 \bul Xe khác quẹt khi lượt trước còn hiệu lực: mã QR của xe trước được giữ, dòng cuối màn hình báo \code{NEXT CAR: WAIT, ONE IS PAYING}.
 \bul Chuyển dư hoặc thiếu tiền: giao dịch không được chấp nhận, cổng vẫn đóng.
-\bul Quá 180\,s chưa nhận được tiền: màn hình báo \code{PAY AT BOOTH} trong 30\,s; tiếp tục ở UC04. \\ \hline
-Hậu điều kiện & Phiên được giải phóng; nhật ký có bản ghi \code{OUT}; doanh thu tăng đúng bằng phí \\
+\bul Quá 180\,s chưa nhận được tiền: màn hình báo \code{PAY AT BOOTH} trong 30\,s; người vận hành có thể xác nhận tại UC04. Giao dịch đến muộn vẫn được chấp nhận nếu chưa có lượt thanh toán khác thay thế. \\ \hline
+Kết quả khi thành công & Phiên được giải phóng; nhật ký có bản ghi \code{OUT}; doanh thu tăng đúng bằng phí \\
 \end{ucspec}
 
 Hình~\ref{fig:seq-pay} là trình tự trao đổi giữa các thành phần trong quá trình thanh toán.
@@ -186,44 +129,40 @@ Hình~\ref{fig:seq-pay} là trình tự trao đổi giữa các thành phần tr
 \caption{Biểu đồ tuần tự thanh toán VietQR ở cổng ra}\label{fig:seq-pay}
 \end{figure}
 
-UC03 khác UC02 ở chỗ thanh chắn chỉ mở sau khi tiền đã được xác nhận, nên use case kéo dài từ
+UC03 khác UC02 ở chỗ thanh chắn chỉ mở sau khi tiền đã được xác nhận, nên ca sử dụng kéo dài từ
 lúc quẹt thẻ tới lúc giao dịch được đối soát. Theo Hình~\ref{fig:seq-pay}, phí được chốt ngay
 khi quẹt thẻ, nên thời gian chờ chuyển khoản không làm phí tăng thêm. Các luồng ngoại lệ tập
 trung vào việc tránh nhầm lẫn tiền giữa các xe và giữa các lần quẹt: quẹt lại thì hiển thị lại
-đúng mã cũ, xe sau phải chờ xe trước, và chỉ giao dịch đúng số tiền mới được chấp nhận. Khi đối
-soát tự động không hoàn tất trong 180\,s, use case chuyển sang UC04 để người vận hành xử lý.
+đúng mã cũ, xe sau phải chờ xe trước, và chỉ giao dịch đúng số tiền mới được chấp nhận. Khi người vận hành xác nhận tại quầy (UC04), máy chủ dùng lại mức phí đã chốt cho thẻ đó.
+Sau 180\,s, SePay vẫn được hỏi tiếp để giao dịch đến muộn có thể được nhận diện, trừ khi lượt
+thanh toán đã được thay thế bởi xe khác.
 Cách tính phí, cấu trúc mã VietQR và cơ chế đối soát được trình bày ở Mục~\ref{sec:f-fee} và
 Mục~\ref{sec:f-sepay}.
 
 \section{UC04. Xác nhận thanh toán tại quầy}\label{sec:uc04}
 Thanh toán tự động phụ thuộc vào Internet, dịch vụ SePay và việc người lái chuyển khoản đúng.
 Khi một trong các điều kiện này không thỏa mãn, hoặc khi người lái trả tiền mặt, bãi vẫn phải
-cho xe ra. Bảng~\ref{tab:uc04} đặc tả use case dành cho tình huống này.
+cho xe ra. Bảng~\ref{tab:uc04} đặc tả ca sử dụng dành cho tình huống này.
 
 \begin{ucspec}{Đặc tả UC04. Xác nhận thanh toán tại quầy}{tab:uc04}
 Tác nhân chính & Người vận hành \\ \hline
 Mục tiêu & Cho xe ra khi đã thu tiền bằng cách khác ngoài đối soát tự động \\ \hline
-Tiền điều kiện & Thẻ đang có phiên gửi xe; người vận hành biết mã PIN quản trị \\ \hline
-Kích hoạt & Người vận hành bấm \code{Confirm paid} tại xe trong danh sách hoặc tại băng rôn \code{WAITING FOR PAYMENT} \\ \hline
+Tiền điều kiện & Trang quản lý hiển thị yêu cầu thanh toán của thẻ; người vận hành có mã PIN quản trị \\ \hline
+Kích hoạt & Khách thanh toán tại quầy cho lượt xe đang chờ ra \\ \hline
 Luồng chính &
-\bul Người vận hành thu tiền mặt hoặc kiểm tra giao dịch trong ứng dụng ngân hàng.
-\bul Trang web gửi \code{POST /api/payment/confirm} kèm mã thẻ và mã PIN.
-\bul Máy chủ tính phí tới thời điểm xác nhận nếu xe chưa quẹt ra, hoặc dùng phí đã chốt nếu xe đang chờ thanh toán.
-\bul Máy chủ đóng phiên, ghi nhật ký \code{OUT}, cộng doanh thu, hiển thị hóa đơn và mở cổng ra. \\ \hline
-Luồng ngoại lệ &
+\par\noindent 1. Người vận hành đối chiếu mã thẻ và số tiền trên thông báo thanh toán đang chờ với tiền mặt đã nhận hoặc khoản chuyển đã kiểm tra.
+\par\noindent 2. Người vận hành chọn \code{Confirm paid}, xác nhận thao tác và nhập mã PIN nếu được yêu cầu.
+\par\noindent 3. Hệ thống ghi nhận mức phí đã chốt, đóng phiên, ghi lượt ra và phát lệnh mở cổng ra. \\ \hline
+Luồng thay thế và ngoại lệ &
 \bul Sai hoặc thiếu mã PIN: máy chủ trả mã 401, trang web yêu cầu nhập lại.
 \bul Thẻ không có phiên gửi xe: máy chủ trả lỗi, không có thay đổi. \\ \hline
-Hậu điều kiện & Như hậu điều kiện của UC03 \\
+Kết quả khi thành công & Phiên kết thúc, nhật ký có lượt ra, doanh thu tăng bằng phí đã xác nhận và hệ thống phát lệnh mở cổng ra \\
 \end{ucspec}
 
-Theo Bảng~\ref{tab:uc04}, UC04 đi qua đúng đường xử lý ra bãi của UC03 sau bước đối soát, nên
-hóa đơn, nhật ký và doanh thu nhất quán giữa hai cách thanh toán và một xe không thể ra hai lần.
-Trang web nhận lượt thanh toán đang chờ qua trường \code{payment} của \code{GET /api/rfid} để hiển
-thị băng rôn màu vàng gồm mã thẻ, phí và mã thanh toán. Việc yêu cầu mã PIN bảo đảm chỉ người có
-thẩm quyền mới cho được xe ra mà không qua đối soát tự động.
+Nút \code{Confirm paid} xuất hiện trên thông báo của lượt đang chờ thanh toán. Danh sách \code{INSIDE NOW} cung cấp thao tác xóa phiên ở UC10. Nếu hệ thống đã ghi nhận phí nhưng thanh chắn gặp lỗi cơ khí hoặc điều khiển, người vận hành cần kiểm tra cổng trước khi cho xe đi qua.
 
 \section{UC05. Điều khiển thanh chắn từ xa}\label{sec:uc05}
-Use case này cho phép người vận hành chủ động mở hoặc đóng thanh chắn, chẳng hạn khi cần cho xe
+Ca sử dụng này cho phép người vận hành chủ động mở hoặc đóng thanh chắn, chẳng hạn khi cần cho xe
 ưu tiên đi qua hoặc khi có sự cố với đầu đọc thẻ. Đặc tả được trình bày ở Bảng~\ref{tab:uc05}.
 
 \begin{ucspec}{Đặc tả UC05. Điều khiển thanh chắn từ xa}{tab:uc05}
@@ -232,44 +171,35 @@ Mục tiêu & Đưa một hoặc cả hai thanh chắn về trạng thái mong m
 Tiền điều kiện & Thiết bị của người vận hành ở cùng mạng Wi-Fi với máy chủ; có mã PIN quản trị \\ \hline
 Kích hoạt & Người vận hành bấm \code{OPEN} hoặc \code{CLOSE} của một cổng, hoặc nút khẩn cấp cho cả hai cổng \\ \hline
 Luồng chính &
-\bul Trang web gửi \code{POST /api/barrier/<cổng>/<lệnh>} kèm mã PIN và khóa nút tới khi có phản hồi.
-\bul Máy chủ hủy hẹn giờ tự đóng nếu có và đặt góc servo.
-\bul Trang web hiển thị trạng thái mới \code{OPEN} hoặc \code{CLOSED}. \\ \hline
-Luồng ngoại lệ &
+\par\noindent 1. Người vận hành chọn cổng vào, cổng ra hoặc cả hai cổng, rồi chọn lệnh mở hoặc đóng.
+\par\noindent 2. Hệ thống kiểm tra mã PIN. Với lệnh đóng, hệ thống kiểm tra điều kiện an toàn tại cổng.
+\par\noindent 3. Khi lệnh được chấp nhận, hệ thống điều khiển thanh chắn và trang quản lý cập nhật trạng thái. \\ \hline
+Luồng thay thế và ngoại lệ &
 \bul Sai hoặc thiếu mã PIN: máy chủ trả mã 401, trang web hỏi mã PIN.
 \bul Lệnh đóng khi xe còn trong cổng: máy chủ trả mã 409, trang web hiển thị \code{CAR IN GATE}, thanh chắn giữ mở.
 \bul Lệnh đóng khi đang có cháy: lệnh bị từ chối, thanh chắn giữ mở. \\ \hline
-Hậu điều kiện & Thanh chắn ở trạng thái người vận hành chọn, trừ khi việc đóng gây mất an toàn \\
+Kết quả khi thành công & Thanh chắn ở trạng thái người vận hành chọn, trừ khi việc đóng gây mất an toàn \\
 \end{ucspec}
 
 Như Bảng~\ref{tab:uc05} cho thấy, lệnh thủ công được ưu tiên hơn hẹn giờ tự động nhưng không
 được vượt qua hai điều kiện an toàn là xe trong cổng và cháy. Mã PIN được lưu trong trình duyệt
-sau lần nhập đầu tiên và được máy chủ so sánh theo thời gian không đổi, để thời gian phản hồi
-không làm lộ thông tin về mã PIN. Mã lỗi 409 riêng cho trường hợp xe trong cổng giúp người vận
+sau lần nhập đầu tiên và được gửi trong header \code{X-Parking-Key} của yêu cầu quản trị. Mã lỗi 409 riêng cho trường hợp xe trong cổng giúp người vận
 hành hiểu lý do lệnh bị từ chối thay vì nghĩ hệ thống gặp lỗi.
 
 \section{UC06. Báo cháy và mở lối thoát}\label{sec:uc06}
-Khi có cháy, hệ thống phải báo động và giải phóng lối ra mà không chờ người vận hành. Đặc tả
-được trình bày ở Bảng~\ref{tab:uc06}.
+Kịch bản an toàn AT01 bắt đầu khi hệ thống nhận tín hiệu cháy. Mục tiêu là cảnh báo người trong bãi và giải phóng cả hai lối để sơ tán.
 
 \begin{ucspec}{Đặc tả UC06. Báo cháy và mở lối thoát}{tab:uc06}
-Tác nhân chính & Sensor Client \\ \hline
-Tác nhân phụ & Người lái xe, Người vận hành \\ \hline
-Mục tiêu & Báo động tại chỗ và từ xa, giữ hai cổng mở để xe thoát ra \\ \hline
-Tiền điều kiện & Sensor Client đang gửi dữ liệu \\ \hline
-Kích hoạt & Cảm biến lửa phát hiện ngọn lửa ổn định trong 50\,ms \\ \hline
+Tác nhân & Người lái xe tại bãi và người vận hành. \\ \hline
+Tiền điều kiện & Nút cảm biến đang gửi dữ liệu cho máy chủ. \\ \hline
+Kích hoạt & Máy chủ nhận bản tin báo có lửa từ nút cảm biến. \\ \hline
 Luồng chính &
-\bul Sensor Client gửi ngay bản tin có \code{"fire":true}.
-\bul Máy chủ bật còi, mở và giữ mở cả hai thanh chắn.
-\bul Màn hình tại cổng chuyển sang giao diện \code{DANGER, FIRE DETECTED, EVACUATE NOW}; trang web hiển thị băng rôn đỏ.
-\bul Khi hết lửa, máy chủ tắt còi, đưa màn hình về bình thường và đóng hai thanh chắn khi làn trống. \\ \hline
-Luồng ngoại lệ &
-\bul Người vận hành ra lệnh đóng trong lúc cháy: lệnh bị từ chối.
-\bul Sensor Client mất kết nối trong lúc cháy: trạng thái cháy cuối cùng được giữ nguyên. \\ \hline
-Hậu điều kiện & Lối ra vào thông thoáng trong suốt thời gian có lửa \\
+\par\noindent 1. Hệ thống bật còi và hiển thị thông báo sơ tán trên màn hình tại cổng. Trang quản lý hiển thị cảnh báo cháy cho người vận hành.
+\par\noindent 2. Hệ thống mở và giữ mở cả hai thanh chắn để người lái xe có lối thoát. Trong thời gian báo cháy, lệnh đóng cổng bị từ chối.
+\par\noindent 3. Khi tín hiệu cháy hết, hệ thống kết thúc chế độ giữ mở. Mỗi thanh chắn chỉ hạ sau khi làn tương ứng trống liên tục 1\,s. \\ \hline
+Luồng thay thế và ngoại lệ & Nếu mất kết nối với nút cảm biến khi đang báo cháy, hệ thống giữ trạng thái cháy gần nhất. Nếu đồng thời có ngập, hai cổng vẫn được giữ mở để sơ tán; sau khi hết cháy, cảnh báo ngập tiếp tục theo UC07. \\ \hline
+Kết quả & Trong thời gian báo cháy, người lái xe nhận chỉ dẫn sơ tán, người vận hành nhận cảnh báo và hai lối được giữ mở. \\
 \end{ucspec}
-
-Hình~\ref{fig:seq-fire} là trình tự xử lý từ cảm biến lửa tới các thiết bị chấp hành.
 
 \begin{figure}[!htb]
 \centering
@@ -277,61 +207,44 @@ Hình~\ref{fig:seq-fire} là trình tự xử lý từ cảm biến lửa tới 
 \caption{Biểu đồ tuần tự cảnh báo cháy}\label{fig:seq-fire}
 \end{figure}
 
-Theo Hình~\ref{fig:seq-fire}, ngay khi nhận bản tin có cờ cháy, máy chủ bật còi và chuyển hai
-thanh chắn sang chế độ cháy, chế độ có ưu tiên cao nhất trong máy trạng thái ở
-Hình~\ref{fig:fsm-gate}. Tổng độ trễ từ lúc có lửa tới lúc còi kêu khoảng 60\,ms, chủ yếu do
-thời gian lọc nhiễu. Việc giữ nguyên trạng thái cháy khi mất kết nối là lựa chọn thiên về an
-toàn: hệ thống không tự đóng cổng khi không còn biết lửa đã tắt hay chưa.
-
 \section{UC07. Báo ngập và ngừng nhận xe}\label{sec:uc07}
-Use case này mô phỏng tình huống nước dâng trong tầng hầm. Mục tiêu là cảnh báo kịp thời và
-không để thêm xe đi vào vùng ngập, trong khi xe đang trong bãi vẫn ra được. Đặc tả được trình
-bày ở Bảng~\ref{tab:uc07}.
+Kịch bản an toàn AT02 hạn chế xe mới đi vào khu vực ngập. Xe đang gửi vẫn có thể làm thủ tục ra bãi.
 
 \begin{ucspec}{Đặc tả UC07. Báo ngập và ngừng nhận xe}{tab:uc07}
-Tác nhân chính & Sensor Client \\ \hline
-Tác nhân phụ & Người vận hành \\ \hline
-Mục tiêu & Báo động và không cho thêm xe vào khi mực nước vượt ngưỡng \\ \hline
-Tiền điều kiện & Sensor Client đang gửi dữ liệu \\ \hline
-Kích hoạt & Mực nước đo được đạt 20\,mm \\ \hline
+Tác nhân & Người lái xe tại bãi và người vận hành. \\ \hline
+Tiền điều kiện & Nút cảm biến đang gửi số đo mực nước cho máy chủ. \\ \hline
+Kích hoạt & Mực nước đo được đạt hoặc vượt 20\,mm. \\ \hline
 Luồng chính &
-\bul Máy chủ bật cảnh báo ngập: còi kêu, ô mực nước trên màn hình chuyển đỏ kèm dòng \code{FLOOD-NO ENTRY}, trang web hiển thị \code{FLOOD WARNING}.
-\bul Các lần quẹt thẻ ở cổng vào bị từ chối; các lần quẹt ở cổng ra vẫn được xử lý theo UC03.
-\bul Khi mực nước giảm xuống 15\,mm, máy chủ tắt cảnh báo và nhận xe trở lại. \\ \hline
-Luồng ngoại lệ &
-\bul Giá trị mực nước âm hoặc vượt 10\,000\,mm: bản tin bị từ chối, trạng thái cũ được giữ. \\ \hline
-Hậu điều kiện & Không có xe mới vào bãi trong thời gian ngập \\
+\par\noindent 1. Hệ thống bật còi. Màn hình tại cổng hiển thị cảnh báo ngập, mực nước và chỉ dẫn dừng nhận xe. Trang quản lý hiển thị cảnh báo cho người vận hành.
+\par\noindent 2. Hệ thống từ chối lượt quẹt thẻ vào. Xe trong bãi vẫn có thể ra theo UC03 hoặc UC04.
+\par\noindent 3. Khi mực nước giảm xuống 15\,mm hoặc thấp hơn, hệ thống xóa cảnh báo ngập và xét các lượt vào theo điều kiện thông thường của UC02. \\ \hline
+Luồng thay thế và ngoại lệ & Nếu mất dữ liệu cảm biến, hệ thống giữ trạng thái ngập gần nhất. Nếu phát hiện cháy trong thời gian ngập, thanh chắn chuyển sang chế độ mở lối thoát của UC06. \\ \hline
+Kết quả & Người lái xe và người vận hành nhận được cảnh báo. Trong thời gian ngập, lượt quẹt thẻ vào không tạo phiên gửi xe mới. \\
 \end{ucspec}
 
-UC07 chỉ chặn chiều vào: xe đang trong bãi vẫn ra được theo UC03 để rời khỏi vùng ngập.
-Ngưỡng bật 20\,mm và ngưỡng tắt 15\,mm khác nhau để cảnh báo không bật tắt liên tục khi mực nước
-dao động quanh một ngưỡng; cách quy đổi giá trị cảm biến sang milimét được trình bày ở
-Mục~\ref{sec:f-env}.
-
 \section{UC08. Xem tình trạng bãi trên trang web}\label{sec:uc08}
-Use case này cho phép người vận hành nắm được toàn bộ trạng thái của bãi mà không cần có mặt tại
+Ca sử dụng này cho phép người vận hành nắm được toàn bộ trạng thái của bãi mà không cần có mặt tại
 cổng. Đặc tả được trình bày ở Bảng~\ref{tab:uc08}.
 
 \begin{ucspec}{Đặc tả UC08. Xem tình trạng bãi trên trang web}{tab:uc08}
 Tác nhân chính & Người vận hành \\ \hline
-Tác nhân phụ & Sensor Client, RFID Client \\ \hline
 Mục tiêu & Biết trạng thái ô đỗ, nhiệt độ, mực nước, cảm biến lửa và thanh chắn từ xa \\ \hline
 Tiền điều kiện & Thiết bị của người vận hành ở cùng mạng Wi-Fi với máy chủ \\ \hline
 Kích hoạt & Người vận hành mở trang \code{parking.local} \\ \hline
 Luồng chính &
-\bul Thiết bị phân giải tên bằng mDNS và tải trang web nhúng trong firmware.
-\bul Trang web gọi \code{GET /api/parking} mỗi giây và \code{GET /api/barrier} khi mở trang.
-\bul Trang web vẽ sơ đồ năm ô đỗ, số chỗ trống, nhiệt độ, mực nước, trạng thái lửa và hai thanh chắn. \\ \hline
-Luồng ngoại lệ &
+\par\noindent 1. Người vận hành mở trang quản lý trên thiết bị cùng mạng với bãi xe.
+\par\noindent 2. Trang hiển thị sơ đồ năm ô đỗ, số chỗ trống, nhiệt độ, mực nước, trạng thái cháy và thông tin thanh chắn.
+\par\noindent 3. Người vận hành xem vị trí có xe và các cảnh báo đang hiển thị để quyết định có cần kiểm tra tại chỗ. \\ \hline
+Luồng thay thế và ngoại lệ &
 \bul Sensor Client mất kết nối quá 3\,s: trang web báo \code{SENSOR OFFLINE} và làm mờ sơ đồ bãi.
 \bul Máy chủ mất kết nối: trang web chuyển từ \code{ESP32 / ONLINE} sang \code{OFFLINE}.
 \bul Thiết bị không hỗ trợ mDNS: người vận hành dùng địa chỉ IP của máy chủ. \\ \hline
-Hậu điều kiện & Thông tin trên trang web trễ không quá khoảng 1\,s so với thực tế \\
+Kết quả khi thành công & Trình duyệt hiển thị dữ liệu của lần truy vấn thành công gần nhất \\
 \end{ucspec}
 
 Hình~\ref{fig:web-status} là ảnh chụp phần đầu trang web khi bãi có hai xe.
 
-\begin{figure}[!htb]
+\begin{figure}[H]
 \centering
 \includegraphics[width=0.9\linewidth]{photos/web_status.png}
 \caption{Trang web quản lý: sơ đồ bãi và điều khiển thanh chắn}\label{fig:web-status}
@@ -339,52 +252,38 @@ Hình~\ref{fig:web-status} là ảnh chụp phần đầu trang web khi bãi có
 
 Trong Hình~\ref{fig:web-status}, phần chính là sơ đồ năm ô đỗ theo đúng bố cục của mô hình, với
 làn xe, hướng vào và hướng ra; ô có xe được vẽ hình xe màu đỏ, ô trống hiện chữ P màu xanh. Ba ô
-số ở góc trên phải cho biết số chỗ trống, số chỗ có xe và tổng số chỗ, trùng khớp với màn hình
-TFT cùng thời điểm ở Hình~\ref{fig:tft-live}. Phần dưới là các nút điều khiển của UC05.
+số ở góc trên phải cho biết số chỗ trống, số chỗ có xe và tổng số chỗ. Phần dưới là các nút điều khiển của UC05.
 
-Trang web được viết bằng HTML, CSS và JavaScript thuần, dùng phương pháp hỏi vòng thay vì
+Trang web được viết bằng HTML, CSS và JavaScript thuần, dùng truy vấn định kỳ thay vì
 WebSocket để máy chủ không phải giữ trạng thái kết nối cho mỗi trình duyệt. Nhiệt độ hiển thị
 trên trang do RFID Client đo như trình bày ở Mục~\ref{sec:f-env}.
 
 \section{UC09. Tra cứu nhật ký và doanh thu}\label{sec:uc09}
-Use case này cung cấp cho người vận hành công cụ đối soát lượt xe và tiền thu được. Đặc tả được
-trình bày ở Bảng~\ref{tab:uc09}.
+Khi đối chiếu tiền thu, người vận hành kiểm tra từng lượt xe trong nhật ký và xem doanh thu tổng hợp theo kỳ.
 
 \begin{ucspec}{Đặc tả UC09. Tra cứu nhật ký và doanh thu}{tab:uc09}
-Tác nhân chính & Người vận hành \\ \hline
-Mục tiêu & Đối soát xe đang trong bãi, các sự kiện gần nhất và doanh thu \\ \hline
-Tiền điều kiện & Thiết bị của người vận hành ở cùng mạng Wi-Fi với máy chủ \\ \hline
-Kích hoạt & Người vận hành mở phần nhật ký trên trang web \\ \hline
+Tác nhân chính & Người vận hành. \\ \hline
+Mục tiêu & Kiểm tra kết quả một lượt quẹt và đối chiếu số tiền đã ghi nhận trong ngày hoặc trong bảy ngày gần nhất. \\ \hline
+Tiền điều kiện & Trang quản lý truy cập được máy chủ. Đồng hồ cần được đồng bộ để các khoản thu được xếp đúng ngày. \\ \hline
+Kích hoạt & Người vận hành cần giải thích một lượt vào, ra hoặc đối chiếu tiền thu. \\ \hline
 Luồng chính &
-\bul Trang web gọi \code{GET /api/rfid} mỗi 2\,s.
-\bul Máy chủ trả đơn giá, danh sách xe trong bãi kèm giờ vào và phí tạm tính, 10 sự kiện gần nhất và doanh thu.
-\bul Trang web hiển thị doanh thu, số lượt vào và ra trong ngày và trong 7 ngày gần nhất. \\ \hline
-Luồng ngoại lệ &
-\bul Máy chủ vừa khởi động lại sau mất điện: dữ liệu được khôi phục từ flash; khi trình duyệt gửi giờ thực, các mốc thời gian được hiệu chỉnh và thời gian mất điện được bù. \\ \hline
-Hậu điều kiện & Người vận hành có số liệu để đối chiếu với tiền thực thu \\
+\par\noindent 1. Trong bảng \code{RECENT EVENTS}, người vận hành đối chiếu mã thẻ, thời điểm và loại sự kiện. Dòng ghi nhận lượt ra thành công có thêm thời gian gửi và phí.
+\par\noindent 2. Người vận hành xem \code{TODAY} hoặc \code{LAST 7 DAYS} để đọc tổng doanh thu, số lượt vào và số lượt ra của kỳ tương ứng. \\ \hline
+Luồng thay thế và ngoại lệ & Khi nhật ký trống, bảng hiển thị \code{No card scans yet}. Nhật ký chỉ hiển thị tối đa 10 sự kiện gần nhất. Doanh thu theo kỳ được tổng hợp từ các bộ đếm theo ngày nên vẫn bao gồm những lượt ra đã rời khỏi nhật ký. \\ \hline
+Kết quả & Người vận hành có thông tin để kiểm tra lượt xe và đối chiếu doanh thu với tiền thực thu. \\
 \end{ucspec}
 
-Hình~\ref{fig:web-log} là phần trang web tương ứng với use case này.
-
-\begin{figure}[!htb]
+\begin{figure}[H]
 \centering
 \includegraphics[width=\linewidth]{photos/web_log.png}
 \caption{Trang web quản lý: cảm biến, doanh thu và nhật ký vào ra}\label{fig:web-log}
 \end{figure}
 
-Hình~\ref{fig:web-log} gồm bốn khối. Khối cảm biến hiển thị nhiệt độ, mực nước và trạng thái
-cảm biến lửa. Khối doanh thu cho biết tổng tiền, số lượt vào và số lượt ra trong ngày theo giờ
-Việt Nam và trong 7 ngày gần nhất. Bảng \code{INSIDE NOW} liệt kê các xe đang trong bãi; bảng
-\code{RECENT EVENTS} liệt kê 10 sự kiện gần nhất gồm xe vào, xe ra kèm thời lượng và phí, và các
-lần quẹt bị từ chối.
-
-Số liệu của UC09 phải tồn tại qua các lần mất điện, nếu không doanh thu sẽ không khớp với tiền
-thực thu; cơ chế lưu trữ và hiệu chỉnh thời gian được trình bày ở Mục~\ref{sec:f-storage}.
-
 \section{UC10. Hiệu chỉnh danh sách xe trong bãi}\label{sec:uc10}
-Trong vận hành thực tế, danh sách xe trong bãi có thể lệch với thực tế, chẳng hạn khi xe đã rời
-bãi trong lúc sơ tán cháy mà không quẹt thẻ ra, hoặc khi khách làm mất thẻ. Use case này cho phép
-người vận hành sửa danh sách; đặc tả được trình bày ở Bảng~\ref{tab:uc10}.
+Trong vận hành, danh sách phiên có thể không còn khớp thực tế, chẳng hạn xe rời bãi khi sơ tán
+mà không quẹt thẻ ra hoặc khách làm mất thẻ. Ca sử dụng này cho phép người vận hành gỡ phiên xe
+khỏi danh sách; thao tác không tự điều khiển thanh chắn. Đặc tả được trình bày ở
+Bảng~\ref{tab:uc10}.
 
 \begin{ucspec}{Đặc tả UC10. Hiệu chỉnh danh sách xe trong bãi}{tab:uc10}
 Tác nhân chính & Người vận hành \\ \hline
@@ -392,17 +291,17 @@ Mục tiêu & Xóa một xe không còn trong bãi khỏi danh sách \\ \hline
 Tiền điều kiện & Xe có trong danh sách \code{INSIDE NOW}; người vận hành có mã PIN quản trị \\ \hline
 Kích hoạt & Người vận hành bấm \code{Delete} ở dòng của xe và xác nhận \\ \hline
 Luồng chính &
-\bul Trang web gửi \code{POST /api/rfid/remove} kèm mã thẻ và mã PIN.
-\bul Máy chủ xóa phiên của thẻ và hủy lượt thanh toán đang chờ của xe đó nếu có.
-\bul Danh sách được lưu lại vào flash; trang web cập nhật bảng \code{INSIDE NOW}. \\ \hline
-Luồng ngoại lệ &
+\par\noindent 1. Người vận hành tìm đúng mã thẻ trong bảng \code{INSIDE NOW}, chọn \code{Delete} và xác nhận.
+\par\noindent 2. Sau khi kiểm tra PIN, hệ thống xóa phiên và hủy yêu cầu thanh toán còn chờ của thẻ đó, nếu có.
+\par\noindent 3. Trang quản lý cập nhật danh sách. Người vận hành kiểm tra mã thẻ đã được gỡ. \\ \hline
+Luồng thay thế và ngoại lệ &
 \bul Thẻ không có trong danh sách: máy chủ trả mã 404.
 \bul Sai hoặc thiếu mã PIN: máy chủ trả mã 401. \\ \hline
-Hậu điều kiện & Thẻ có thể dùng để gửi xe lại; không có phí, hóa đơn hay thay đổi doanh thu; thanh chắn không chuyển động \\
+Kết quả khi thành công & Thẻ có thể dùng để gửi xe lại; không có phí, hóa đơn hay thay đổi doanh thu; thanh chắn không chuyển động \\
 \end{ucspec}
 
-Theo Bảng~\ref{tab:uc10}, thao tác xóa được thiết kế khác hẳn UC04: không tính phí và không mở
-thanh chắn, vì mục đích là sửa dữ liệu chứ không phải cho xe ra. Sau khi xóa, số thẻ trong bãi
-khớp lại với số ô có xe theo cảm biến, nên cảnh báo xe không quẹt thẻ của UC02 và điều kiện bãi
-đầy được tính đúng trở lại. Do thao tác không để lại dấu vết trong nhật ký, việc yêu cầu mã PIN
-là bắt buộc.
+Theo Bảng~\ref{tab:uc10}, thao tác này không tính phí, không tạo hóa đơn và không mở thanh chắn;
+khác với UC04, đây là thao tác quản lý phiên chứ không phải quy trình cho xe ra. Khi phiên không
+còn trong danh sách, số thẻ đang gửi xe được tính lại và cảnh báo xe không quẹt thẻ của UC02 có
+thể được xóa nếu số đếm đã khớp. Thao tác không ghi sự kiện vào nhật ký, vì vậy máy chủ yêu cầu
+mã PIN quản trị.

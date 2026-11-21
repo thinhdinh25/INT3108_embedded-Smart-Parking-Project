@@ -120,8 +120,8 @@ these for your sensor.
 
 | Device | RFID Client pin |
 | --- | --- |
-| RC522 #1 (entry) SDA/SS | GPIO4 (D2) |
-| RC522 #2 (exit) SDA/SS | GPIO5 (D1) |
+| RC522 #1 (entry) SDA/SS | GPIO5 (D1) |
+| RC522 #2 (exit) SDA/SS | GPIO4 (D2) |
 | RC522 RST (shared) | GPIO16 (D0) |
 | RC522 SCK / MOSI / MISO | GPIO14 / GPIO13 / GPIO12 (hardware SPI) |
 | DHT11 data | GPIO2 (D4) |
@@ -227,60 +227,166 @@ A second car scanning out while one is paying sees `PLEASE WAIT`. The exit
 barrier never opens on a scan alone: with no account set the TFT shows
 `PAY AT BOOTH` and only *Confirm paid* (or a manual barrier command) opens it.
 
-## Setup and run
+## Setup and run on Windows
 
-### 1. Server (ESP32-C3)
+This section takes you from a fresh Windows setup to running the firmware. You
+can test the dashboard with the UDP simulator before wiring the ESP8266 clients;
+follow step 5 as well when you are ready to test the real sensors and RFID readers.
 
-Install ESP-IDF 6.1 with the ESP32-C3 toolchain. From the repository root (the
-root `CMakeLists.txt` points at `Server/main`). The first build downloads the
-`espressif/mdns` and `espressif/qrcode` components. Fill in the Wi-Fi and
-payment settings with `idf.py menuconfig` first:
+### 1. Prepare your computer and hardware
 
-```sh
-idf.py set-target esp32c3
-idf.py build
-idf.py -p PORT flash monitor
-```
+- One **ESP32-C3 SuperMini** board for the server and a USB data cable (not a
+  charge-only cable). If Windows does not show a COM port, install the USB-to-UART
+  driver for your board (commonly CH340 or CP210x), then reconnect it.
+- Optional: two ESP8266 boards (NodeMCU/Wemos), sensors, and the devices listed
+  in [Hardware connections](#hardware-connections). Check the pinout before
+  powering anything; do not power servos from the ESP32 3V3 pin.
+- Windows 10/11 64-bit, permission to install software, and an Internet
+  connection. Keep the repository path short and without special characters,
+  for example `C:\src\smart-parking`.
 
-### 2. Clients (ESP8266)
+### 2. Install ESP-IDF 6.1 and flash the ESP32-C3 server
 
-In Arduino IDE install the ESP8266 core, then the `MFRC522` and
-`DHT sensor library` libraries for the RFID Client. Open
-`SensorClient/SensorClient.ino` and `RFIDClient/RFIDClient.ino`, select the
-ESP8266 board and port, and upload. After the
-first upload, both sketches can be updated over the network with ArduinoOTA.
+1. Install **Espressif Installation Manager (EIM)** using the
+   [official ESP32-C3 Windows guide](https://docs.espressif.com/projects/esp-idf/en/v6.1.1/esp32c3/get-started/windows-setup.html).
+   In EIM, choose **Custom Installation** and install ESP-IDF **v6.1.x** (this
+   repository uses ESP-IDF 6.1), the `esp32c3` target, and the recommended
+   compiler/toolchain, CMake, Ninja, Python, and drivers. Wait for EIM to finish;
+   you do not need to install Python or a compiler separately if EIM installed them.
+2. Open the **ESP-IDF 6.1 PowerShell** or **ESP-IDF Terminal** shortcut created
+   by EIM. This terminal configures `idf.py`; a regular PowerShell window may not
+   recognize the command.
+3. Change to the repository root, replacing the example path with your own:
 
-### 3. Use
+   ```powershell
+   cd C:\src\smart-parking
+   idf.py --version
+   ```
 
-Power the boards in any order; they join the shared Wi-Fi and reconnect on
-their own. Join the same Wi-Fi from a phone or laptop and open
-`http://parking.local`. Scan a card on the entry reader to enter and on the
-exit reader to leave and see the fee.
+   The version command should report ESP-IDF v6.1.x. Connect the ESP32-C3 over
+   USB and find its port in Device Manager → **Ports (COM & LPT)**, for example
+   `COM5`.
+4. Configure the server Wi-Fi and admin PIN:
 
-Without the clients, simulate them from a computer on the same Wi-Fi (they
-broadcast by default; add `--host <server IP>` if your network drops broadcasts):
+   ```powershell
+   idf.py -C Server menuconfig
+   ```
 
-```sh
+   Under `Parking network and security`, set the SSID, password, and admin PIN.
+   If you only want to test the hardware and dashboard, clear the receiving
+   account (VA) and token under `Parking QR payment (SePay)`; payments can then
+   be confirmed manually. Enter your own bank account and SePay token only if you
+   want automatic QR payment checking. The token is stored locally in
+   `Server/sdkconfig`; do not share or commit that file. Save and exit menuconfig.
+   The configuration is saved in `Server/sdkconfig`.
+5. Build and flash the firmware, replacing `COM5` with your port:
+
+   ```powershell
+   idf.py -C Server set-target esp32c3
+   idf.py -C Server build
+   idf.py -C Server -p COM5 flash monitor
+   ```
+
+   The first build downloads the `espressif/mdns` and `espressif/qrcode`
+   components, so it needs Internet access and may take a few minutes. If
+   prompted to select a port, enter the board's COM port. The monitor displays
+   serial logs at 115200 baud; press `Ctrl+]` to exit. The `Web interface:
+   http://...` log line shows the server IP. If flashing times out, hold **BOOT**,
+   press and release **RESET**, then release **BOOT** when the connection starts
+   and retry. Close any other app that is using the COM port before flashing.
+
+### 3. Connect to Wi-Fi and check the server
+
+The server and both clients must join the same **2.4 GHz Wi-Fi** network. A phone
+hotspot works; disable guest/AP isolation so devices on the network can reach one
+another. If you change the network name or password, update it on the server and
+both clients.
+
+On a computer or phone connected to the same Wi-Fi, open the server IP shown in
+the serial log as `http://...`. You can also try `http://parking.local` if your
+device supports mDNS. Once the dashboard loads, open a second PowerShell window
+and send simulated UDP messages (install Python 3 first if needed):
+
+```powershell
+cd C:\src\smart-parking
 python examples/udp_sender.py --slots 1,0,0,1,0
 python examples/udp_rfid_sender.py A1B2C3D4 --gate in
 python examples/udp_rfid_sender.py A1B2C3D4 --gate out
-python examples/udp_sender.py --slots 1,0,0,1,0 --fire
 ```
 
-The RFID simulator uses a random `seq` per run, so it can run next to the real
-RFID Client.
+The dashboard and TFT should show the parking update and card events. If your
+network blocks broadcast traffic, add `--host <server-IP>` to the relevant
+command. To trigger the fire alarm, run
+`python examples/udp_sender.py --slots 1,0,0,1,0 --fire`; send it again without
+`--fire` to clear the alarm. Dashboard controls require the admin PIN configured
+in step 2.
 
-### 4. Tests (no hardware needed)
+### 4. Flash the ESP8266 clients with Arduino IDE
+
+1. Install Arduino IDE 2 from the [official download page](https://www.arduino.cc/en/software).
+   In **File → Preferences → Additional boards manager URLs**, add the official
+   ESP8266 package URL:
+   `https://arduino.esp8266.com/stable/package_esp8266com_index.json`.
+2. Open **Tools → Board → Boards Manager**, search for `esp8266`, and install
+   **esp8266 by ESP8266 Community**. In **Sketch → Include Library → Manage
+   Libraries**, install **MFRC522** and **DHT sensor library** (Adafruit). Accept
+   any dependency installation prompt for the DHT library.
+3. In both `SensorClient` and `RFIDClient`, copy `secrets.example.h` to
+   `secrets.h` and set `WIFI_SSID` and `WIFI_PASSWORD` to the network from step 3.
+   Git ignores `secrets.h`; keep your personal password out of the example file.
+4. Open `SensorClient/SensorClient.ino` and `RFIDClient/RFIDClient.ino` one at a
+   time. Under **Tools → Board → ESP8266 Boards**, choose the board matching your
+   hardware (commonly NodeMCU 1.0 or LOLIN(WEMOS) D1 mini). Select the correct
+   **Tools → Port → COMx** and click **Upload**. If upload fails, close Serial
+   Monitor and check the driver and USB cable.
+5. Wire the sensors using the pin tables under Hardware connections before
+   powering the boards. In Serial Monitor, select 115200 baud to see Wi-Fi/IP
+   status and firmware output. After the first upload, OTA works when the
+   computer and ESP8266 are on the same network; select the network port named
+   `*_at_<IP>` in Arduino IDE.
+
+### 5. Test the complete system
+
+Power the server and both clients, then open the dashboard from a device on the
+same Wi-Fi. Cover each IR sensor to check that the corresponding parking slot
+changes. Scan a card at the IN reader to record entry, then scan the same card
+at the OUT reader to see the fee and payment flow. Test the fire and water
+alarms safely. The default water thresholds trigger at 20 mm and clear at 15 mm;
+calibrate the water sensor constants in `SensorClient/SensorClient.ino` for your
+hardware. To operate the servos, use a separate 5 V supply with a shared ground,
+as described in the wiring instructions.
+
+### Troubleshooting
+
+- **`idf.py` is not recognized:** open the ESP-IDF terminal shortcut from EIM,
+  not a regular PowerShell window; check with `idf.py --version`.
+- **No COM port appears:** try a USB data cable, install the correct CH340/CP210x
+  driver, change USB ports, and check Device Manager.
+- **Flash timeout / failed to connect:** close Serial Monitor or Arduino IDE if
+  it is using the port; try the BOOT/RESET sequence above. Check the COM port and
+  `esp32c3` target.
+- **Wi-Fi does not connect:** verify the SSID/password, use 2.4 GHz Wi-Fi, and
+  avoid captive portals; ESP8266 and ESP32-C3 do not support 5 GHz.
+- **Dashboard loads but sensor updates do not arrive:** make sure all devices
+  are on the same network, disable AP/client isolation, and allow UDP port 3333
+  through Windows Firewall. Use `--host` with the server IP to rule out a
+  broadcast issue.
+- **`parking.local` does not resolve:** use the server IP from the serial log;
+  `.local` depends on mDNS support in your operating system and network.
+- **RFID does not read cards:** check the 3.3 V supply and SPI/SS/RST wiring
+  against the pin table, then check the RC522 version printed in Serial Monitor.
+
+### Run firmware checks without hardware
+
+On Windows, host tests require a C/C++ toolchain with Make (for example,
+MSYS2/MinGW). This is optional and is not needed to flash the ESP32:
 
 ```sh
 make -C tests
 ```
 
-Runs 397 checks on the host: VietQR payload (checked against a published
-sample) and SePay response matching, the server JSON parsers, RFID sessions/fees/log/
-notices/persistence/clock/flood/offline/revenue stats/retry dedupe/QR payment, the animation frame data, and both ESP8266 sketches
-compiled against a fake Arduino layer (`tests/arduino/`), with every client
-packet parsed by the real server code.
+The test suite runs 397 checks covering parsers, RFID/payment/persistence flows,
+animation data, and both ESP8266 sketches compiled against a fake Arduino layer.
 
 ## Repository layout
 

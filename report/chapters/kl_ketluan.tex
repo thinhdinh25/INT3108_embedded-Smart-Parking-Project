@@ -5,7 +5,7 @@
 khiển phối hợp qua Wi-Fi. Máy chủ ESP32-C3 chạy FreeRTOS quản lý phiên gửi xe, tính phí, điều
 khiển hai thanh chắn có cảm biến chống hạ xuống thân xe, hiển thị trên màn hình TFT và phục vụ
 trang web quản lý; Sensor Client và RFID Client dùng ESP8266 thu thập trạng thái ô đỗ, cháy, mực nước, nhiệt độ và sự
-kiện quẹt thẻ. Cả 10 use case, từ gửi xe, thanh toán tới xử lý sự cố và quản lý bãi, đều được hiện thực và kiểm chứng; người lái thanh toán bằng mã
+kiện quẹt thẻ. Chương~\ref{chap:hienthuc} mô tả 10 ca sử dụng, trong đó UC06 xử lý cháy và mở lối thoát, UC07 xử lý ngập và ngừng nhận xe. Trong luồng lấy xe tự phục vụ, người lái thanh toán bằng mã
 VietQR với số tiền cố định, hệ thống tự đối soát giao dịch qua SePay trước khi mở cổng ra.
 
 Về mặt học thuật, đề tài vận dụng các kiến thức trọng tâm của môn học: lập trình đa tác vụ và
@@ -13,3 +13,5 @@ Về mặt học thuật, đề tài vận dụng các kiến thức trọng tâ
 như PWM, SPI có DMA, ADC, thiết kế nguồn và ghép nối mức logic giữa các linh kiện, giao tiếp
 mạng không dây với cơ chế tin cậy ở tầng ứng dụng, quản lý bộ nhớ hạn chế, và kiểm thử phần
 mềm nhúng không cần phần cứng với 439 phép kiểm tra tự động.
+
+Mô hình có năm ô đỗ. Cảm biến hồng ngoại cho biết ô nào đang có xe, còn thẻ RFID xác định phiên gửi xe. Hệ thống so sánh hai số đếm để phát hiện chênh lệch, nhưng chưa xác định được thẻ nào ứng với xe ở một ô cụ thể.

@@ -359,7 +359,7 @@ static void draw_parking_screen(const parking_state_t *state, int free_count,
     fill_rect(0, 0, width, height, COLOR_BG);
     fill_rect(0, 0, width, 4, COLOR_TEAL);
 
-    draw_text(12, 11, "PARKSENSE", 2, COLOR_WHITE);
+    draw_text(12, 11, "PARKSENSOR", 2, COLOR_WHITE);
     /* Status tag: flood matters most; a silent sensor means the bays below are stale. */
     if (state->flood)
         draw_text(150, 15, "FLOOD-NO ENTRY", 1, COLOR_RED);

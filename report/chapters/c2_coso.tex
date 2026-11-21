@@ -8,9 +8,7 @@ hiện một nhóm chức năng cố định, chạy liên tục với tài nguy
 với thế giới thực qua cảm biến và cơ cấu chấp hành. Thành phần trung tâm là vi điều khiển,
 tích hợp CPU, bộ nhớ và các khối ngoại vi như GPIO, bộ định thời, PWM, SPI, ADC và Wi-Fi trên
 cùng một chip. Một hệ thống nhúng được gọi là thời gian thực khi tính đúng đắn phụ thuộc cả
-vào thời điểm có kết quả. Trong đề tài, thanh chắn phải đóng đúng thời hạn, cảnh báo cháy
-phải mở thanh chắn ngay và màn hình phải phản ánh chỗ trống gần như tức thời. Đây là các
-ràng buộc thời gian mềm: trễ một chút không gây hỏng hóc nhưng làm giảm chất lượng dịch vụ.
+vào thời điểm có kết quả. Trong đề tài, firmware dùng bộ hẹn giờ cho thanh chắn, cơ chế thông báo tác vụ cho màn hình và bộ lọc theo thời gian cho đầu vào cảm biến.
 
 FreeRTOS là nhân hệ điều hành thời gian thực mã nguồn mở được Espressif tích hợp sẵn trong
 ESP-IDF. Mỗi công việc được tổ chức thành một tác vụ có ngăn xếp và mức ưu tiên riêng; bộ
@@ -21,52 +19,18 @@ mutex cho tài nguyên bị chiếm giữ lâu như bus SPI, và thông báo tá
 như cơ chế đánh thức nhẹ nhất giữa hai tác vụ. Ngoài ra, bộ hẹn giờ \code{esp\_timer} cho
 phép gọi một hàm sau một khoảng thời gian với độ phân giải micro giây.
 
-Máy chủ của hệ thống phải đồng thời nhận gói tin, phục vụ trang web, vẽ màn hình và điều
-khiển thanh chắn; nếu viết trong một vòng lặp duy nhất, một thao tác chậm như vẽ toàn màn
-hình (khoảng 23\,ms) sẽ làm trễ mọi việc khác. FreeRTOS cho phép việc quan trọng như điều
-khiển cổng luôn được thực thi trước việc trang trí như ảnh động. Ngược lại, Sensor Client và
-RFID Client chỉ thực hiện tuần tự vài thao tác ngắn, nên một vòng lặp không chặn trên nền Arduino là đủ
-và đơn giản hơn.
+\subsection{Vì sao máy chủ bãi xe sử dụng FreeRTOS}
+Trên ESP32-C3, việc nhận cảnh báo cháy và việc chờ xác nhận thanh toán có yêu cầu khác nhau. Máy chủ cần xử lý bản tin cảm biến ngay cả khi một yêu cầu HTTPS tới SePay đang chờ phản hồi. Trong firmware, yêu cầu HTTPS có thời hạn chờ cấu hình là 8\,000\,ms. Nếu gọi yêu cầu này trong cùng một vòng lặp tuần tự với việc nhận bản tin, bước xử lý bản tin tiếp theo sẽ phải đợi lời gọi mạng trả về.
+
+FreeRTOS cho phép tách hai công việc thành hai tác vụ. Tác vụ \code{sepay} chạy ở mức ưu tiên 3. Khi tác vụ này bị chặn để chờ mạng, bộ lập lịch có thể chuyển CPU cho tác vụ khác. Tác vụ \code{udp\_server} chạy ở mức ưu tiên 5: khi bản tin cảm biến đến và tác vụ sẵn sàng, nó được ưu tiên hơn tác vụ thanh toán. Nhờ cách tổ chức này, việc tiếp nhận và xử lý tín hiệu cháy không phụ thuộc vào thời điểm SePay trả lời.
+
+Việc chia tác vụ cũng đặt ra yêu cầu phối hợp khi hiển thị. Sau khi cập nhật trạng thái bãi, tác vụ nhận bản tin gửi thông báo đánh thức tác vụ màn hình. Tác vụ hiển thị trạng thái và tác vụ vẽ ảnh động dùng chung một mutex để mỗi lần chỉ một tác vụ gửi dữ liệu tới màn hình. Trên hai nút ESP8266, mã ứng dụng đọc ngoại vi và gửi dữ liệu trong hàm \code{loop()} của Arduino.
 
 \section{Vi điều khiển}
-Hệ thống gồm ba thiết bị: máy chủ dùng ESP32-C3, Sensor Client và RFID Client dùng ESP8266.
-Bảng~\ref{tab:mcu} so sánh ESP32-C3, được chọn cho máy chủ, với các phương án thường gặp.
-
-\begin{table}[!htb]
-\centering\small
-\caption{So sánh các phương án vi điều khiển}\label{tab:mcu}
-\begin{tabularx}{\linewidth}{|l|>{\raggedright\arraybackslash}X|>{\raggedright\arraybackslash}X|>{\raggedright\arraybackslash}X|>{\raggedright\arraybackslash}X|}
-\hline
-\hd Tiêu chí & \hd ESP32-C3 & \hd ESP32 & \hd ESP8266 & \hd Arduino Uno \\ \hline
-CPU & RISC-V 160\,MHz & 2 nhân 240\,MHz & Xtensa 80\,MHz & AVR 16\,MHz \\ \hline
-SRAM & 400\,KB & 520\,KB & Khoảng 80\,KB & 2\,KB \\ \hline
-Wi-Fi & Có & Có & Có & Không \\ \hline
-PWM phần cứng & LEDC 14 bit & LEDC & PWM mềm & 8 bit \\ \hline
-SPI có DMA & Có & Có & Hạn chế & Không \\ \hline
-RTOS chính thức & FreeRTOS & FreeRTOS & Hạn chế & Không \\
-\hline
-\end{tabularx}
-\end{table}
-
-Phân tích trong Bảng~\ref{tab:mcu} cho thấy yếu tố quyết định là bộ nhớ: riêng ảnh màn hình
-$240\times240$ điểm, mỗi điểm 16 bit, đã cần $115\,200$ byte RAM, lớn hơn toàn bộ RAM của
-ESP8266 hay Arduino Uno. ESP32-C3 SuperMini có đủ RAM, có DMA cho SPI để CPU không phải chờ
-khi truyền ảnh, có khối PWM phần cứng giữ xung servo ổn định khi CPU bận xử lý mạng, và được
-hỗ trợ chính thức bởi ESP-IDF cùng FreeRTOS. So với ESP32 bản gốc, ESP32-C3 rẻ và nhỏ hơn
-($22\times18$\,mm) trong khi một nhân 160\,MHz vẫn dư năng lực cho bài toán.
-
-Sensor Client và RFID Client dùng ESP8266 vì nhiệm vụ của chúng đơn giản: đọc cảm biến hoặc
-đầu đọc thẻ rồi gửi bản tin ngắn qua Wi-Fi. ESP8266 có giá thấp, phổ biến và có sẵn thư viện
-cho RC522 và DHT11. Hệ thống được tách thành ba thiết bị theo vị trí lắp đặt: đầu đọc thẻ đặt
-tại cổng, cảm biến ô đỗ và cảm biến môi trường phân bố trong bãi, còn máy chủ đặt tại vị trí
-điều hành. Mỗi client nằm gần nhóm cảm biến của nó nên dây tín hiệu ngắn, các thiết bị chỉ liên
-lạc với nhau qua Wi-Fi, và khi mở rộng bãi chỉ cần bổ sung client mà không phải kéo thêm dây
-về máy chủ.
+Máy chủ dùng ESP32-C3. Bộ điều khiển LEDC tạo xung PWM cho hai servo; SPI2 truyền dữ liệu tới màn hình ST7789. Bộ đệm khung hình RGB565 có $240\times240\times2 = 115\,200$ byte. Hai nút ESP8266 đảm nhiệm hai nhóm đầu vào: Sensor Client đọc năm cảm biến ô đỗ, cảm biến lửa và mực nước; RFID Client đọc hai đầu MFRC522 và nhiệt độ từ DHT11.
 
 \section{Cảm biến và cơ cấu chấp hành}
-Các cảm biến và cơ cấu chấp hành được chọn theo hai tiêu chí: giá thành thấp và làm việc ở
-mức logic 3,3\,V. Bảng~\ref{tab:linhkien} tổng hợp thông số chính và vai trò của
-từng linh kiện trong hệ thống.
+Bảng~\ref{tab:linhkien} trình bày cách firmware sử dụng từng linh kiện.
 
 \begin{table}[!htb]
 \centering\small
@@ -74,25 +38,19 @@ từng linh kiện trong hệ thống.
 \begin{tabularx}{\linewidth}{|>{\raggedright\arraybackslash}m{3.4cm}|>{\raggedright\arraybackslash}m{4.6cm}|>{\raggedright\arraybackslash}m{2.4cm}|>{\raggedright\arraybackslash}X|}
 \hline
 \hd Linh kiện & \hd Thông số chính & \hd Tín hiệu & \hd Vai trò \\ \hline
-Cảm biến hồng ngoại phản xạ $\times7$ & Tầm 2--30\,cm, bộ so sánh LM393 & Digital & 5 ô đỗ và 2 cổng \\ \hline
-Cảm biến lửa & Bước sóng 760--1100\,nm & Digital & Phát hiện cháy \\ \hline
-Cảm biến mực nước & Vùng đo khoảng 40\,mm & Analog & Phát hiện ngập \\ \hline
+Cảm biến hồng ngoại phản xạ $\times7$ & 7 đầu vào số & Digital & 5 ô đỗ và 2 cổng \\ \hline
+Cảm biến lửa & Lọc tín hiệu 50\,ms & Digital & Phát hiện cháy \\ \hline
+Cảm biến mực nước & Thang quy đổi trong firmware: 0--40\,mm & Analog & Phát hiện ngập \\ \hline
 Đầu đọc RFID MFRC522 $\times2$ & Chuẩn ISO 14443A, thẻ MIFARE & Digital (SPI) & Đọc thẻ ở hai cổng \\ \hline
-Cảm biến DHT11 & 0--50\,°C, sai số $\pm2$\,°C & Digital (một dây) & Nhiệt độ môi trường \\ \hline
-Servo SG90 $\times2$ & 4,8--6\,V, mô-men khoảng 1,8\,kg$\cdot$cm & Digital (PWM) & Nâng hạ thanh chắn \\ \hline
-Màn hình TFT ST7789 & 1,54 inch, $240\times240$, IPS & Digital (SPI) & Hiển thị tại cổng \\ \hline
-Còi báo (module) & Điện áp 3,3--5\,V & Digital & Báo cháy, ngập, xe không thẻ \\
+Cảm biến DHT11 & Chu kỳ đọc cấu hình 5\,s & Digital (một dây) & Nhiệt độ môi trường \\ \hline
+Servo SG90 $\times2$ & PWM 50\,Hz & Digital (PWM) & Nâng hạ thanh chắn \\ \hline
+Màn hình TFT ST7789 & $240\times240$ điểm ảnh, RGB565 & Digital (SPI) & Hiển thị tại cổng \\ \hline
+Còi báo (module) & Điều khiển bằng GPIO9 & Digital & Báo cháy, ngập, xe không thẻ \\
 \hline
 \end{tabularx}
 \end{table}
 
-Bảng~\ref{tab:linhkien} cho thấy phần lớn linh kiện giao tiếp bằng tín hiệu digital. Trong
-một bãi đỗ thực tế, cảm biến tại ô đỗ chỉ cần trả lời ô đó có xe hay không, nên tín hiệu
-digital là đủ; khi triển khai ở bãi lớn, cảm biến hồng ngoại có thể được thay bằng cảm biến từ
-trường hoặc siêu âm gắn trần mà không phải thay đổi phần còn lại, vì máy chủ chỉ nhận trạng
-thái có hoặc không có xe. Cảm biến lửa cho tín hiệu digital để hệ thống phản ứng ngay khi xuất
-hiện ngọn lửa. Ngược lại, cảm biến mực nước cho tín hiệu analog, cho phép máy chủ hiển thị mực
-nước và so sánh với một ngưỡng có thể điều chỉnh theo từng bãi.
+Cảm biến ô đỗ và cảm biến lửa cung cấp trạng thái số. Với cảm biến nước, Sensor Client đọc ngõ vào analog A0 rồi quy đổi theo công thức ở Mục~\ref{sec:f-env}.
 
 \section{Giao thức mạng và thanh toán}
 Các thiết bị của hệ thống và điện thoại của người vận hành liên lạc qua một mạng Wi-Fi chung. Hệ thống sử
@@ -110,26 +68,17 @@ dụng các giao thức sau:
 Wi-Fi ở chế độ station được chọn vì cả ESP32-C3 và ESP8266 đều tích hợp sẵn Wi-Fi, nên không
 cần thêm module truyền thông hay kéo dây tín hiệu giữa các thiết bị. Khi cùng nối vào router của
 bãi, các thiết bị vừa liên lạc được với nhau vừa có đường ra Internet để máy chủ truy vấn SePay.
-Băng tần 2,4\,GHz là bắt buộc vì hai loại vi điều khiển không hỗ trợ băng 5\,GHz; bù lại, sóng
-2,4\,GHz xuyên tường tốt hơn, phù hợp với bãi xe có nhiều vách ngăn.
-
-UDP được chọn thay cho TCP hay MQTT vì phần lớn dữ liệu là trạng thái được gửi lặp lại mỗi
-giây: mất một gói chỉ làm trễ tối đa một giây, trong khi chi phí bắt tay, bộ đệm cho mỗi kết
-nối và máy chủ trung gian (broker) là đáng kể trên vi điều khiển. Khả năng gửi quảng bá của UDP
-còn giúp client không cần cấu hình địa chỉ của máy chủ. Riêng sự kiện quẹt thẻ không được gửi
-lặp lại, nên hệ thống bổ sung cơ chế xác nhận và gửi lại ở tầng ứng dụng (Mục~\ref{sec:ack}).
+Sensor Client gửi trạng thái khi có thay đổi và lặp lại theo chu kỳ cấu hình 1\,s. Với lượt quẹt thẻ, RFID Client dùng số thứ tự và chờ bản tin xác nhận như mô tả ở Mục~\ref{sec:ack}.
 
 HTTP được chọn cho giao diện quản lý vì mọi trình duyệt trên điện thoại và máy tính đều hỗ trợ,
 người vận hành không phải cài ứng dụng; dữ liệu trả về dạng JSON được JavaScript trong trang
 đọc trực tiếp. Riêng kết nối tới SePay đi qua Internet và mang khóa truy cập, nên bắt buộc dùng
 HTTPS để mã hóa. mDNS được chọn vì router của bãi cấp địa chỉ IP động qua DHCP: thay vì phải tra
 địa chỉ mỗi khi máy chủ khởi động lại, người vận hành luôn dùng một tên cố định mà không cần cài
-đặt máy chủ DNS. Cuối cùng, VietQR được chọn vì đây là chuẩn chung mà mọi ngân hàng và phần lớn
-ví điện tử tại Việt Nam đều quét được, mã có thể được sinh ngay trên vi điều khiển, và số tiền
-cùng nội dung chuyển khoản được điền sẵn nên người lái không phải nhập tay.
+đặt máy chủ DNS. Máy chủ tạo mã VietQR ngay trên vi điều khiển. Khi người lái quét mã bằng ứng dụng tương thích, ứng dụng điền sẵn tài khoản nhận, số tiền và nội dung chuyển khoản.
 
 \section{Công cụ phát triển}
-Toàn bộ phần mềm sử dụng trong đề tài là miễn phí và mã nguồn mở. Bảng~\ref{tab:software}
+Bảng~\ref{tab:software}
 liệt kê các thành phần chính.
 
 \begin{table}[!htb]
@@ -151,5 +100,83 @@ Trình biên dịch C/C++ trên máy tính & Chạy bộ kiểm thử tự độ
 Như Bảng~\ref{tab:software} cho thấy, trang web được viết bằng HTML, CSS và JavaScript thuần
 và nhúng trực tiếp vào firmware, nên vẫn mở được khi router mất kết nối Internet. Bộ kiểm thử
 biên dịch mã nghiệp vụ của máy chủ và mã nguồn hai client trên máy tính cùng các thư viện
-giả lập phần cứng, giúp kiểm tra logic trong vài giây mà không cần mô hình
+giả lập phần cứng, giúp kiểm tra logic mà không cần mô hình
 (Chương~\ref{chap:kiemthu}).
+
+\section{Môi trường chạy, công cụ mô phỏng và hướng dẫn cài đặt}\label{sec:huongdan}
+Máy chủ ESP32-C3 chạy FreeRTOS tích hợp trong ESP-IDF. Trong firmware, tác vụ nhận UDP có mức ưu tiên 5, tác vụ hiển thị mức 4 và tác vụ ảnh động mức 3. Khi nhận dữ liệu mới, máy chủ dùng \code{xTaskNotifyGive} để đánh thức tác vụ hiển thị. Hai nút ESP8266 dùng Arduino Core.
+
+Các bước dưới đây dùng Windows 11 trên máy phát triển, ESP-IDF PowerShell để nạp máy chủ và Ubuntu trong WSL để chạy kiểm thử trên máy tính. ESP-IDF, Arduino IDE và các công cụ mô phỏng đi kèm mã nguồn đều dùng được với bản miễn phí; quy trình này không yêu cầu kích hoạt bản trial.
+
+\subsection{Chuẩn bị mã nguồn và kiểm thử trên máy tính}
+Bộ kiểm thử chạy trên máy tính trước khi nạp firmware lên bo mạch. Các bước sau chuẩn bị mã nguồn và môi trường biên dịch để kiểm tra kết quả của cả bảy nhóm kiểm thử.
+
+\begin{enumerate}
+\item Tải mã nguồn từ \href{https://github.com/thinhdinh25/INT3108_embedded-Smart-Parking-Project}{kho Smart Parking của nhóm} bằng Code → Download ZIP. Giải nén để thư mục \file{C:/src/smart-parking} chứa trực tiếp \file{Server/}, \file{tests/} và \file{examples/}. Nếu dùng thư mục khác, thay đường dẫn trong các lệnh bên dưới.
+\item Để chạy bộ kiểm thử bằng GNU Make trên Windows 11, mở PowerShell với quyền quản trị và chạy \code{wsl --install -d Ubuntu}. Khởi động lại nếu trình cài đặt yêu cầu, mở Ubuntu và hoàn tất tạo tài khoản Linux~\ref{src:wsl}. Nếu đã có Ubuntu trong WSL, mở trực tiếp terminal Ubuntu.
+\item Trong Ubuntu, cài trình biên dịch C/C++ và Make rồi chạy tại thư mục gốc:
+\begin{lstlisting}[style=shell]
+sudo apt update
+sudo apt install build-essential
+cd /mnt/c/src/smart-parking
+make -B -C tests
+\end{lstlisting}
+Kết quả đạt là bảy nhóm kiểm thử in số phép kiểm tra thành công, kết thúc bằng \code{ALL TESTS PASSED}. Bộ kiểm thử chạy được trên máy tính khi chưa kết nối bo mạch.
+\end{enumerate}
+
+\subsection{Cài và nạp firmware máy chủ ESP32-C3}
+Máy chủ cần cấu hình mạng Wi-Fi của bãi để phục vụ trang quản lý. Quy trình dưới đây bắt đầu từ việc cài ESP-IDF và kết thúc khi có thể mở trang quản lý bằng địa chỉ IP của bo.
+
+\begin{enumerate}
+\item Cài Espressif Installation Manager theo hướng dẫn Windows của Espressif~\ref{src:eim}. Chọn cài đặt tùy chỉnh, ESP-IDF dòng 6.1 và target \code{esp32c3}; tệp \file{dependencies.lock} của dự án ghi phiên bản 6.1.0. Cài bộ công cụ đi kèm, sau đó mở ESP-IDF PowerShell của phiên bản vừa cài.
+\item Nối ESP32-C3 bằng cáp USB truyền dữ liệu. Trong Device Manager → Ports (COM \& LPT), ghi lại cổng của bo. Với bản mã nguồn vừa giải nén, chạy lần lượt:
+\begin{lstlisting}[style=shell]
+cd C:/src/smart-parking
+idf.py --version
+idf.py -C Server set-target esp32c3
+idf.py -C Server menuconfig
+\end{lstlisting}
+\item Trong Parking network and security, đặt SSID, mật khẩu Wi-Fi 2,4\,GHz và PIN quản trị. Trong Parking QR payment (SePay), điền BIN ngân hàng và tài khoản nhận để tạo VietQR. Token SePay dùng cho đối soát tự động. Để trình diễn bằng xác nhận tại quầy, để trống token rồi dùng Confirm paid khi có lượt ra đang chờ. Lưu cấu hình và thoát.
+\item Biên dịch và nạp bằng các lệnh dưới đây, thay \code{COM5} bằng cổng thực tế. Lần biên dịch đầu cần Internet để tải các thành phần mDNS và QR.
+\begin{lstlisting}[style=shell]
+idf.py -C Server build
+idf.py -C Server -p COM5 flash monitor
+\end{lstlisting}
+Khi nhật ký hiện \code{Web interface: http://} kèm địa chỉ IP, mở địa chỉ đó trên thiết bị cùng mạng Wi-Fi. Có thể dùng \code{http://parking.local} nếu thiết bị hỗ trợ mDNS. Nhấn \code{Ctrl+]} để thoát trình theo dõi nối tiếp.
+\end{enumerate}
+
+\subsection{Mô phỏng đầu vào và quan sát kết quả}
+Bộ giả lập trong \file{tests/} cho phép điều khiển đồng hồ, GPIO, ADC, đầu đọc RFID và bản tin UDP khi kiểm thử logic. Để trình diễn trên màn hình TFT và trang quản lý, hai chương trình Python trong \file{examples/} thay thế hai nút ESP8266 bằng cách gửi bản tin thật đến máy chủ ESP32-C3 đã nạp ở bước trên. Mỗi lần chạy chỉ gửi một bản tin. Khi trình diễn theo cách này, để hai nút ESP8266 thật ngắt kết nối để dữ liệu cảm biến thật không ghi đè dữ liệu mô phỏng.
+
+\begin{enumerate}
+\item Trong ESP-IDF PowerShell, tại thư mục gốc, chạy \code{python --version} để kiểm tra Python 3. Gán địa chỉ IP máy chủ vào biến PowerShell dưới đây, thay địa chỉ minh họa bằng địa chỉ ghi trong nhật ký:
+\begin{lstlisting}[style=shell]
+$ip = "192.168.1.50"
+python examples/udp_sender.py --host $ip --slots 1,0,0,1,0
+\end{lstlisting}
+Kiểm tra S1 và S4 có xe, ba ô còn lại trống. Mỗi bản tin cập nhật một lần; gửi lại lệnh nếu cần quan sát sau khi trạng thái cảm biến chuyển sang ngoại tuyến.
+\item Chạy từng lệnh và quan sát màn hình sau mỗi lần gửi. Lệnh đầu báo cháy và mở hai cổng. Lệnh thứ hai xóa cờ cháy, đặt mực nước quy đổi ở 20\,mm để kiểm tra cảnh báo ngập. Lệnh cuối đặt nước ở 15\,mm để xóa cảnh báo ngập.
+\begin{lstlisting}[style=shell]
+python examples/udp_sender.py --host $ip --fire
+python examples/udp_sender.py --host $ip --water 20
+python examples/udp_sender.py --host $ip --water 15
+\end{lstlisting}
+\item Với bãi còn chỗ và thẻ mẫu chưa có phiên, mô phỏng quẹt cùng một thẻ ở hai cổng:
+\begin{lstlisting}[style=shell]
+python examples/udp_rfid_sender.py A1B2C3D4 --gate in --host $ip
+python examples/udp_rfid_sender.py A1B2C3D4 --gate out --host $ip
+\end{lstlisting}
+Sau lệnh vào, kiểm tra thẻ trong \code{INSIDE NOW}. Sau lệnh ra, kiểm tra lượt thanh toán đang chờ. Khi trình diễn tại quầy, xác nhận lượt này bằng PIN quản trị rồi kiểm tra bản ghi \code{OUT} trong nhật ký.
+\end{enumerate}
+
+\subsection{Cài hai nút ESP8266 để chạy mô hình đầy đủ}
+Khi chuyển sang mô hình phần cứng, Sensor Client cung cấp trạng thái ô đỗ, lửa và mực nước, còn RFID Client gửi lượt quẹt thẻ và nhiệt độ. Mỗi bo cần được nạp chương trình tương ứng và kết nối cùng mạng Wi-Fi với máy chủ.
+
+\begin{enumerate}
+\item Cài \href{https://www.arduino.cc/en/software}{Arduino IDE 2}. Tại File → Preferences → Additional boards manager URLs, thêm địa chỉ gói bo ESP8266 theo tài liệu Arduino Core~\ref{src:esp8266install}:\par
+\url{https://arduino.esp8266.com/stable/package_esp8266com_index.json}.
+\item Trong Boards Manager, cài esp8266 by ESP8266 Community. Trong Library Manager, cài MFRC522 và DHT sensor library by Adafruit, bao gồm các thư viện phụ thuộc theo đề nghị của IDE.
+\item Trong mỗi thư mục \file{SensorClient/} và \file{RFIDClient/}, sao chép \file{secrets.example.h} thành \file{secrets.h}. Điền \code{WIFI\_SSID} và \code{WIFI\_PASSWORD} của mạng mà máy chủ đang dùng.
+\item Đấu dây theo ba sơ đồ ở Mục~\ref{sec:phancung}. Lần lượt mở \file{SensorClient.ino} và \file{RFIDClient.ino} trong thư mục tương ứng. Với mỗi bo, chọn đúng model tại Tools → Board, chọn cổng USB tại Tools → Port và nhấn Upload.
+\item Mở Serial Monitor ở 115200 baud để kiểm tra kết nối. Trên trang quản lý, che cảm biến của một ô và kiểm tra đúng ô đó đổi trạng thái. Quẹt một thẻ ở cổng vào rồi ở cổng ra để đối chiếu danh sách phiên và yêu cầu thanh toán.
+\end{enumerate}

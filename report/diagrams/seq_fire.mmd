@@ -8,4 +8,5 @@ sequenceDiagram
   S->>B: Bật còi, mở và giữ cả 2 cổng
   Note over B: Lệnh đóng từ web bị từ chối
   SC->>S: "fire":false
-  S->>B: Tắt còi, đóng 2 cổng khi làn trống
+  Note over S,B: Còi tiếp tục báo nếu còn ngập
+  S->>B: Hết giữ mở do cháy, chờ làn trống 1 s

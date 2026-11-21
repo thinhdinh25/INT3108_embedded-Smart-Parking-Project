@@ -2,22 +2,13 @@
 \chapter{KIỂM THỬ VÀ ĐÁNH GIÁ}\label{chap:kiemthu}
 % =====================================================================
 
-Chương này trình bày phương pháp và kết quả kiểm thử ở hai mức, kiểm thử tự động trên máy
-tính và kiểm thử hệ thống trên mô hình, sau đó đánh giá hiệu năng, tài nguyên và các hạn chế
-còn tồn tại.
+Chương này trình bày kết quả chạy bộ kiểm thử trên máy tính và kích thước các tệp của bản biên dịch máy chủ.
 
 \section{Phương pháp kiểm thử}
-Lỗi trong bộ đọc bản tin, cách tính phí hay logic lọc nhiễu rất khó tái hiện trên phần cứng
-vì phụ thuộc chính xác vào thời điểm và chuỗi byte. Do đó, nhóm tổ chức kiểm thử ở hai mức.
-Mức thứ nhất là kiểm thử tự động trên máy tính: các module nghiệp vụ của máy chủ được biên
-dịch cùng hai tệp header giả thay cho vùng găng và đồng hồ; mã nguồn của hai client được
-biên dịch nguyên vẹn cùng một lớp giả lập thư viện Arduino gồm đồng hồ điều khiển được, mức
-logic từng chân, ADC, Wi-Fi, UDP, đầu đọc MFRC522 và DHT11. Mỗi gói tin mà client giả lập gửi
-ra đều được đưa vào chính bộ đọc JSON của máy chủ, bảo đảm hai phía luôn thống nhất định dạng.
-Mức thứ hai là các kịch bản kiểm thử trên mô hình thật, mỗi use case có ít nhất một kịch bản.
+Các mô-đun nghiệp vụ trên máy chủ được biên dịch cùng bộ giả lập đồng hồ và vùng găng. Hai chương trình ESP8266 được chạy với các hàm Arduino giả lập cho GPIO, ADC, UDP, đầu đọc MFRC522 và DHT11. Bộ kiểm thử điều khiển thời điểm và giá trị đầu vào, sau đó đối chiếu bản tin hoặc trạng thái trả về với kết quả mong đợi.
 
 \section{Kết quả kiểm thử tự động}
-Bộ kiểm thử gồm 7 nhóm, chạy bằng lệnh \code{make -C tests} trong vài giây. Bảng~\ref{tab:unittests}
+Bộ kiểm thử gồm 7 nhóm, chạy bằng lệnh \code{make -B -C tests}. Bảng~\ref{tab:unittests}
 tóm tắt nội dung và kết quả của từng nhóm.
 
 \begin{table}[!htb]
@@ -26,8 +17,8 @@ tóm tắt nội dung và kết quả của từng nhóm.
 \begin{tabularx}{\linewidth}{|l|>{\raggedright\arraybackslash}X|c|}
 \hline
 \hd Nhóm & \hd Nội dung kiểm tra chính & \hd Kết quả \\ \hline
-\code{payment} & CRC16 với giá trị chuẩn; chuỗi VietQR trùng từng byte với mã mẫu; từ chối tài khoản, số tiền không hợp lệ; chỉ chấp nhận giao dịch đúng mã và đúng số tiền & 38/38 \\ \hline
-\code{json\_parsers} & Bản tin hợp lệ với mọi thứ tự khóa; 46 dạng bản tin sai đều bị từ chối; biên của trường \code{seq} & 78/78 \\ \hline
+\code{payment} & CRC16 với giá trị chuẩn; chuỗi VietQR trùng từng byte với mã mẫu; từ chối tài khoản, số tiền không hợp lệ; kiểm tra khớp mã, tài khoản nhận và số tiền & 38/38 \\ \hline
+\code{json\_parsers} & Bản tin hợp lệ với mọi thứ tự khóa; từ chối bản tin sai định dạng; biên của trường \code{seq} & 78/78 \\ \hline
 \code{rfid\_session} & Phí theo giờ tại các biên; vào, ra, sai cổng, bãi đầy; nhật ký vòng; lưu và khôi phục sau mất điện; đặt giờ; ngập có trễ; doanh thu theo ngày; chống xử lý trùng; luồng thanh toán QR; xóa xe; cảnh báo xe không thẻ & 181/181 \\ \hline
 \code{gate\_hold} & Giữ thanh chắn khi tia bị che, chỉ đóng sau 1\,s thông suốt liên tục, đếm lại khi tia bị che giữa chừng & 10/10 \\ \hline
 \code{gif\_frames} & Giải nén đủ 28 khung ảnh động, từ chối yêu cầu sai kích thước & 89/89 \\ \hline
@@ -40,69 +31,17 @@ Tổng & & 439/439 \\
 
 Kết quả trong Bảng~\ref{tab:unittests} cho thấy toàn bộ 439 phép kiểm tra đều đạt. Nhóm
 \code{rfid\_session} chiếm tỉ trọng lớn nhất vì chứa phần lớn logic nghiệp vụ, đặc biệt là
-luồng thanh toán với nhiều ngoại lệ. Bộ kiểm thử cũng đã phát hiện một lỗi nằm trong chính
-bài kiểm thử: khi kiểm tra bãi đầy, một thẻ từ bài kiểm thử trước vẫn còn trong bãi khiến chỉ
-còn 4 chỗ trống; bài kiểm thử được sửa để tự dọn trạng thái trước khi chạy.
+luồng thanh toán với nhiều ngoại lệ. Các phép kiểm tra dùng đồng hồ và ngoại vi giả lập. Kết quả xác nhận logic xử lý với các đầu vào đã chọn.
 
-\section{Kết quả kiểm thử trên mô hình}
-Các kịch bản kiểm thử hệ thống được thực hiện trên mô hình thật với cả ba thiết bị.
-Bảng~\ref{tab:systest} liệt kê các kịch bản chính theo thứ tự use case, cùng hành vi mong đợi
-mà nhóm đã quan sát được.
+Có thể đối chiếu trực tiếp ba kết quả kiểm tra biên sau với mã kiểm thử:
+\begin{itemize}
+  \item Hàm \code{test\_fee} trong \file{tests/test\_rfid\_session.c} kiểm tra quy tắc làm tròn phí tại ranh giới giờ.
+  \item Hàm \code{test\_retry\_dedupe} trong cùng tệp kiểm tra xử lý trùng số thứ tự của sự kiện RFID.
+  \item Bộ kiểm thử \file{tests/test\_gate\_hold.c} điều khiển đồng hồ giả lập để kiểm tra điều kiện làn trống liên tục 1\,s trước khi cho phép đóng cổng.
+\end{itemize}
 
-\begin{longtable}{|>{\centering\arraybackslash}m{1.2cm}|>{\raggedright\arraybackslash}m{5.2cm}|>{\raggedright\arraybackslash}m{7.4cm}|}
-\caption{Kịch bản kiểm thử trên mô hình và kết quả quan sát}\label{tab:systest}\\
-\hline \hd UC & \hd Thao tác & \hd Kết quả \\ \hline \endfirsthead
-\hline \hd UC & \hd Thao tác & \hd Kết quả \\ \hline \endhead
-UC01 & Đặt xe vào ô S2 & Ô S2 trên màn hình chuyển đỏ gần như tức thì \\ \hline
-UC01 & Đưa vật nhanh qua cảm biến dưới 50\,ms & Trạng thái không đổi \\ \hline
-UC01 & Rút điện Sensor Client & Sau khoảng 3\,s màn hình báo \code{SENSOR OFFLINE} \\ \hline
-UC02 & Quẹt thẻ mới ở cổng vào & Thanh chắn mở, đóng sau 3\,s; nhật ký có dòng \code{IN} \\ \hline
-UC02 & Giữ vật chắn tia IR cổng vào quá 3\,s & Thanh chắn giữ mở, chỉ đóng sau khi bỏ vật chắn khoảng 1\,s \\ \hline
-UC02 & Gửi lặp lại một gói quẹt thẻ cùng \code{seq} & Hai lần đều nhận xác nhận, cổng chỉ mở một lần \\ \hline
-UC02 & Quẹt lại thẻ đã vào ở cổng vào & Không mở, báo \code{WRONG GATE} trong 5\,s \\ \hline
-UC02 & Quẹt thẻ thứ 6 khi đã có 5 xe & Không mở, báo \code{PARKING FULL} \\ \hline
-UC02 & Đặt xe vào ô mà không quẹt thẻ & Sau 15\,s còi kêu ngắt quãng, màn hình báo \code{CAR W/O CARD} \\ \hline
-UC03 & Quẹt ra, chuyển khoản bằng ứng dụng ngân hàng & Màn hình hiện mã QR; vài giây sau khi chuyển, cổng ra mở, có hóa đơn và dòng \code{OUT} \\ \hline
-UC03 & Chuyển dư 1.000\,VNĐ, sau đó chuyển đúng phí & Lần đầu cổng vẫn đóng, lần sau cổng mở \\ \hline
-UC04 & Quẹt ra, không chuyển khoản, sau đó bấm \code{Confirm paid} & Sau 180\,s màn hình báo \code{PAY AT BOOTH}; xác nhận thì cổng mở, có hóa đơn \\ \hline
-UC05 & Bấm \code{OPEN}, \code{CLOSE} của từng cổng & Thanh chắn tương ứng chuyển động, trạng thái trên web đúng \\ \hline
-UC05 & Bấm \code{CLOSE} khi đang che tia IR cổng & Trang web báo \code{CAR IN GATE}, thanh chắn giữ mở \\ \hline
-UC06 & Đưa lửa gần cảm biến, bấm \code{CLOSE} trên web & Còi kêu, hai thanh chắn mở; lệnh đóng bị từ chối \\ \hline
-UC07 & Nhúng cảm biến nước sâu hơn 20\,mm & Còi kêu, \code{FLOOD WARNING}; thẻ mới bị từ chối, xe trong bãi vẫn ra được \\ \hline
-UC08 & Mở \code{parking.local} trên điện thoại, để yên 1 phút & Sơ đồ bãi khớp màn hình TFT; nhiệt độ vẫn cập nhật khi không có xe quẹt thẻ \\ \hline
-UC09 & Gửi rồi lấy 2 xe, rút điện máy chủ 1 phút rồi cấp lại & Doanh thu và nhật ký đúng; xe còn trong bãi vẫn ở danh sách sau khi cấp điện lại \\ \hline
-UC10 & Bấm \code{Delete} ở một xe, nhập mã PIN & Xe rời danh sách, doanh thu và nhật ký không đổi, thanh chắn đứng yên \\
-\hline
-\end{longtable}
+\section{Minh chứng trên mô hình}
+Ảnh ở Hình~\ref{fig:overview} và Hình~\ref{fig:hw-photos} ghi lại bố trí mô hình, hai cổng và màn hình tại bãi. Hình~\ref{fig:web-status} và Hình~\ref{fig:web-log} ghi lại giao diện trạng thái ô đỗ, điều khiển thanh chắn, phiên gửi xe, nhật ký và doanh thu. Kết quả định lượng của bộ kiểm thử trên máy tính được trình bày riêng ở Bảng~\ref{tab:unittests}.
 
-Các kịch bản trong Bảng~\ref{tab:systest} đều cho kết quả đúng như mong đợi. Kịch bản quan
-trọng nhất về an toàn là giữ thanh chắn khi có vật trong cổng: thanh chắn không hạ xuống dù
-hẹn giờ đã hết, cả với lệnh tự động lẫn lệnh thủ công. Kịch bản thanh toán được thực hiện với
-giao dịch thật qua ứng dụng ngân hàng, xác nhận rằng mã VietQR sinh trên chip được các ứng dụng
-đọc đúng số tiền và nội dung.
-
-\section{Đánh giá hiệu năng và tài nguyên}
-Bảng~\ref{tab:latency} ước tính độ trễ của các luồng chính từ thông số thiết kế, đối chiếu
-với chỉ tiêu ở Bảng~\ref{tab:nfr}.
-
-\begin{table}[!htb]
-\centering\small
-\caption{Độ trễ của các luồng chính}\label{tab:latency}
-\begin{tabularx}{\linewidth}{|l|>{\raggedright\arraybackslash}X|c|}
-\hline
-\hd Luồng & \hd Thành phần & \hd Tổng \\ \hline
-Xe vào ô, màn hình cập nhật & Lọc 50\,ms, UDP vài ms, vẽ 23\,ms & Khoảng 0,1\,s \\ \hline
-Xe vào ô, trang web cập nhật & Như trên cộng chu kỳ hỏi tối đa 1\,s & Tối đa 1,1\,s \\ \hline
-Quẹt thẻ, thanh chắn mở & Quét đầu đọc 10\,ms, UDP, xử lý dưới 1\,ms, servo quay 90° & Khoảng 0,2\,s \\ \hline
-Có lửa, còi kêu & Lọc 50\,ms, UDP & Khoảng 0,06\,s \\ \hline
-Mất một gói quẹt thẻ & Gửi lại sau 300\,ms & Khoảng 0,5\,s \\
-\hline
-\end{tabularx}
-\end{table}
-
-Theo Bảng~\ref{tab:latency}, mọi luồng đều đạt chỉ tiêu: màn hình cập nhật khoảng 0,1\,s so
-với yêu cầu 0,2\,s, thanh chắn mở khoảng 0,2\,s so với yêu cầu 0,5\,s. Về tài nguyên, firmware
-máy chủ có kích thước 1\,300\,560 byte, chiếm khoảng 85\% phân vùng ứng dụng 1,5\,MB; RAM tĩnh
-dùng khoảng 31\% trong số 321\,KB, phần lớn RAM động dành cho bộ đệm khung 115\,KB. Các con số
-này cho thấy ESP32-C3 đáp ứng được toàn bộ chức năng, nhưng dung lượng flash còn lại không đủ
-cho cơ chế nạp firmware qua mạng với hai phân vùng ứng dụng.
+\section{Kích thước bản biên dịch máy chủ}
+Tệp \file{INT3108\_Smart\_Parking\_Project.bin} trong thư mục \file{build/} có kích thước 1\,300\,560 byte. Bảng phân vùng \file{build/partition\_table/partition-table.bin} khai báo phân vùng ứng dụng \code{factory} dài 1\,536\,000 byte. Hiệu giữa dung lượng phân vùng và kích thước tệp là 235\,440 byte.

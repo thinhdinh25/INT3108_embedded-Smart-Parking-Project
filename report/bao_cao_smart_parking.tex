@@ -48,7 +48,7 @@
 % Bảng: giãn hàng, căn giữa theo chiều dọc, ô tiêu đề căn giữa
 \AtBeginEnvironment{table}{\renewcommand{\arraystretch}{1.3}}
 \AtBeginEnvironment{longtable}{\renewcommand{\arraystretch}{1.3}}
-\newcommand{\hd}{\centering\arraybackslash}
+\newcommand{\hd}{\centering\arraybackslash\bfseries}
 \AtBeginEnvironment{longtable}{\setstretch{1.0}}
 \AtBeginEnvironment{figure}{\setstretch{1.0}}
 \AtBeginEnvironment{lstlisting}{\setstretch{1.0}}
@@ -102,7 +102,7 @@
   {\chapprefix~\thecontentslabel.\ }{}{\titlerule*[0.6pc]{.}\contentspage}
 \titleformat{\section}{\fontsize{14}{18}\selectfont\bfseries}{\thesection.}{0.6em}{}
 \titleformat{\subsection}{\normalsize\bfseries}{\thesubsection.}{0.6em}{}
-\titleformat{\subsubsection}{\normalsize\bfseries\itshape}{\thesubsubsection.}{0.6em}{}
+\titleformat{\subsubsection}{\normalsize\bfseries}{\thesubsubsection.}{0.6em}{}
 \setcounter{secnumdepth}{3}
 
 % Mẫu chỉ có số trang ở giữa chân trang, trang bìa không đánh số
@@ -115,8 +115,8 @@
 \lstset{
   basicstyle=\ttfamily\footnotesize,
   backgroundcolor=\color{codebg},
-  keywordstyle=\color{codekw}\bfseries,
-  commentstyle=\color{codecm}\itshape,
+  keywordstyle=\color{codekw},
+  commentstyle=\color{codecm},
   stringstyle=\color{codestr},
   numbers=left, numberstyle=\tiny\color{gray}, numbersep=6pt,
   frame=single, rulecolor=\color{gray!40},
@@ -140,7 +140,7 @@
 
 % Sơ đồ Mermaid (report/diagrams/*.mmd -> *.pdf, vector):
 %   \mmd[tỉ lệ rộng][tỉ lệ cao tối đa]{tên}
-% Tạo lại PDF: npx -p @mermaid-js/mermaid-cli mmdc -i diagrams/x.mmd -o diagrams/x.pdf -f
+% Tạo lại PDF: npx -p @mermaid-js/mermaid-cli mmdc -i diagrams/x.mmd -o diagrams/x.pdf
 \NewDocumentCommand{\mmd}{O{1} O{0.6} m}{\includegraphics[width=#1\linewidth,height=#2\textheight,keepaspectratio]{diagrams/#3.pdf}}
 % Bảng đặc tả use case: cột trái là mục, cột phải là nội dung; \bul mở một dòng gạch đầu dòng
 \newcommand{\bul}{\par\noindent\hangindent=0.9em\hangafter=1 --\hspace{0.4em}}
@@ -189,7 +189,7 @@
     \bfseries Giảng viên: \mdseries \giangvien\par
   \end{minipage}
   \vfill
-  {\fontsize{15}{20}\selectfont\bfseries Hà Nội – 2026\par}
+  {\fontsize{15}{20}\selectfont Hà Nội – 2026\par}
   \vspace{0.6cm}
 \end{titlepage}
 
@@ -216,17 +216,21 @@ nghiệm mô hình. Dù đã cố gắng, báo cáo khó tránh khỏi thiếu s
 
 \chapter*{LỜI CAM ĐOAN}
 Nhóm xin cam đoan báo cáo và hệ thống được trình bày là kết quả làm việc của các thành viên
-trong nhóm dưới sự hướng dẫn của thầy \giangvien{}. Mã nguồn, mô hình phần cứng, số liệu đo
+trong nhóm dưới sự hướng dẫn của thầy \giangvien{}. Mã nguồn, mô hình phần cứng, thông số cấu hình
 và kết quả kiểm thử trong báo cáo là trung thực, do nhóm tự thực hiện. Các tài liệu, thư
 viện và công cụ của bên thứ ba đều được ghi rõ nguồn trong báo cáo và trong phần tài liệu
 tham khảo. Nhóm xin chịu hoàn toàn trách nhiệm về lời cam đoan này.
 
 \vspace{1cm}
-\noindent\hfill Hà Nội, tháng 11 năm 2026\par
-\noindent\hfill Nhóm sinh viên thực hiện\hspace*{1cm}\par
+\noindent\hfill
+\begin{minipage}{7cm}
+  \centering
+  Hà Nội, tháng 11 năm 2026\par
+  Nhóm sinh viên thực hiện\par
+\end{minipage}\par
 
 
-\tableofcontents
+{\setstretch{1.05}\tableofcontents}
 
 \chapter*{DANH SÁCH THUẬT NGỮ VIẾT TẮT}
 \addcontentsline{toc}{chapter}{DANH SÁCH THUẬT NGỮ VIẾT TẮT}
@@ -249,6 +253,7 @@ RFID & Radio Frequency Identification, nhận dạng bằng sóng vô tuyến \\
 RTOS & Real-Time Operating System, hệ điều hành thời gian thực \\ \hline
 SPI & Serial Peripheral Interface, giao tiếp ngoại vi nối tiếp \\ \hline
 TFT & Thin-Film Transistor, công nghệ màn hình tinh thể lỏng \\ \hline
+AT & Kịch bản an toàn (cháy hoặc ngập) \\ \hline
 UC & Use case, ca sử dụng \\ \hline
 UDP & User Datagram Protocol \\ \hline
 UID & Unique Identifier, mã định danh của thẻ RFID \\ \hline
@@ -272,53 +277,60 @@ VietQR & Chuẩn mã QR chuyển khoản liên ngân hàng của NAPAS \\
 \chapter*{TÀI LIỆU THAM KHẢO}
 \addcontentsline{toc}{chapter}{TÀI LIỆU THAM KHẢO}
 \begin{enumerate}[label={[\arabic*]}]
-\item Espressif Systems, \emph{ESP32-C3 Series Datasheet} và \emph{ESP32-C3 Technical
-  Reference Manual}.
-\item Espressif Systems, \emph{ESP-IDF Programming Guide} (v6.1): Wi-Fi, LEDC, SPI
+\item Espressif Systems, ESP32-C3 Series Datasheet và ESP32-C3 Technical
+  Reference Manual.
+\item Espressif Systems, ESP-IDF Programming Guide (v6.1): Wi-Fi, LEDC, SPI
   Master, LCD, NVS, HTTP Server, ESP Timer, FreeRTOS, Partition Tables.
-\item Espressif Systems, \emph{mDNS component} (\code{espressif/mdns}), ESP Component
+\item Espressif Systems, mDNS component (\code{espressif/mdns}), ESP Component
   Registry.
-\item Espressif Systems, \emph{ESP8266EX Datasheet}.
-\item ESP8266 Community, \emph{ESP8266 Arduino Core Documentation}.
-\item Sitronix, \emph{ST7789V — 240RGB$\times$320 dot 262K Color TFT Controller}.
-\item NXP Semiconductors, \emph{MFRC522 Standard Performance MIFARE and NTAG
-  Frontend}, Product Data Sheet.
-\item TowerPro, \emph{SG90 Micro Servo Datasheet}.
-\item Aosong, \emph{DHT11 Humidity \& Temperature Sensor Datasheet}.
-\item R.~Barry, \emph{Mastering the FreeRTOS Real Time Kernel}, Real Time Engineers Ltd.
-\item S.~Cheshire, M.~Krochmal, \emph{RFC 6762: Multicast DNS}, IETF, 2013.
+\item Espressif Systems, ESP8266EX Datasheet.
+\item ESP8266 Community, ESP8266 Arduino Core Documentation.
+\item Sitronix, ST7789V — 240RGB$\times$320 dot 262K Color TFT Controller.
+\item NXP Semiconductors, MFRC522 Standard Performance MIFARE and NTAG
+  Frontend, Product Data Sheet.
+\item TowerPro, SG90 Micro Servo Datasheet.
+\item Aosong, DHT11 Humidity \& Temperature Sensor Datasheet.
+\item R.~Barry, Mastering the FreeRTOS Real Time Kernel, Real Time Engineers Ltd.
+\item S.~Cheshire, M.~Krochmal, RFC 6762: Multicast DNS, IETF, 2013.
 \item J.~A.~Storer, T.~G.~Szymanski, ``Data compression via textual substitution'',
-  \emph{Journal of the ACM}, 29(4), 1982.
-\item Thư viện \emph{MFRC522} (miguelbalboa) và \emph{DHT sensor library} (Adafruit)
+  Journal of the ACM, 29(4), 1982.
+\item Thư viện MFRC522 (miguelbalboa) và DHT sensor library (Adafruit)
   cho Arduino.
-\item NAPAS, \emph{Đặc tả kỹ thuật mã QR chuyển tiền liên ngân hàng (VietQR)}, dựa trên EMVCo
-  \emph{QR Code Specification for Payment Systems — Merchant-Presented Mode}.
-\item SePay, \emph{SePay Developer Documentation}: API giao dịch, tài khoản ảo (VA).
-\item Knowledge Sourcing Intelligence, \emph{Smart Parking Market}.
+\item NAPAS, Đặc tả kỹ thuật mã QR chuyển tiền liên ngân hàng (VietQR), dựa trên EMVCo
+  QR Code Specification for Payment Systems — Merchant-Presented Mode.
+\item SePay, SePay Developer Documentation: API giao dịch, tài khoản ảo (VA).
+\item Knowledge Sourcing Intelligence, Smart Parking Market.
   \url{https://www.knowledge-sourcing.com/report/smart-parking-market}
-\item Meticulous Research, \emph{Smart Parking Market}.
+\item Meticulous Research, Smart Parking Market.
   \url{https://www.meticulousresearch.com/pressrelease/1052/smart-parking-market-2032}
-\item KPS System, \emph{Giải pháp bãi giữ xe thông minh}.
+\item KPS System, Giải pháp bãi giữ xe thông minh.
   \url{https://kps.com.vn/en/tin-tuc/giai-phap-bai-giu-xe-thong-minh-399.html}
-\item Hikvision, \emph{Parking Lots} và \emph{On-street Parking}.
+\item Hikvision, Parking Lots và On-street Parking.
   \url{https://www.hikvision.com/vn/solutions/solutions-by-scenario/parking-lots},
   \url{https://www.hikvision.com/vn/products/parking-management/on-street-parking/}
-\item Nedap, \emph{Wireless vehicle detection system SENSIT}.
+\item Nedap, Wireless vehicle detection system SENSIT.
   \url{https://www.parking.net/parking-showcases/nedap-identification-systems/nedap-wireless-vehicle-detection-system-sensit-accurate-parking-occupancy-detection-system}
-\item SKIDATA, \emph{The Benefits of Parking Guidance for Parking Operators}.
+\item SKIDATA, The Benefits of Parking Guidance for Parking Operators.
   \url{https://www.skidata.com/en-nordics/skidata-blog/parking-guidance-benefits-for-parking-operators}
-\item FPT Shop, \emph{Có phần mềm giữ xe miễn phí nào không?}
+\item FPT Shop, Có phần mềm giữ xe miễn phí nào không?
   \url{https://fptshop.com.vn/tin-tuc/danh-gia/phan-mem-giu-xe-mien-phi-172797}
-\item Việt Nam News, \emph{Hà Nội pilots iParking for cars from May} (28/3/2017) và \emph{Hà Nội expands iParking in July}.
+\item Việt Nam News, Hà Nội pilots iParking for cars from May (28/3/2017) và Hà Nội expands iParking in July.
   \url{https://vietnamnews.vn/society/373668/ha-noi-pilots-iparking-for-cars-from-may.html},
   \url{https://vietnamnews.vn/society/449045/ha-noi-expands-iparking-in-july.html}
-\item VietNamNet, \emph{Hà Nội tạm dừng thí điểm mô hình trông giữ xe iParking từ 1/9}, 31/8/2020.
+\item VietNamNet, Hà Nội tạm dừng thí điểm mô hình trông giữ xe iParking từ 1/9, 31/8/2020.
   \url{https://vietnamnet.vn/ha-noi-tam-dung-thi-diem-mo-hinh-trong-giu-xe-iparking-tu-19-i262776.html}
-\item Mekong ASEAN, \emph{Từ 5/5 sẽ thu phí không dừng tại 5 sân bay lớn}.
+\item Mekong ASEAN, Từ 5/5 sẽ thu phí không dừng tại 5 sân bay lớn.
   \url{https://mekongasean.vn/tu-55-se-thu-phi-khong-dung-tai-5-san-bay-lon-28091.html}
-\item Tạp chí Luật sư Việt Nam, \emph{Hà Nội sẽ thu phí điện tử không dừng toàn bộ bãi đỗ xe từ ngày 01/7}, 25/5/2026.
+\item Tạp chí Luật sư Việt Nam, Hà Nội sẽ thu phí điện tử không dừng toàn bộ bãi đỗ xe từ ngày 01/7, 25/5/2026.
   \url{https://lsvn.vn/ha-noi-se-thu-phi-dien-tu-khong-dung-toan-bo-bai-do-xe-tu-ngay-01-7-a173253.html}
-\item Capterra, \emph{SKIDATA}. \url{https://www.capterra.com/p/141629/SKIDATA/alternatives/}
+\item Capterra, SKIDATA. \url{https://www.capterra.com/p/141629/SKIDATA/alternatives/}
+\item \label{src:uml}Object Management Group, OMG Unified Modeling Language (OMG UML), Version 2.5.1,
+  2017. \url{https://www.omg.org/spec/UML/2.5.1/PDF}
+\item Wikipedia tiếng Việt, ``Biểu đồ ca sử dụng.''
+  \url{https://vi.wikipedia.org/wiki/Bi%E1%BB%83u_%C4%91%E1%BB%93_ca_s%E1%BB%AD_d%E1%BB%A5ng}
+\item \label{src:eim}Espressif Systems, Installation of ESP-IDF and Tools on Windows. \url{https://docs.espressif.com/projects/esp-idf/en/stable/esp32c3/get-started/windows-setup-update.html}
+\item \label{src:esp8266install}ESP8266 Community, Installing the ESP8266 Board Package. \url{https://arduino-esp8266.readthedocs.io/en/stable/installing.html}
+\item \label{src:wsl}Microsoft, How to install Linux on Windows with WSL. \url{https://learn.microsoft.com/en-us/windows/wsl/install}
 \end{enumerate}
 
 

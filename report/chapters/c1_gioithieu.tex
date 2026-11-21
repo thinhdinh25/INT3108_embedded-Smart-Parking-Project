@@ -3,18 +3,7 @@
 % =====================================================================
 
 \section{Đặt vấn đề}
-Tại các đô thị lớn, số lượng ô tô tăng nhanh hơn nhiều so với diện tích bãi đỗ. Người lái
-thường phải đi vòng để tìm chỗ trống, gây ùn tắc cục bộ và lãng phí nhiên liệu. Ở các bãi
-quy mô nhỏ như bãi của chung cư mini, văn phòng hay trường học, việc vận hành phần lớn vẫn
-thủ công: vé giấy, ghi giờ bằng tay, tính tiền theo ước lượng của người trông xe và hầu như
-không có cơ chế cảnh báo khi xảy ra cháy hoặc ngập nước, hai rủi ro thường gặp ở tầng hầm.
-
-Từ thực trạng trên, đề tài đặt ra bài toán: với linh kiện phổ thông giá rẻ, xây dựng một hệ
-thống tự động hóa trọn vẹn quy trình của một bãi xe nhỏ, từ lúc xe vào cổng, đỗ vào ô, cho
-tới lúc thanh toán và rời bãi, đồng thời bảo đảm an toàn cho bãi trong suốt thời gian đó.
-Bài toán này cũng là một ứng dụng điển hình của môn học, đòi hỏi lập trình đa tác vụ trên
-hệ điều hành thời gian thực, điều khiển ngoại vi bằng phần cứng chuyên dụng và giao tiếp
-không dây giữa nhiều vi điều khiển.
+Đề tài xét việc quản lý đồng thời hai loại dữ liệu: trạng thái có xe của từng ô đỗ và phiên gửi xe của từng thẻ RFID. Trạng thái ô đỗ phục vụ chỉ dẫn tại cổng. Phiên gửi xe lưu giờ vào để tính phí khi lấy xe. Hệ thống còn nhận tín hiệu cháy và mực nước để điều khiển hai thanh chắn.
 
 \section{Tổng quan về hệ thống}\label{sec:tongquan}
 Hệ thống được hiện thực trên một mô hình bãi xe gồm 5 ô đỗ và hai cổng vào, ra có thanh
@@ -33,9 +22,8 @@ góc trước nâng hạ thanh chắn của cổng vào (bên trái) và cổng 
 Từ góc nhìn của người sử dụng, hệ thống vận hành như sau. Khi tới cổng vào, người lái xem
 số chỗ trống trên màn hình và quẹt thẻ RFID; thanh chắn tự nâng lên, xe đi qua và thanh
 chắn chỉ hạ xuống khi cảm biến ở cổng xác nhận xe đã ra khỏi vùng thanh chắn. Khi xe đỗ vào
-một ô, màn hình và trang web quản lý cập nhật trạng thái ô đó trong khoảng một phần mười
-giây. Khi ra, người lái quẹt cùng thẻ ở cổng ra; màn hình hiển thị phí gửi xe và một mã
-VietQR mà mọi ứng dụng ngân hàng đều quét được. Ngay khi giao dịch chuyển khoản được xác
+một ô, màn hình cập nhật theo sự kiện, còn trang web truy vấn trạng thái mỗi giây. Khi ra, người lái quẹt cùng thẻ ở cổng ra; màn hình hiển thị phí gửi xe và một mã
+VietQR để người lái quét bằng ứng dụng ngân hàng tương thích. Ngay khi giao dịch chuyển khoản được xác
 nhận, thanh chắn cổng ra mở và màn hình hiển thị hóa đơn. Người quản lý theo dõi toàn bộ
 bãi, nhật ký xe vào ra và doanh thu trên trang web từ điện thoại mà không cần cài ứng dụng.
 Khi xảy ra sự cố, phản ứng của hệ thống phụ thuộc vào loại sự cố: với cháy, còi báo động
@@ -43,15 +31,7 @@ Khi xảy ra sự cố, phản ứng của hệ thống phụ thuộc vào loạ
 thống tạm dừng tiếp nhận xe cho tới khi mực nước trở về mức an toàn.
 
 \section{Mục tiêu}
-Mục tiêu tổng quát của đề tài là xây dựng một hệ thống tự động hóa trọn vẹn quy trình vận hành
-của một bãi đỗ xe nhỏ, từ lúc xe vào cổng tới lúc thanh toán và rời bãi, bằng linh kiện phổ
-thông có chi phí thấp. Để mục tiêu này đánh giá được, nhóm đặt ra ba tiêu chí. Thứ nhất, bãi vận
-hành được mà không cần nhân viên trực cổng: người lái tự gửi xe, tự thanh toán và tự ra bãi,
-người vận hành chỉ can thiệp khi có tình huống ngoại lệ. Thứ hai, hệ thống phản hồi đủ nhanh để
-người dùng cảm nhận như tức thời, với thông tin tại cổng cập nhật dưới 0,2\,s và trên trang web
-khoảng 1\,s. Thứ ba, hệ thống luôn đặt an toàn của người và xe lên trước, kể cả khi mất kết nối
-mạng hay mất điện. Các chức năng cụ thể để đạt mục tiêu này được trình bày ở
-Mục~\ref{sec:yeucau}.
+Đề tài xây dựng mô hình năm ô đỗ với ba chức năng: ghi nhận lượt vào và ra bằng thẻ RFID, thu phí qua VietQR hoặc xác nhận tại quầy, và điều khiển cổng theo tín hiệu cảm biến. Người vận hành theo dõi trạng thái bãi, nhật ký và doanh thu qua trang web nội bộ. Các yêu cầu chức năng được liệt kê ở Mục~\ref{sec:yeucau}.
 
 \section{Khảo sát các giải pháp hiện có}\label{sec:thitruong}
 Bãi đỗ xe thông minh không phải là ý tưởng mới. Theo Knowledge Sourcing Intelligence, thị

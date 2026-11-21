@@ -25,7 +25,7 @@ trang web quản lý. Hệ thống cần cung cấp các chức năng sau:
         người vận hành hiệu chỉnh danh sách xe trong bãi.
 \end{itemize}
 
-Các chức năng trên được đặc tả chi tiết dưới dạng use case ở Chương~\ref{chap:hienthuc}.
+Các chức năng trên được đặc tả chi tiết dưới dạng ca sử dụng ở Chương~\ref{chap:hienthuc}.
 
 \section{Yêu cầu phi chức năng}\label{sec:nfr}
 Bên cạnh chức năng, hệ thống phải đáp ứng các yêu cầu về thời gian, an toàn, độ tin cậy và
@@ -37,46 +37,17 @@ tài nguyên. Bảng~\ref{tab:nfr} lượng hóa từng yêu cầu và nêu gi�
 \begin{tabularx}{\linewidth}{|>{\raggedright\arraybackslash}m{2.6cm}|>{\raggedright\arraybackslash}X|>{\raggedright\arraybackslash}m{5cm}|}
 \hline
 \hd Yêu cầu & \hd Chỉ tiêu & \hd Giải pháp thiết kế \\ \hline
-Thời gian đáp ứng & Màn hình cập nhật dưới 0,2\,s sau khi xe vào ô; thanh chắn mở dưới 0,5\,s sau khi quẹt thẻ & Gửi dữ liệu khi có thay đổi, vẽ màn hình theo sự kiện, tác vụ mạng có ưu tiên cao \\ \hline
+Chu kỳ xử lý & Lọc tín hiệu ô đỗ 50\,ms; truy vấn trạng thái bãi trên web mỗi 1\,s & Gửi dữ liệu khi có thay đổi, vẽ màn hình theo sự kiện, tác vụ mạng có ưu tiên cao \\ \hline
 An toàn & Có cháy thì mở cả hai cổng ngay; không hạ thanh chắn khi xe còn trong cổng; có ngập thì không nhận xe & Chế độ cháy ưu tiên cao nhất; cảm biến IR tại cổng; chặn quẹt thẻ vào khi ngập \\ \hline
-Độ tin cậy & Không mất lượt quẹt thẻ khi mất gói; không mất dữ liệu gửi xe khi mất điện & Xác nhận và gửi lại; lưu phiên vào bộ nhớ flash \\ \hline
-Tài nguyên & Chạy trong khoảng 321\,KB RAM cùng ảnh màn hình 115\,KB và kết nối TLS & Cấp phát bộ đệm TLS động, giải phóng bộ đệm ảnh động khi thanh toán \\ \hline
+Độ tin cậy & Khôi phục lượt quẹt khi mất gói đơn lẻ; phục hồi dữ liệu đã ghi sau mất điện & Xác nhận và gửi lại; lưu phiên vào bộ nhớ flash \\ \hline
+Tài nguyên & Bộ đệm khung RGB565: 115\,200 byte & Cấp phát bộ đệm TLS động, giải phóng bộ đệm ảnh động khi thanh toán \\ \hline
 Bảo mật & Thao tác điều khiển cần xác thực; thông tin bí mật không nằm trong mã nguồn & Mã PIN quản trị; cấu hình bí mật qua menuconfig \\ \hline
-Dễ sử dụng & Dùng được trên mọi điện thoại, thanh toán bằng ứng dụng ngân hàng bất kỳ & Trang web tại \code{parking.local}, mã VietQR \\
+Dễ sử dụng & Truy cập bằng trình duyệt trên điện thoại; thanh toán qua ứng dụng hỗ trợ VietQR & Trang web tại \code{parking.local}, mã VietQR \\
 \hline
 \end{tabularx}
 \end{table}
 
-Mỗi yêu cầu trong Bảng~\ref{tab:nfr} xuất phát từ một rủi ro cụ thể khi vận hành bãi đỗ.
-
-Yêu cầu về thời gian đáp ứng xuất phát từ cách người lái sử dụng hệ thống. Người lái quyết
-định vào bãi và chọn ô ngay khi tới cổng, nên nếu màn hình chậm hơn thực tế, người lái có thể
-được dẫn tới một ô vừa có xe khác đỗ vào. Tương tự, thời gian chờ sau khi quẹt thẻ phải đủ ngắn
-để người lái nhận được phản hồi ngay và các xe phía sau không bị ùn lại ở cổng.
-
-Yêu cầu về an toàn xuất phát từ việc thanh chắn là cơ cấu cơ khí chuyển động ngay trên làn xe.
-Hạ thanh chắn khi xe chưa đi qua sẽ làm hỏng xe; giữ cổng đóng khi có cháy sẽ cản trở thoát
-hiểm; cho xe vào khi bãi đang ngập sẽ làm hỏng động cơ xe. Vì vậy các điều kiện an toàn được đặt
-lên trên mọi lệnh điều khiển khác, kể cả lệnh của người vận hành.
-
-Yêu cầu về độ tin cậy xuất phát từ việc mỗi lượt quẹt thẻ gắn với tiền. Nếu mất một lượt quẹt
-vào, xe ra sẽ không tính được phí; nếu mất điện làm mất danh sách phiên, toàn bộ doanh thu đang
-chờ thu bị mất. Mạng Wi-Fi và giao thức UDP không bảo đảm gói tin tới nơi, nên hệ thống phải tự
-bổ sung cơ chế xác nhận và lưu trữ.
-
-Yêu cầu về tài nguyên xuất phát từ giới hạn phần cứng. Sau khi khởi động Wi-Fi, máy chủ còn
-khoảng 321\,KB RAM, trong đó bộ đệm màn hình chiếm 115\,KB và mỗi kết nối HTTPS tới SePay cần
-thêm khoảng 40\,KB; nếu không quản lý bộ nhớ có chủ đích, kết nối HTTPS sẽ thất bại đúng lúc
-người lái đang thanh toán.
-
-Yêu cầu về bảo mật xuất phát từ việc trang web truy cập được từ mọi thiết bị trong mạng, trong
-khi các lệnh mở cổng hay xác nhận thanh toán ảnh hưởng trực tiếp tới tiền và an ninh của bãi.
-Khóa truy cập SePay và mật khẩu Wi-Fi nếu nằm trong mã nguồn sẽ bị lộ khi chia sẻ mã nguồn.
-
-Yêu cầu về tính dễ sử dụng xuất phát từ đối tượng người dùng. Người lái thường là khách vãng
-lai, không thể yêu cầu cài một ứng dụng riêng, trong khi mã VietQR được mọi ứng dụng ngân hàng
-hỗ trợ. Người vận hành dùng điện thoại sẵn có, nên giao diện quản lý là một trang web không cần
-cài đặt.
+Các khoảng thời gian trong bảng là tham số cấu hình của firmware và trang web. Bộ hẹn giờ thanh chắn và điều kiện cảm biến tại cổng được mô tả ở Mục~\ref{sec:f-gate}.
 
 \section{Kiến trúc tổng thể}\label{sec:trienkhai}
 Hệ thống gồm ba thiết bị cùng kết nối vào một mạng Wi-Fi chung có Internet. Hình~\ref{fig:deploy}
@@ -89,24 +60,16 @@ mô tả kiến trúc triển khai và luồng dữ liệu giữa các thành ph
 \end{figure}
 
 Theo Hình~\ref{fig:deploy}, mạng có cấu trúc hình sao quanh router; cả ba thiết bị và điện
-thoại của người vận hành đều kết nối tới router như các thiết bị Wi-Fi thông thường, nên thứ
-tự bật nguồn không quan trọng. Sensor Client và RFID Client gửi gói UDP tới địa chỉ quảng bá
+thoại của người vận hành đều kết nối tới router ở chế độ station. Sensor Client và RFID Client gửi gói UDP tới địa chỉ quảng bá
 \code{255.255.255.255}, cổng 3333, nên không cần biết dải mạng hay địa chỉ IP của máy chủ.
 Người vận hành truy cập máy chủ bằng tên cố định \code{parking.local}; máy chủ chủ động thông
-báo lại tên này mỗi khi được cấp địa chỉ mới, nên tên luôn trỏ đúng thiết bị dù DHCP thay đổi
-địa chỉ. Router đồng thời là đường ra Internet để máy chủ truy vấn giao dịch trên SePay.
+báo lại tên này khi nhận sự kiện cấp địa chỉ IP. Router đồng thời là đường ra Internet để máy chủ truy vấn giao dịch trên SePay.
 
-Kiến trúc tách thành ba thiết bị mang lại hai lợi ích: đặt cảm biến gần nơi cần đo để dây
-ngắn, và cô lập lỗi khi một thiết bị mất điện. Đổi lại, hệ thống phụ thuộc vào mạng Wi-Fi;
-Mục~\ref{sec:uc08} trình bày cách máy chủ phát hiện client mất kết nối.
+Khi mất bản tin cảm biến, máy chủ xác định trạng thái kết nối theo thời điểm nhận bản tin gần nhất (Mục~\ref{sec:uc08}).
 
 \section{Thiết kế phần cứng}\label{sec:phancung}
 Mạch điện của hệ thống gồm ba bản vẽ, mỗi bản vẽ ứng với một thiết bị và có đầu vào nguồn
-5\,V riêng, cấp qua jack DC 5,5\,mm. Nguồn 5\,V được chọn vì hai lý do. Thứ nhất, servo SG90 cần điện áp 4,8--6\,V, nên
-5\,V là mức thấp nhất cấp trực tiếp được cho servo mà không cần mạch tăng áp. Thứ hai, bo
-ESP32-C3 SuperMini có sẵn chân vào 5\,V và bộ ổn áp 3,3\,V trên bo, nên chỉ một nguồn 5\,V là
-đủ cho cả vi điều khiển và các module 3,3\,V. Ba bản vẽ được thuyết minh lần lượt
-trong ba mục sau.
+5\,V riêng, cấp qua jack DC 5,5\,mm. Ba sơ đồ dưới đây thể hiện cách nối nguồn và chân tín hiệu.
 
 \subsection{Mạch máy chủ}
 \begin{figure}[H]
@@ -116,16 +79,9 @@ trong ba mục sau.
 \end{figure}
 
 Hình~\ref{fig:sch-server} là mạch máy chủ. Adapter J\_PWR1 cấp đường 5\,V chung; tụ hóa C1
-100\,µF đặt ngay đầu vào san phẳng gợn sóng của adapter. Hai servo SG90 lấy nguồn trực tiếp từ đường 5\,V thay vì từ chân 3V3 của bo, vì
-SG90 cần 4,8--6\,V và kéo dòng vài trăm mA lúc bắt đầu quay, vượt khả năng của bộ ổn áp nhỏ
-trên bo. Mỗi servo có một tụ 100\,µF riêng (C2, C3) đặt sát chân nguồn. Khi động cơ khởi
-động, dòng tức thời tăng vọt; nếu không có tụ, điện áp đường 5\,V sụt xuống và có thể làm
-ESP32-C3 tự khởi động lại. Tụ cấp phần dòng tức thời này tại chỗ, đặc biệt cần thiết khi cả
-hai servo quay cùng lúc trong chế độ cháy. Chân GND của adapter phải nối chung với GND của
-ESP32-C3 để xung PWM trên GPIO0 và GPIO1 có cùng mức tham chiếu với servo.
+100\,µF đặt tại đầu vào. Hai servo dùng đường 5\,V và chung GND với ESP32-C3. Các tụ C2 và C3 có trị số 100\,µF; tụ C4 tại chân nguồn của bo có trị số 10\,µF.
 
-Tụ C4 10\,µF đặt sát chân 5V của ESP32-C3 lọc nhiễu tần số cao và giữ ổn định điện áp vào bộ
-ổn áp 3,3\,V trên bo trong các đợt phát Wi-Fi công suất cao. Đầu ra 3V3 của bo cấp cho màn
+Đầu ra 3V3 của bo cấp cho màn
 hình, còi và hai cảm biến hồng ngoại ở cổng. Ngõ ra của hai cảm biến cổng nối vào GPIO5
 (cổng vào) và GPIO2 (cổng ra) với điện trở kéo lên nội được bật trong firmware. Còi nối vào
 GPIO9 và được firmware đặt ở mức cao ngay khi khởi tạo để còi im lặng. Màn hình ST7789 nối qua
@@ -139,24 +95,13 @@ hình luôn sáng.
 \caption{Sơ đồ nguyên lý Sensor Client: ESP8266, 5 cảm biến IR ô đỗ, cảm biến lửa và mực nước}\label{fig:sch-sensor}
 \end{figure}
 
-Hình~\ref{fig:sch-sensor} là mạch Sensor Client. Adapter J\_PWR2 cấp 5\,V qua tụ C5 100\,µF,
-sau đó qua hai diode chỉnh lưu 1N4007 (D1, D2) mắc nối tiếp để tạo đường VCC khoảng 3,6\,V cấp
-chung cho module ESP8266 và các cảm biến. Mỗi diode silic có điện áp rơi thuận khoảng 0,7\,V
-khi dẫn, nên điện áp sau hai diode là
-\begin{equation}
-  V_{CC} \approx V_{in} - 2V_F = 5 - 2\times0{,}7 = 3{,}6\ \text{V},
-\end{equation}
-nằm trong dải 3,0--3,6\,V của ESP8266. Cặp diode đảm nhiệm hai chức năng cùng lúc. Chức năng
-thứ nhất là hạ áp mà không cần IC ổn áp, phù hợp với linh kiện sẵn có và dòng tiêu thụ nhỏ
-của client. Chức năng thứ hai là bảo vệ ngược cực: nếu adapter bị cắm ngược, diode phân cực
-ngược và chặn dòng, bảo vệ ESP8266 cùng các module. Công suất tiêu tán trên mỗi diode là
-$P = V_F \cdot I \approx 0{,}7 \times 0{,}3 \approx 0{,}2$\,W ở đỉnh dòng khi phát Wi-Fi,
-thấp hơn nhiều so với định mức 1\,A của 1N4007. Hạn chế của phương án là $V_F$ thay đổi theo
-dòng tải, nên điện áp VCC dao động quanh 3,6\,V; tụ C5 phía trước giữ ổn định đầu vào.
+Hình~\ref{fig:sch-sensor} là mạch Sensor Client. Adapter J\_PWR2 cấp 5\,V cho mạch có tụ lọc C5 100\,µF;
+đường cấp nguồn VCC đi qua hai diode 1N4007 (D1 và D2) mắc nối tiếp.
 
 Năm cảm biến hồng ngoại IR1 đến IR5 cùng lấy nguồn từ đường VCC, ngõ ra OUT nối lần lượt vào
-GPIO16, 4, 14, 13 và 12. Vì cảm biến dùng chung nguồn với ESP8266, mức cao ở ngõ ra không vượt
-quá điện áp chịu đựng của chân vào. Cảm biến lửa FLM1 nối ngõ ra digital DO vào GPIO5, cảm biến mực
+GPIO16, 4, 14, 13 và 12.
+
+Cảm biến lửa FLM1 nối ngõ ra digital DO vào GPIO5, cảm biến mực
 nước WTR1 nối ngõ ra analog AO vào chân ADC A0.
 
 \subsection{Mạch RFID Client}
@@ -167,13 +112,12 @@ nước WTR1 nối ngõ ra analog AO vào chân ADC A0.
 \end{figure}
 
 Hình~\ref{fig:sch-rfid} là mạch RFID Client, có đường nguồn giống Sensor Client gồm adapter
-J\_PWR3, tụ C6 100\,µF và hai diode D3, D4. Tụ C6 có thêm vai trò ổn định điện áp khi hai
-ăng-ten RC522 đóng cắt trường từ 13,56\,MHz và khi ESP8266 phát gói tin. Hai đầu đọc U4 (cổng
+J\_PWR3, tụ C6 100\,µF và hai diode D3, D4.
+
+Hai đầu đọc U4 (cổng
 vào) và U5 (cổng ra) dùng chung bus SPI gồm SCK, MOSI, MISO ở GPIO14, 13, 12 và chân reset ở
 GPIO16; mỗi đầu đọc có chân chọn chip SDA riêng là GPIO5 và GPIO4, nên tại mỗi thời điểm chỉ
-một đầu đọc giao tiếp trên bus. Cảm biến DHT11 nối chân DATA vào GPIO2; đây là chân strapping
-của ESP8266, cần mức cao khi khởi động, và điện trở kéo lên sẵn có trên module DHT11 bảo đảm
-điều kiện này.
+một đầu đọc giao tiếp trên bus. Cảm biến DHT11 nối chân DATA vào GPIO2.
 
 \section{Thiết kế giao thức truyền thông}\label{sec:giaothuc}
 Sensor Client và RFID Client trao đổi với máy chủ bằng các bản tin JSON ngắn qua UDP.
@@ -197,9 +141,8 @@ Theo Bảng~\ref{tab:msg}, mỗi bản tin chỉ mang những trường cần th
 giới tin cậy mà mọi thiết bị trong mạng đều gửi tới được, máy chủ kiểm tra chặt từng bản tin
 bằng bộ đọc JSON tự viết, không cấp phát bộ nhớ động và chỉ chấp nhận đúng lược đồ: trạng thái ô
 đỗ phải đúng 5 phần tử 0 hoặc 1, mực nước 0--10\,000\,mm, nhiệt độ $-40$ đến 125\,°C, mã thẻ
-1--31 ký tự chữ, số, gạch nối; khóa lạ, khóa lặp hay dữ liệu thừa đều bị từ chối và trạng thái
-cũ được giữ nguyên. So với thư viện cJSON, cách làm này tránh phân mảnh bộ nhớ khi chạy lâu và
-giới hạn được thời gian xử lý mỗi bản tin.
+1--31 ký tự chữ, số, dấu gạch ngang hoặc dấu gạch dưới; khóa lạ, khóa lặp hay dữ liệu thừa đều bị từ chối và trạng thái
+cũ được giữ nguyên.
 
 Phía trang web, máy chủ cung cấp các API HTTP được liệt kê ở Bảng~\ref{tab:api}. Mọi lệnh làm
 thay đổi trạng thái dùng phương thức POST và phải mang mã PIN quản trị trong header
@@ -214,7 +157,7 @@ thay đổi trạng thái dùng phương thức POST và phải mang mã PIN qu�
 GET & \code{/api/parking} & Trạng thái ô đỗ, số chỗ trống, nhiệt độ, mực nước, cháy, ngập \\ \hline
 GET & \code{/api/barrier} & Trạng thái hai thanh chắn \\ \hline
 GET & \code{/api/rfid} & Xe trong bãi, lượt thanh toán đang chờ, 10 sự kiện gần nhất, doanh thu \\ \hline
-POST & \code{/api/barrier/<cổng>/<lệnh>} & Mở hoặc đóng cổng \code{in}, \code{out} hoặc \code{all} \\ \hline
+POST & \code{/api/barrier/<gate>/<action>} & Mở hoặc đóng cổng \code{in}, \code{out} hoặc \code{all} \\ \hline
 POST & \code{/api/payment/confirm} & Người vận hành xác nhận đã nhận tiền \\ \hline
 POST & \code{/api/rfid/remove} & Xóa một xe khỏi danh sách trong bãi \\ \hline
 POST & \code{/api/time} & Trình duyệt cung cấp giờ thực cho máy chủ \\
@@ -222,28 +165,22 @@ POST & \code{/api/time} & Trình duyệt cung cấp giờ thực cho máy chủ 
 \end{tabularx}
 \end{table}
 
-Các API trong Bảng~\ref{tab:api} được trang web gọi theo chu kỳ 1--2\,s. Cách hỏi vòng này không
-giữ trạng thái kết nối trên máy chủ, mỗi yêu cầu được xử lý xong là giải phóng, phù hợp với
-giới hạn bộ nhớ và số kết nối đồng thời của vi điều khiển; độ trễ thêm tối đa một giây là chấp
-nhận được với dữ liệu thay đổi theo giây.
+Trang quản lý đặt chu kỳ truy vấn \code{/api/parking} là 1\,000\,ms và \code{/api/rfid} là 2\,000\,ms bằng \code{setInterval}.
 
-\subsection{Bảo đảm không mất lượt quẹt thẻ}\label{sec:ack}
+\subsection{Xác nhận và gửi lại sự kiện RFID}\label{sec:ack}
 Khác với trạng thái cảm biến, sự kiện quẹt thẻ chỉ xảy ra một lần; mất gói đồng nghĩa với mất
 lượt quẹt. Thay vì chuyển sang TCP, hệ thống bổ sung đúng phần độ tin cậy cần thiết như ở phần
-giữa của Hình~\ref{fig:seq-rfid} ở Chương~\ref{chap:hienthuc}. Máy chủ ghi nhớ 16 giá trị \code{seq} gần nhất; gặp lại một
+giữa của Hình~\ref{fig:seq-rfid} ở Chương~\ref{chap:hienthuc}. ACK xác nhận máy chủ đã nhận bản tin hợp lệ. Máy chủ gửi ACK trước khi kiểm tra số thứ tự và ghi phiên vào flash. Vì vậy, ACK chưa xác nhận rằng cổng đã mở hoặc phiên đã được lưu. Máy chủ ghi nhớ 16 giá trị \code{seq} gần nhất; gặp lại một
 \code{seq} đã xử lý, máy chủ hiểu đó là bản gửi lại, chỉ trả xác nhận mà không xử lý lần hai.
 Giá trị \code{seq} khởi đầu từ một số ngẫu nhiên do bộ sinh số ngẫu nhiên phần cứng của ESP8266
-tạo ra mỗi lần khởi động rồi tăng dần, nên client không cần lưu gì vào flash.
+tạo ra mỗi lần khởi động rồi tăng dần. RFID Client lưu tối đa bốn sự kiện đang chờ xác nhận. Mỗi sự kiện được gửi tối đa sáu lần, tính cả lần đầu. Khi cả bốn vị trí đã đầy, một lượt quẹt mới có thể thay thế sự kiện chờ được gửi cách đây lâu nhất.
 
 \section{Thiết kế các chức năng chính}\label{sec:chucnang}
 Mục này trình bày cách hệ thống hiện thực các chức năng nêu ở Mục~\ref{sec:yeucau}. Các cơ chế
-được mô tả ở đây được dùng chung bởi nhiều use case ở Chương~\ref{chap:hienthuc}.
+được mô tả ở đây được dùng chung bởi nhiều ca sử dụng ở Chương~\ref{chap:hienthuc}.
 
 \subsection{Xác định trạng thái ô đỗ}\label{sec:f-slot}
-Sensor Client phải lọc nhiễu tín hiệu cảm biến ô đỗ vì mép xe và bánh xe làm tín hiệu hồng ngoại bật
-tắt liên tục trong vài chục mili giây khi xe đang lăn vào ô. Hình~\ref{fig:debounce} minh họa
-thuật toán: mỗi cảm biến có bộ đếm thời gian riêng, mức mới chỉ được chấp nhận khi giữ nguyên đủ
-50\,ms.
+Sensor Client chỉ chấp nhận trạng thái mới khi đầu vào đã ổn định trong 50\,ms. Hình~\ref{fig:debounce} minh họa điều kiện chuyển trạng thái trong mã nguồn.
 
 \begin{figure}[!htb]
 \centering
@@ -262,38 +199,29 @@ thuật toán: mỗi cảm biến có bộ đếm thời gian riêng, mức mớ
 \caption{Lọc nhiễu tín hiệu cảm biến ô đỗ}\label{fig:debounce}
 \end{figure}
 
-Thời gian 50\,ms được tinh chỉnh thực nghiệm từ giá trị ban đầu 250\,ms: đủ loại bỏ nhiễu mà
-vẫn tạo cảm giác tức thời. Ngoài việc gửi ngay khi có thay đổi, Sensor Client còn nhắc lại
-toàn bộ trạng thái mỗi giây; nhờ vậy, một gói UDP bị mất chỉ gây sai lệch tối đa một giây và
-tự được sửa ở lần gửi sau, không cần cơ chế truyền lại.
+Sensor Client gửi toàn bộ trạng thái khi có thay đổi và gửi lại theo chu kỳ cấu hình 1\,s.
 
 \subsection{Hiển thị tại cổng}\label{sec:f-tft}
 Khi trạng thái bãi thay đổi, tác vụ \code{udp\_server} của máy chủ đánh thức tác vụ màn hình bằng thông báo tác vụ
 ngay khi có dữ liệu mới. Màn hình dùng một bộ đệm khung $240\times240$ điểm ảnh 16 bit
-(115\,200 byte): toàn bộ giao diện được vẽ vào RAM rồi truyền một lần qua SPI 40\,MHz có DMA,
-mất khoảng 23\,ms. Tần số 40\,MHz bằng đúng một nửa xung nhịp 80\,MHz của khối SPI và thấp hơn
-giới hạn khoảng 62\,MHz của ST7789, chừa biên an toàn cho dây nối. Giao diện thực tế ở
+(115\,200 byte): toàn bộ giao diện được vẽ vào RAM rồi truyền một lần qua SPI dùng DMA; tần số xung được cấu hình là 40\,MHz.
+
+Giao diện thực tế ở
 Hình~\ref{fig:tft-live} gồm hàng trên là số chỗ trống, ô nhiệt độ và ô mực nước kèm một ảnh
 động trang trí; hàng giữa là năm ô đỗ; vùng chân màn hình dành cho hóa đơn và thông báo. Khi
-Sensor Client mất kết nối, dữ liệu cũ không còn được dùng để từ chối thẻ hay phát cảnh báo,
-tránh việc hệ thống hành động dựa trên trạng thái không còn đúng.
+Sensor Client mất kết nối, máy chủ bỏ qua số ô có xe đã cũ khi kiểm tra bãi đầy. Trạng thái cảnh báo cháy và ngập được giữ theo lần cập nhật gần nhất.
 
 \subsection{Đọc thẻ trên hai đầu đọc dùng chung bus}\label{sec:f-reader}
 RFID Client quét luân phiên hai đầu đọc và tại mỗi thời điểm chỉ bật ăng-ten của một đầu đọc.
-Hai đầu đọc cùng tần số 13,56\,MHz đặt gần nhau sẽ gây nhiễu chéo nếu cùng phát, nên cách bật
-luân phiên loại bỏ hoàn toàn vấn đề này. Sau khi bật ăng-ten, client chờ 4\,ms để thẻ thụ động
-nhận đủ năng lượng; độ khuếch đại được đặt ở mức 48\,dB để bù tầm đọc khi đầu đọc nằm sau thành
-hộp. Mã UID được
-đổi sang chuỗi hex trong bộ đệm cố định thay vì kiểu \code{String} của Arduino, để bộ nhớ heap
-khoảng 80\,KB của ESP8266 không bị phân mảnh khi chạy lâu.
+Sau khi bật ăng-ten, firmware chờ 4\,ms rồi đọc thẻ. Mức khuếch đại được đặt bằng \code{RxGain\_max}. UID được chuyển thành chuỗi hex trong bộ đệm có kích thước cố định.
 
 \subsection{Điều khiển thanh chắn}\label{sec:f-gate}
 Thanh chắn được nâng hạ bằng servo SG90. Servo được điều khiển bằng xung PWM chu kỳ 20\,ms
 do khối LEDC của ESP32-C3 tạo ra, trong đó độ rộng xung quyết định góc quay. Việc tạo xung bằng
 phần cứng giúp thanh chắn giữ đúng vị trí ngay cả khi CPU đang bận xử lý mạng hay vẽ màn hình.
 
-Việc đóng thanh chắn được hẹn bằng bộ hẹn giờ một lần \code{esp\_timer} thay vì một tác vụ hỏi
-vòng: hàm đóng được gọi đúng thời điểm với sai số micro giây và CPU không bị đánh thức vô ích.
+Firmware dùng bộ hẹn giờ một lần \code{esp\_timer} để kiểm tra điều kiện đóng thanh chắn.
+
 Hình~\ref{fig:fsm-gate} là máy trạng thái của một thanh chắn, dùng chung cho UC02, UC03, UC05 và
 UC06.
 
@@ -352,8 +280,8 @@ các nhánh bị từ chối.
 \fill (-7.5,0) circle (2pt);
 \draw[arr] (-7.5,0) -- (N.west);
 \draw[arr] ([yshift=2.5mm]N.east) -- node[lb,above,text width=2.7cm] {quẹt cổng vào, còn chỗ\\mở cổng vào} ([yshift=2.5mm]T.west);
-\draw[arr] ([yshift=-2.5mm]T.west) -- node[lb,below,text width=2.7cm] {quẹt cổng ra, tắt QR\\tính phí, mở cổng ra} ([yshift=-2.5mm]N.east);
-\draw[arr] (T.east) -- node[lb,above,text width=3.2cm] {quẹt cổng ra, bật QR\\chốt phí} (C.west);
+\draw[arr] ([yshift=-2.5mm]T.west) -- node[lb,below,text width=2.7cm] {thu phí tại quầy\\xác nhận, mở cổng ra} ([yshift=-2.5mm]N.east);
+\draw[arr] (T.east) -- node[lb,above,text width=3.2cm] {quẹt cổng ra\\chốt phí} (C.west);
 \draw[arr] ([xshift=-7mm]C.north) .. controls +(-0.2,1.1) and +(0.2,1.1) .. node[lb,above,pos=0.5,text width=2.9cm] {quẹt lại, hiện lại QR cũ} ([xshift=7mm]C.north);
 \draw[arr] ([xshift=-3.5mm]T.north) -- node[lb,left,pos=0.68,text width=1.9cm] {quẹt cổng vào} ([xshift=-3.5mm]R2.south);
 \draw[arr] ([xshift=3.5mm]R2.south) -- node[lb,right,pos=0.32,text width=1.9cm] {thông báo 5\,s} ([xshift=3.5mm]T.north);
@@ -369,14 +297,14 @@ Hình~\ref{fig:fsm-card} cho thấy hai trạng thái bị từ chối đều t�
 lệ, thông báo cũ bị xóa ngay để không che thông tin mới. Điều kiện bãi đầy được xét theo cả số
 phiên lẫn số ô có xe theo cảm biến, nên hệ thống vẫn từ chối thẻ mới khi có xe đã vào mà không
 quẹt thẻ. Trường hợp xe đi theo không quẹt thẻ được phát hiện bằng cách so sánh liên tục hai số
-này; ngưỡng 15\,s đủ dài để một xe vừa quẹt thẻ có thời gian đi vào ô mà không gây báo động nhầm.
+này; ngưỡng 15\,s là thời gian chờ được đặt trong firmware.
 
 \subsection{Tính phí và sinh mã VietQR}\label{sec:f-fee}
 Phí gửi xe được tính theo giờ, làm tròn lên và tối thiểu một giờ:
 \begin{equation}
-  \text{phí} = 5000 \times \max\left(1, \left\lceil \frac{t}{3600} \right\rceil\right)\ \text{VNĐ},
+  \text{phí} = 5000 \times \max\left(1\text{,} \left\lceil \frac{\mathrm{t}}{3600} \right\rceil\right)\ \text{VNĐ}\text{,}
 \end{equation}
-trong đó $t$ là thời gian gửi tính bằng giây. Công thức được hiện thực bằng phép chia nguyên
+trong đó $\mathrm{t}$ là thời gian gửi tính bằng giây. Công thức được hiện thực bằng phép chia nguyên
 \code{(t + 3599) / 3600} để tránh số thực, và bão hòa ở giá trị lớn nhất của kiểu 32 bit nếu tràn.
 Mã thanh toán gồm tiền tố \code{PK} và 6 ký tự lấy từ 31 chữ in hoa và chữ số; các ký tự
 \code{I}, \code{L}, \code{O}, \code{0}, \code{1} bị loại vì dễ nhầm khi người lái phải gõ tay.
@@ -404,7 +332,7 @@ Bảng~\ref{tab:vietqr} liệt kê các trường trong chuỗi do máy chủ si
 
 Trường 54 trong Bảng~\ref{tab:vietqr} cố định số tiền đúng bằng phí, và trường 62 cố định nội
 dung chuyển khoản là mã thanh toán. Hàm sinh chuỗi được kiểm chứng trùng từng byte với một mã
-VietQR mẫu đã công bố và với giá trị kiểm tra chuẩn \code{0x29B1} của CRC16-CCITT. Mã QR được
+VietQR mẫu trong bộ kiểm thử và với giá trị kiểm tra chuẩn \code{0x29B1} của CRC16-CCITT. Mã QR được
 vẽ bằng thư viện qrcodegen với mức sửa lỗi M; việc sinh mã hoàn toàn trên chip nên vẫn hoạt động
 khi mất Internet. Nếu số tài khoản không hợp lệ hoặc để trống, máy chủ không vẽ mã QR mà hiển
 thị \code{PAY AT BOOTH} và việc thu tiền chuyển sang UC04.
@@ -412,44 +340,31 @@ thị \code{PAY AT BOOTH} và việc thu tiền chuyển sang UC04.
 \subsection{Đối soát giao dịch qua SePay}\label{sec:f-sepay}
 SePay theo dõi biến động số dư của tài khoản nhận và cho phép truy vấn giao dịch qua API. Khi
 một lượt thanh toán bắt đầu, tác vụ \code{sepay} ghi lại mã giao dịch mới nhất, sau đó cứ 3\,s
-truy vấn các giao dịch có mã lớn hơn, nên chỉ những giao dịch xảy ra sau khi hiển thị mã QR mới
-được xét. Một giao dịch được chấp nhận khi nội dung chứa mã thanh toán và số tiền đúng bằng phí;
+truy vấn các giao dịch có mã lớn hơn, nên mốc đối soát là kết quả truy vấn đầu tiên cho lượt này. Một giao dịch được chấp nhận khi nội dung chứa mã thanh toán và số tiền đúng bằng phí;
 chuyển dư hay thiếu đều không mở cổng, vì mã QR chỉ điền sẵn số tiền còn việc khóa ô nhập là do
-từng ứng dụng ngân hàng quyết định. Thử nghiệm thực tế cho thấy một số ví điện tử như MoMo thay
-nội dung chuyển khoản bằng nội dung riêng, do đó máy chủ chấp nhận thêm giao dịch vào đúng tài
-khoản nhận với số tiền đúng bằng phí. Vì mỗi lúc chỉ có một xe thanh toán và chỉ xét giao dịch
-sau thời điểm hiện mã, cách đối soát này không nhầm lẫn giữa các xe.
-
-Máy chủ dùng phương pháp hỏi vòng thay vì webhook vì ESP32-C3 nằm sau NAT của router, không có
-địa chỉ để Internet gọi tới. Chu kỳ 3\,s cho độ trễ vài giây, thấp hơn nhiều so với giới hạn
-2--3 yêu cầu mỗi giây của SePay. Kết nối HTTPS cần thêm bộ nhớ cho TLS trong khi RAM đã chật bởi
-bộ đệm khung 115\,KB; vì vậy bộ đệm TLS chỉ được cấp phát trong lúc gửi yêu cầu, và tác vụ ảnh
-động trả lại hai bộ đệm 18\,KB của nó trong lúc có xe đang thanh toán, khi ảnh động vốn không
-hiển thị.
+từng ứng dụng ngân hàng quyết định. Ngoài nhánh khớp mã thanh toán, hàm đối soát còn chấp nhận giao dịch mới có đúng số tiền và tài khoản nhận. Nhánh này không kiểm tra danh tính người chuyển. Máy chủ truy vấn SePay qua HTTPS.
 
 \subsection{Đo mực nước và nhiệt độ}\label{sec:f-env}
 Sensor Client đọc ADC 10 bit ở chân A0 mỗi 250\,ms và quy đổi tuyến tính sang milimét:
 \begin{equation}
-  h =
+  \mathrm{h} =
   \begin{cases}
-  0, & r \le 20 \\[2pt]
-  \dfrac{\min(r, 700) - 20}{700 - 20} \cdot 40\ \text{mm}, & r > 20
+  0\text{,} & \mathrm{r} \le 20 \\[2pt]
+  \dfrac{\min(\mathrm{r}\text{,} 700) - 20}{700 - 20} \cdot 40\ \text{mm}\text{,} & \mathrm{r} \mathrel{\text{>}} 20
   \end{cases}
 \end{equation}
-trong đó $r$ là giá trị ADC, 20 là mức nhiễu khi cảm biến khô, 700 là giá trị khi ngập toàn bộ
-vùng đo và 40\,mm là chiều dài vùng đo. Chu kỳ 250\,ms được chọn vì đọc ADC quá dày ảnh hưởng tới
-Wi-Fi trên ESP8266, trong khi mực nước thay đổi chậm. Khoảng trễ 5\,mm giữa ngưỡng bật 20\,mm và
-ngưỡng tắt 15\,mm ngăn cảnh báo bật tắt liên tục khi mực nước dao động quanh một ngưỡng.
+Trong công thức trên, $\mathrm{r}$ là số đọc ADC. Hai mốc ADC 20 và 700, cùng toàn thang 40\,mm, là hằng số quy đổi trong \file{SensorClient/SensorClient.ino}. Máy chủ dùng giá trị đã quy đổi để bật cảnh báo ở 20\,mm và tắt ở 15\,mm.
 
 Nhiệt độ hiển thị trên trang web và màn hình do RFID Client đo. Client đọc cảm biến DHT11 mỗi
-5\,s, vì DHT11 cần tối thiểu 1\,s giữa hai lần đọc và nhiệt độ môi trường thay đổi chậm, rồi gửi
+5\,s và gửi
 bản tin \code{climate} độc lập với việc có xe quẹt thẻ hay không. Nếu DHT11 trả về giá trị lỗi,
 client giữ giá trị hợp lệ gần nhất thay vì gửi số sai.
 
 \subsection{Lưu trữ dữ liệu và đồng bộ thời gian}\label{sec:f-storage}
-Nhật ký sự kiện được lưu trong bộ đệm vòng 10 phần tử, dưới 1\,KB RAM và không dùng heap. Toàn bộ phiên gửi xe, nhật ký, doanh thu và đồng hồ được lưu vào vùng NVS trên flash sau mỗi lần
-quẹt thẻ và định kỳ 5 phút. Với khoảng 300 lần ghi mỗi ngày và cơ chế rải đều lượt ghi của NVS,
-tuổi thọ flash không bị ảnh hưởng đáng kể. Máy chủ không có đồng hồ thời gian thực; trình duyệt
+Nhật ký sự kiện được lưu trong bộ đệm vòng 10 phần tử, được cấp phát tĩnh. Toàn bộ phiên gửi xe, nhật ký, doanh thu và đồng hồ được lưu vào vùng NVS trên flash sau mỗi lần
+quẹt thẻ. Khi xử lý bản tin trạng thái bãi, máy chủ kiểm tra mốc ghi định kỳ 5 phút.
+
+Máy chủ không có đồng hồ thời gian thực; trình duyệt
 của người vận hành gửi giờ thực qua \code{POST /api/time}, và máy chủ dời các mốc thời gian cũ
 theo đó.
 
@@ -491,10 +406,10 @@ thiệu ở Hình~\ref{fig:overview}.
 
 Hình~\ref{fig:model-back} là mặt ngoài vách sau, nơi đặt toàn bộ Sensor Client: năm module
 hồng ngoại có đầu phát và thu xuyên qua lỗ khoét, hướng vào giữa từng ô; module lửa màu đỏ
-nằm giữa dãy để góc nhìn khoảng 60° bao quát cả năm ô; module ESP8266, tụ lọc, hai diode và
+nằm giữa dãy; module ESP8266, tụ lọc, hai diode và
 jack nguồn nằm cùng mặt vách. Bố trí module và dây ở mặt ngoài giữ cho lòng bãi gọn và mỗi
 module vẫn có biến trở để chỉnh ngưỡng theo độ phản xạ thực tế. Cảm biến mực nước đặt sát
-sàn ở góc trong của vách sau, nơi nước đọng trước tiên. Hình~\ref{fig:gate-ir} là cổng ra:
+sàn ở góc trong của vách sau. Hình~\ref{fig:gate-ir} là cổng ra:
 module hồng ngoại gắn ngay trước trục servo, tia hồng ngoại chiếu ngang làn xe dưới cần chắn.
 Hình~\ref{fig:box} là bên trong hộp điều khiển, nơi đặt máy chủ ESP32-C3, còi, RFID Client
 cùng mạch nguồn của nó; hai đầu đọc RC522 gắn ở hai thành hộp, mỗi đầu đọc quay ra một làn,
