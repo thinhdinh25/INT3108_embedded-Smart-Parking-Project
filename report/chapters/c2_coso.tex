@@ -8,7 +8,9 @@ hiện một nhóm chức năng cố định, chạy liên tục với tài nguy
 với thế giới thực qua cảm biến và cơ cấu chấp hành. Thành phần trung tâm là vi điều khiển,
 tích hợp CPU, bộ nhớ và các khối ngoại vi như GPIO, bộ định thời, PWM, SPI, ADC và Wi-Fi trên
 cùng một chip. Một hệ thống nhúng được gọi là thời gian thực khi tính đúng đắn phụ thuộc cả
-vào thời điểm có kết quả. Trong đề tài, firmware dùng bộ hẹn giờ cho thanh chắn, cơ chế thông báo tác vụ cho màn hình và bộ lọc theo thời gian cho đầu vào cảm biến.
+vào thời điểm có kết quả. Trong đề tài, thanh chắn phải đóng đúng thời hạn, cảnh báo cháy
+phải mở thanh chắn ngay và màn hình phải phản ánh chỗ trống gần như tức thời. Đây là các
+ràng buộc thời gian mềm: trễ một chút không gây hỏng hóc nhưng làm giảm chất lượng dịch vụ.
 
 FreeRTOS là nhân hệ điều hành thời gian thực mã nguồn mở được Espressif tích hợp sẵn trong
 ESP-IDF. Mỗi công việc được tổ chức thành một tác vụ có ngăn xếp và mức ưu tiên riêng; bộ
@@ -105,7 +107,14 @@ dụng các giao thức sau:
 Wi-Fi ở chế độ station được chọn vì cả ESP32-C3 và ESP8266 đều tích hợp sẵn Wi-Fi, nên không
 cần thêm module truyền thông hay kéo dây tín hiệu giữa các thiết bị. Khi cùng nối vào router của
 bãi, các thiết bị vừa liên lạc được với nhau vừa có đường ra Internet để máy chủ truy vấn SePay.
-Sensor Client gửi trạng thái khi có thay đổi và lặp lại theo chu kỳ cấu hình 1\,s. Với lượt quẹt thẻ, RFID Client dùng số thứ tự và chờ bản tin xác nhận như mô tả ở Mục~\ref{sec:ack}.
+Băng tần 2,4\,GHz là bắt buộc vì hai loại vi điều khiển không hỗ trợ băng 5\,GHz; bù lại, sóng
+2,4\,GHz xuyên tường tốt hơn, phù hợp với bãi xe có nhiều vách ngăn.
+
+UDP được chọn thay cho TCP hay MQTT vì Sensor Client gửi trạng thái khi có thay đổi và lặp lại mỗi
+giây: khi một gói bị mất, máy chủ có thể cập nhật lại trạng thái từ gói tiếp theo, trong khi chi phí bắt tay, bộ đệm cho mỗi kết
+nối và máy chủ trung gian (broker) là đáng kể trên vi điều khiển. Khả năng gửi quảng bá của UDP
+còn giúp client không cần cấu hình địa chỉ của máy chủ. Riêng sự kiện quẹt thẻ không được gửi
+lặp lại, nên hệ thống bổ sung cơ chế xác nhận và gửi lại ở tầng ứng dụng (Mục~\ref{sec:ack}).
 
 HTTP được chọn cho giao diện quản lý vì mọi trình duyệt trên điện thoại và máy tính đều hỗ trợ,
 người vận hành không phải cài ứng dụng; dữ liệu trả về dạng JSON được JavaScript trong trang

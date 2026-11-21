@@ -47,6 +47,27 @@ Dễ sử dụng & Truy cập bằng trình duyệt trên điện thoại; thanh
 \end{tabularx}
 \end{table}
 
+Mỗi yêu cầu trong Bảng~\ref{tab:nfr} xuất phát từ một rủi ro cụ thể khi vận hành bãi đỗ.
+
+Yêu cầu về thời gian đáp ứng xuất phát từ cách người lái sử dụng hệ thống. Người lái quyết
+định vào bãi và chọn ô ngay khi tới cổng, nên nếu màn hình chậm hơn thực tế, người lái có thể
+được dẫn tới một ô vừa có xe khác đỗ vào. Tương tự, thời gian chờ sau khi quẹt thẻ phải đủ ngắn
+để người lái nhận được phản hồi ngay và các xe phía sau không bị ùn lại ở cổng.
+
+Yêu cầu về an toàn xuất phát từ việc thanh chắn là cơ cấu cơ khí chuyển động ngay trên làn xe.
+Hạ thanh chắn khi xe chưa đi qua sẽ làm hỏng xe; giữ cổng đóng khi có cháy sẽ cản trở thoát
+hiểm; cho xe vào khi bãi đang ngập sẽ làm hỏng động cơ xe. Vì vậy các điều kiện an toàn được đặt
+lên trên mọi lệnh điều khiển khác, kể cả lệnh của người vận hành.
+
+Yêu cầu về độ tin cậy xuất phát từ việc mỗi lượt quẹt thẻ gắn với tiền. Nếu mất một lượt quẹt
+vào, xe ra sẽ không tính được phí; nếu mất điện làm mất danh sách phiên, toàn bộ doanh thu đang
+chờ thu bị mất. Mạng Wi-Fi và giao thức UDP không bảo đảm gói tin tới nơi, nên hệ thống phải tự
+bổ sung cơ chế xác nhận và lưu trữ.
+
+Yêu cầu về bảo mật xuất phát từ việc trang web truy cập được từ mọi thiết bị trong mạng, trong
+khi các lệnh mở cổng hay xác nhận thanh toán ảnh hưởng trực tiếp tới tiền và an ninh của bãi.
+Khóa truy cập SePay và mật khẩu Wi-Fi nếu nằm trong mã nguồn sẽ bị lộ khi chia sẻ mã nguồn.
+
 Các khoảng thời gian trong bảng là tham số cấu hình của firmware và trang web. Bộ hẹn giờ thanh chắn và điều kiện cảm biến tại cổng được mô tả ở Mục~\ref{sec:f-gate}.
 
 \section{Kiến trúc tổng thể}\label{sec:trienkhai}
@@ -65,11 +86,14 @@ thoại của người vận hành đều kết nối tới router ở chế đ�
 Người vận hành truy cập máy chủ bằng tên cố định \code{parking.local}; máy chủ chủ động thông
 báo lại tên này khi nhận sự kiện cấp địa chỉ IP. Router đồng thời là đường ra Internet để máy chủ truy vấn giao dịch trên SePay.
 
+Kiến trúc tách thành ba thiết bị mang lại hai lợi ích: đặt cảm biến gần nơi cần đo để dây
+ngắn, và cô lập lỗi khi một thiết bị mất điện. Đổi lại, hệ thống phụ thuộc vào mạng Wi-Fi.
+
 Khi mất bản tin cảm biến, máy chủ xác định trạng thái kết nối theo thời điểm nhận bản tin gần nhất (Mục~\ref{sec:uc08}).
 
 \section{Thiết kế phần cứng}\label{sec:phancung}
 Mạch điện của hệ thống gồm ba bản vẽ, mỗi bản vẽ ứng với một thiết bị và có đầu vào nguồn
-5\,V riêng, cấp qua jack DC 5,5\,mm. Ba sơ đồ dưới đây thể hiện cách nối nguồn và chân tín hiệu.
+5\,V riêng, cấp qua jack DC 5,5\,mm. Servo SG90 cần điện áp 4,8--6\,V. Bo ESP32-C3 SuperMini nhận nguồn 5\,V và dùng bộ ổn áp trên bo để cấp 3,3\,V cho ngoại vi. Ba sơ đồ dưới đây thể hiện cách nối nguồn và chân tín hiệu.
 
 \subsection{Mạch máy chủ}
 \begin{figure}[H]
@@ -80,6 +104,8 @@ Mạch điện của hệ thống gồm ba bản vẽ, mỗi bản vẽ ứng v�
 
 Hình~\ref{fig:sch-server} là mạch máy chủ. Adapter J\_PWR1 cấp đường 5\,V chung; tụ hóa C1
 100\,µF đặt tại đầu vào. Hai servo dùng đường 5\,V và chung GND với ESP32-C3. Các tụ C2 và C3 có trị số 100\,µF; tụ C4 tại chân nguồn của bo có trị số 10\,µF.
+
+Hai servo lấy nguồn trực tiếp từ đường 5\,V. Chân GND chung tạo mức tham chiếu cho xung PWM trên GPIO0 và GPIO1. Các tụ C2 và C3 đặt tại nhánh cấp nguồn servo để hạn chế sụt áp khi động cơ khởi động.
 
 Đầu ra 3V3 của bo cấp cho màn
 hình, còi và hai cảm biến hồng ngoại ở cổng. Ngõ ra của hai cảm biến cổng nối vào GPIO5
@@ -180,6 +206,8 @@ Mục này trình bày cách hệ thống hiện thực các chức năng nêu �
 được mô tả ở đây được dùng chung bởi nhiều ca sử dụng ở Chương~\ref{chap:hienthuc}.
 
 \subsection{Xác định trạng thái ô đỗ}\label{sec:f-slot}
+Mỗi cảm biến ô đỗ có một bộ đếm thời gian riêng để lọc các lần đổi mức ngắn khi xe đi qua vùng phát hiện.
+
 Sensor Client chỉ chấp nhận trạng thái mới khi đầu vào đã ổn định trong 50\,ms. Hình~\ref{fig:debounce} minh họa điều kiện chuyển trạng thái trong mã nguồn.
 
 \begin{figure}[!htb]
@@ -342,7 +370,7 @@ SePay theo dõi biến động số dư của tài khoản nhận và cho phép 
 một lượt thanh toán bắt đầu, tác vụ \code{sepay} ghi lại mã giao dịch mới nhất, sau đó cứ 3\,s
 truy vấn các giao dịch có mã lớn hơn, nên mốc đối soát là kết quả truy vấn đầu tiên cho lượt này. Một giao dịch được chấp nhận khi nội dung chứa mã thanh toán và số tiền đúng bằng phí;
 chuyển dư hay thiếu đều không mở cổng, vì mã QR chỉ điền sẵn số tiền còn việc khóa ô nhập là do
-từng ứng dụng ngân hàng quyết định. Ngoài nhánh khớp mã thanh toán, hàm đối soát còn chấp nhận giao dịch mới có đúng số tiền và tài khoản nhận. Nhánh này không kiểm tra danh tính người chuyển. Máy chủ truy vấn SePay qua HTTPS.
+từng ứng dụng ngân hàng quyết định. Ngoài nhánh khớp mã thanh toán, hàm đối soát còn chấp nhận giao dịch mới có đúng số tiền và tài khoản nhận. Nhánh này không kiểm tra danh tính người chuyển. Máy chủ truy vấn SePay qua HTTPS. Cách hỏi vòng cho phép máy chủ nằm sau NAT của router chủ động lấy giao dịch. Trong lúc thanh toán, tác vụ ảnh động trả lại bộ đệm để dành bộ nhớ cho kết nối TLS.
 
 \subsection{Đo mực nước và nhiệt độ}\label{sec:f-env}
 Sensor Client đọc ADC 10 bit ở chân A0 mỗi 250\,ms và quy đổi tuyến tính sang milimét:
@@ -353,7 +381,7 @@ Sensor Client đọc ADC 10 bit ở chân A0 mỗi 250\,ms và quy đổi tuyế
   \dfrac{\min(\mathrm{r}\text{,} 700) - 20}{700 - 20} \cdot 40\ \text{mm}\text{,} & \mathrm{r} \mathrel{\text{>}} 20
   \end{cases}
 \end{equation}
-Trong công thức trên, $\mathrm{r}$ là số đọc ADC. Hai mốc ADC 20 và 700, cùng toàn thang 40\,mm, là hằng số quy đổi trong \file{SensorClient/SensorClient.ino}. Máy chủ dùng giá trị đã quy đổi để bật cảnh báo ở 20\,mm và tắt ở 15\,mm.
+Trong công thức trên, $\mathrm{r}$ là số đọc ADC. Hai mốc ADC 20 và 700, cùng toàn thang 40\,mm, là hằng số quy đổi trong \file{SensorClient/SensorClient.ino}. Máy chủ dùng giá trị đã quy đổi để bật cảnh báo ở 20\,mm và tắt ở 15\,mm. Hai ngưỡng khác nhau giúp tránh bật tắt cảnh báo liên tục khi mực nước dao động quanh ngưỡng bật.
 
 Nhiệt độ hiển thị trên trang web và màn hình do RFID Client đo. Client đọc cảm biến DHT11 mỗi
 5\,s và gửi
